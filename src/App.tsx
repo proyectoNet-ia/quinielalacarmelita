@@ -129,7 +129,28 @@ export default function App() {
 
   // --- Formulario Suscripción (Próximamente) ---
   const [subName, setSubName] = useState('');
+  const [subCountryCode, setSubCountryCode] = useState('+52');
   const [subPhone, setSubPhone] = useState('');
+
+  const toCapitalCase = (str: string) => {
+    return str
+      .toLowerCase()
+      .split(' ')
+      .filter(word => word.length > 0)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+  };
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,20 +159,33 @@ export default function App() {
       return;
     }
 
+    const capitalizedName = toCapitalCase(subName);
+    const fullPhone = `${subCountryCode} ${subPhone}`;
+
     try {
       setLoading(true);
+      // Guardar en la base de datos
       const { error } = await supabase
         .from('pre_registrations')
         .insert([{
-          name: subName.trim(),
-          phone: subPhone.trim()
+          name: capitalizedName,
+          phone: fullPhone
         }]);
 
       if (error) throw error;
 
-      showAlert('success', '¡Registro exitoso! Te avisaremos por WhatsApp en cuanto iniciemos.');
+      showAlert('success', '¡Registro exitoso! Redirigiendo a WhatsApp...');
       setSubName('');
       setSubPhone('');
+
+      // Enviar mensaje al número de WhatsApp del administrador (312 244 0708)
+      // Código de país de México: 52
+      const adminWhatsAppNumber = '523122440708';
+      const textMessage = `Hola, estoy interesado en participar en las Quinielas La Carmelita. Mi nombre es ${capitalizedName} y mi teléfono es ${fullPhone}.`;
+      const waUrl = `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(textMessage)}`;
+      
+      // Abrir en una pestaña nueva
+      window.open(waUrl, '_blank');
     } catch (err: any) {
       showAlert('error', 'Error al registrar suscripción. Intenta de nuevo.');
       console.error(err);
@@ -1289,20 +1323,32 @@ export default function App() {
                     className="form-control" 
                     placeholder="Ej. Carlos Mendoza" 
                     value={subName} 
-                    onChange={e => setSubName(e.target.value)} 
+                    onChange={e => setSubName(e.target.value)}
+                    onBlur={() => setSubName(toCapitalCase(subName))}
                     required 
                   />
                 </div>
                 <div className="form-group">
-                  <label>Número de WhatsApp (10 dígitos)</label>
-                  <input 
-                    type="tel" 
-                    className="form-control" 
-                    placeholder="Ej. 3312345678" 
-                    value={subPhone} 
-                    onChange={e => setSubPhone(e.target.value)} 
-                    required 
-                  />
+                  <label>Número de WhatsApp</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      className="form-control"
+                      style={{ width: '95px', padding: '12px 6px', textAlign: 'center', fontSize: '0.9rem' }}
+                      value={subCountryCode}
+                      onChange={e => setSubCountryCode(e.target.value)}
+                    >
+                      <option value="+52">🇲🇽 +52</option>
+                      <option value="+1">🇺🇸 +1</option>
+                    </select>
+                    <input 
+                      type="tel" 
+                      className="form-control" 
+                      placeholder="(312) 244-0708" 
+                      value={subPhone} 
+                      onChange={e => setSubPhone(formatPhoneNumber(e.target.value))} 
+                      required 
+                    />
+                  </div>
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
                   Avisarme en el Lanzamiento
