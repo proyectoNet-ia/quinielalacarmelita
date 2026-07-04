@@ -160,23 +160,14 @@ export default function App() {
 
       if (error) throw error;
 
-      showAlert('success', '¡Registro exitoso! Redirigiendo a WhatsApp...');
+      showAlert('success', '¡Registro exitoso! Redirigiendo a la comunidad de WhatsApp...');
       setSubName('');
 
-      // Enviar mensaje al número de WhatsApp del administrador (312 244 0708)
-      // Código de país de México: 52
-      const adminWhatsAppNumber = '523122440708';
-      const textMessage = `Hola, estoy interesado en participar en La Carmelita. Mi nombre es ${capitalizedName}.`;
-      
-      // Detectar si el usuario está en móvil o en PC para abrir la versión adecuada
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      const waUrl = isMobile
-        ? `https://api.whatsapp.com/send?phone=${adminWhatsAppNumber}&text=${encodeURIComponent(textMessage)}`
-        : `https://web.whatsapp.com/send?phone=${adminWhatsAppNumber}&text=${encodeURIComponent(textMessage)}`;
+      // Redirigir al enlace oficial de la Comunidad de WhatsApp de La Carmelita
+      const communityUrl = 'https://chat.whatsapp.com/KT4bJ1hXCqSHdlDs5mnGzj';
       
       // Abrir en una pestaña nueva
-      window.open(waUrl, '_blank');
+      window.open(communityUrl, '_blank');
     } catch (err: any) {
       showAlert('error', 'Error al registrar suscripción. Intenta de nuevo.');
       console.error(err);
