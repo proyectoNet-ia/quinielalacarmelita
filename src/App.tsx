@@ -1327,7 +1327,7 @@ export default function App() {
               </div>
 
               <h2 style={{ fontFamily: "'Cavorting', cursive, sans-serif", fontSize: '3.2rem', fontWeight: 'normal', marginBottom: '8px' }}>¡Gran Lanzamiento!</h2>
-              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.15rem', fontStyle: 'italic', fontWeight: '600' }}>
+              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.0rem', fontStyle: 'italic', fontWeight: '600', lineHeight: '1.2' }}>
                 La quiniela con la tradición del barrio
               </h3>
               
