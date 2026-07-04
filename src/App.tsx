@@ -1316,8 +1316,8 @@ export default function App() {
               <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.2rem' }}>Quinielas La Carmelita</h3>
               
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6' }}>
-                Estamos preparando la mejor plataforma interactiva para gestionar y jugar quinielas deportivas de tus torneos favoritos. 
-                Suscríbete ahora para recibir una alerta instantánea por WhatsApp cuando iniciemos.
+                ¡Demuestra tus conocimientos en fútbol, compite contra otros apasionados y gana espectaculares premios en efectivo en cada jornada! 
+                Regístrate ahora para asegurar tu lugar en nuestra comunidad y recibir tu acceso exclusivo.
               </p>
 
               {/* Formulario de Suscripción */}
@@ -1357,7 +1357,7 @@ export default function App() {
                   </div>
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
-                  Avisarme en el Lanzamiento
+                  Unirme a la Comunidad
                 </button>
               </form>
             </div>
