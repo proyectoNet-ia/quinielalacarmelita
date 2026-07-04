@@ -181,7 +181,7 @@ export default function App() {
       // Enviar mensaje al número de WhatsApp del administrador (312 244 0708)
       // Código de país de México: 52
       const adminWhatsAppNumber = '523122440708';
-      const textMessage = `Hola, estoy interesado en participar en las Quinielas La Carmelita. Mi nombre es ${capitalizedName} y mi teléfono es ${fullPhone}.`;
+      const textMessage = `Hola, estoy interesado en participar en La Carmelita. Mi nombre es ${capitalizedName} y mi teléfono es ${fullPhone}.`;
       
       // Detectar si el usuario está en móvil o en PC para abrir la versión adecuada
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
