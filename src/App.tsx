@@ -1310,30 +1310,44 @@ export default function App() {
               padding: '40px 20px',
               boxShadow: 'var(--shadow-lg)'
             }}>
-              {/* Balón o Icono Principal */}
-              <div style={{ 
-                width: '80px', 
-                height: '80px', 
-                borderRadius: 'var(--radius-full)', 
-                background: 'var(--primary-glow)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                margin: '0 auto 24px',
-                border: '2px solid var(--primary)',
-                boxShadow: 'var(--shadow-glow)'
-              }}>
-                <Trophy size={40} color="var(--primary)" />
+              {/* Badge Elegante con Animación de Pulso */}
+              <div 
+                className="animate-pulse-glow"
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'rgba(224, 184, 40, 0.1)',
+                  border: '1px solid var(--primary)',
+                  color: 'var(--primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.15em',
+                  marginBottom: '24px'
+                }}
+              >
+                Próximamente
               </div>
 
-              <h2 style={{ fontFamily: "'Cavorting', cursive, sans-serif", fontSize: '3.2rem', fontWeight: 'normal', marginBottom: '8px' }}>¡Gran Lanzamiento!</h2>
-              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.0rem', fontStyle: 'italic', fontWeight: '600', lineHeight: '1.2' }}>
-                La quiniela con la tradición del barrio
-              </h3>
+              {/* Logo Principal Vertical con Animación de Flotado */}
+              <img 
+                src="/LOGO LA CARMELITA VERTICAL.png" 
+                alt="Logo La Carmelita Vertical" 
+                className="animate-float"
+                style={{ 
+                  width: '160px', 
+                  height: 'auto', 
+                  maxHeight: '160px',
+                  objectFit: 'contain',
+                  margin: '0 auto 24px',
+                  display: 'block'
+                }} 
+              />
               
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6' }}>
-                ¡Demuestra tus conocimientos en fútbol, compite contra otros apasionados y gana espectaculares premios en efectivo en cada jornada! 
-                Regístrate ahora para asegurar tu lugar en nuestra comunidad y recibir tu acceso exclusivo.
+                ¡Demuestra tus conocimientos en fútbol, compite contra otros apasionados y <strong style={{ color: 'var(--primary)' }}>gana espectaculares premios en efectivo</strong> en cada jornada! 
+                Regístrate ahora para <strong style={{ color: 'var(--primary)' }}>asegurar tu lugar en nuestra comunidad</strong> y recibir tu <strong style={{ color: 'var(--primary)' }}>acceso exclusivo</strong>.
               </p>
 
               {/* Formulario de Suscripción */}
