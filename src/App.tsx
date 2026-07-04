@@ -252,6 +252,15 @@ export default function App() {
       }
     });
 
+    // 3. Detectar acceso secreto de Login/Admin mediante parámetro de URL (?login=true)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'true') {
+      setActiveTab('login');
+      setAuthView('user-login');
+      // Limpiar el parámetro de la barra de direcciones para mantenerlo sigiloso
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     loadInitialData();
 
     return () => subscription.unsubscribe();
@@ -1115,28 +1124,7 @@ export default function App() {
               <LogOut size={18} />
             </button>
           </div>
-        ) : (
-          <button 
-            style={{ 
-              background: 'transparent', 
-              border: 'none', 
-              cursor: 'pointer', 
-              padding: '8px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'var(--text-muted)',
-              opacity: 0.4,
-              transition: 'opacity 0.2s'
-            }}
-            onClick={() => { setActiveTab('login'); setAuthView('user-login'); }}
-            title="Ingresar"
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.4'}
-          >
-            <i className="fa-solid fa-lock" style={{ fontSize: '1.1rem' }}></i>
-          </button>
-        )}
+        ) : null}
       </header>
 
       {/* Vista de Carga */}
