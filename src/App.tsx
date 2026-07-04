@@ -996,9 +996,16 @@ export default function App() {
 
       {/* Cabecera */}
       <header className="app-header">
-        <div className="logo-container">
-          <Trophy color="var(--primary)" size={24} />
-          <h1 className="logo-text">La Carmelita</h1>
+        <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img 
+            src="/LOGO LA CARMELITA.png" 
+            alt="Logo La Carmelita" 
+            style={{ height: '36px', objectFit: 'contain', borderRadius: '4px' }} 
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <h1 className="logo-text" style={{ fontSize: '1.25rem' }}>La Carmelita</h1>
         </div>
         
         {currentUser ? (
