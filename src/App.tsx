@@ -1333,7 +1333,7 @@ export default function App() {
                 }} 
               />
               
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6', textAlign: 'justify' }}>
                 ¡Demuestra tus conocimientos en fútbol, compite contra otros apasionados y <strong style={{ color: 'var(--primary)' }}>gana espectaculares premios en efectivo</strong> en cada jornada! 
                 Actualmente <strong style={{ color: '#FFFFFF' }}>nos encontramos desarrollando la plataforma</strong> para brindarte la mejor experiencia de juego. 
                 Regístrate abajo para <strong style={{ color: 'var(--primary)' }}>asegurar tu lugar en nuestra comunidad</strong> y recibir tu <strong style={{ color: 'var(--primary)' }}>acceso exclusivo</strong>.
