@@ -182,7 +182,13 @@ export default function App() {
       // Código de país de México: 52
       const adminWhatsAppNumber = '523122440708';
       const textMessage = `Hola, estoy interesado en participar en las Quinielas La Carmelita. Mi nombre es ${capitalizedName} y mi teléfono es ${fullPhone}.`;
-      const waUrl = `https://wa.me/${adminWhatsAppNumber}?text=${encodeURIComponent(textMessage)}`;
+      
+      // Detectar si el usuario está en móvil o en PC para abrir la versión adecuada
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const waUrl = isMobile
+        ? `https://api.whatsapp.com/send?phone=${adminWhatsAppNumber}&text=${encodeURIComponent(textMessage)}`
+        : `https://web.whatsapp.com/send?phone=${adminWhatsAppNumber}&text=${encodeURIComponent(textMessage)}`;
       
       // Abrir en una pestaña nueva
       window.open(waUrl, '_blank');
