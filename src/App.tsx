@@ -1038,7 +1038,6 @@ export default function App() {
               e.currentTarget.style.display = 'none';
             }}
           />
-          <h1 className="logo-text" style={{ fontSize: '1.25rem' }}>La Carmelita</h1>
         </div>
         
         {currentUser ? (
@@ -1064,11 +1063,24 @@ export default function App() {
           </div>
         ) : (
           <button 
-            className="btn btn-secondary" 
-            style={{ width: 'auto', padding: '6px 12px', fontSize: '0.85rem' }}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer', 
+              padding: '8px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+              opacity: 0.4,
+              transition: 'opacity 0.2s'
+            }}
             onClick={() => { setActiveTab('login'); setAuthView('user-login'); }}
+            title="Ingresar"
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.4'}
           >
-            Entrar
+            <i className="fa-solid fa-lock" style={{ fontSize: '1.1rem' }}></i>
           </button>
         )}
       </header>
@@ -1296,18 +1308,6 @@ export default function App() {
                   Avisarme en el Lanzamiento
                 </button>
               </form>
-
-              {/* Botón Oculto/Acceso Tester */}
-              <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>¿Eres administrador o probador del sistema?</span>
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ width: 'auto', padding: '6px 12px', fontSize: '0.75rem', marginTop: '10px', marginLeft: '8px' }}
-                  onClick={() => { setActiveTab('login'); setAuthView('user-login'); }}
-                >
-                  Entrar al Portal
-                </button>
-              </div>
             </div>
           </div>
         )}
