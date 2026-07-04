@@ -1327,7 +1327,9 @@ export default function App() {
               </div>
 
               <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '12px' }}>¡Gran Lanzamiento!</h2>
-              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.2rem' }}>Quinielas La Carmelita</h3>
+              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.15rem', fontStyle: 'italic', fontWeight: '600' }}>
+                La quiniela con la tradición del barrio
+              </h3>
               
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6' }}>
                 ¡Demuestra tus conocimientos en fútbol, compite contra otros apasionados y gana espectaculares premios en efectivo en cada jornada! 
