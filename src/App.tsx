@@ -129,8 +129,6 @@ export default function App() {
 
   // --- Formulario Suscripción (Próximamente) ---
   const [subName, setSubName] = useState('');
-  const [subCountryCode, setSubCountryCode] = useState('+52');
-  const [subPhone, setSubPhone] = useState('');
 
   const toCapitalCase = (str: string) => {
     return str
@@ -141,26 +139,14 @@ export default function App() {
       .join(' ');
   };
 
-  const formatPhoneNumber = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    if (digits.length <= 3) {
-      return digits;
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    }
-  };
-
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subName || !subPhone) {
-      showAlert('error', 'Por favor llena todos los campos.');
+    if (!subName) {
+      showAlert('error', 'Por favor ingresa tu nombre.');
       return;
     }
 
     const capitalizedName = toCapitalCase(subName);
-    const fullPhone = `${subCountryCode} ${subPhone}`;
 
     try {
       setLoading(true);
@@ -169,19 +155,18 @@ export default function App() {
         .from('pre_registrations')
         .insert([{
           name: capitalizedName,
-          phone: fullPhone
+          phone: '' // Vacío ya que al unirse por WhatsApp el número queda expuesto en el chat
         }]);
 
       if (error) throw error;
 
       showAlert('success', '¡Registro exitoso! Redirigiendo a WhatsApp...');
       setSubName('');
-      setSubPhone('');
 
       // Enviar mensaje al número de WhatsApp del administrador (312 244 0708)
       // Código de país de México: 52
       const adminWhatsAppNumber = '523122440708';
-      const textMessage = `Hola, estoy interesado en participar en La Carmelita. Mi nombre es ${capitalizedName} y mi teléfono es ${fullPhone}.`;
+      const textMessage = `Hola, estoy interesado en participar en La Carmelita. Mi nombre es ${capitalizedName}.`;
       
       // Detectar si el usuario está en móvil o en PC para abrir la versión adecuada
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1351,29 +1336,7 @@ export default function App() {
                     required 
                   />
                 </div>
-                <div className="form-group">
-                  <label>Número de WhatsApp</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <select
-                      className="form-control"
-                      style={{ width: '95px', padding: '12px 6px', textAlign: 'center', fontSize: '0.9rem' }}
-                      value={subCountryCode}
-                      onChange={e => setSubCountryCode(e.target.value)}
-                    >
-                      <option value="+52">🇲🇽 +52</option>
-                      <option value="+1">🇺🇸 +1</option>
-                    </select>
-                    <input 
-                      type="tel" 
-                      className="form-control" 
-                      placeholder="(312) 244-0708" 
-                      value={subPhone} 
-                      onChange={e => setSubPhone(formatPhoneNumber(e.target.value))} 
-                      required 
-                    />
-                  </div>
-                </div>
-                <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '15px' }}>
                   Unirme a la Comunidad
                 </button>
               </form>
