@@ -86,7 +86,7 @@ export default function App() {
   const [adminEmail, setAdminEmail] = useState<string>('');
 
   // --- Navegación ---
-  const [activeTab, setActiveTab] = useState<string>('predictions'); // predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants
+  const [activeTab, setActiveTab] = useState<string>('coming-soon'); // coming-soon, predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants
   const [authView, setAuthView] = useState<'user-login' | 'user-register' | 'admin-login'>('user-login');
 
   // --- Datos de la Base de Datos ---
@@ -126,6 +126,39 @@ export default function App() {
   const [newHomeTeam, setNewHomeTeam] = useState('');
   const [newAwayTeam, setNewAwayTeam] = useState('');
   const [newMatchDate, setNewMatchDate] = useState('');
+
+  // --- Formulario Suscripción (Próximamente) ---
+  const [subName, setSubName] = useState('');
+  const [subPhone, setSubPhone] = useState('');
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subName || !subPhone) {
+      showAlert('error', 'Por favor llena todos los campos.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('pre_registrations')
+        .insert([{
+          name: subName.trim(),
+          phone: subPhone.trim()
+        }]);
+
+      if (error) throw error;
+
+      showAlert('success', '¡Registro exitoso! Te avisaremos por WhatsApp en cuanto iniciemos.');
+      setSubName('');
+      setSubPhone('');
+    } catch (err: any) {
+      showAlert('error', 'Error al registrar suscripción. Intenta de nuevo.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Inicialización y Carga de Sesión ---
   useEffect(() => {
@@ -1201,6 +1234,84 @@ export default function App() {
           </div>
         )}
 
+        {/* 1.5. VISTA PRÓXIMAMENTE (Pestaña "coming-soon") */}
+        {activeTab === 'coming-soon' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, var(--bg-card), rgba(20, 184, 166, 0.05))',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '40px 20px',
+              boxShadow: 'var(--shadow-lg)'
+            }}>
+              {/* Balón o Icono Principal */}
+              <div style={{ 
+                width: '80px', 
+                height: '80px', 
+                borderRadius: 'var(--radius-full)', 
+                background: 'var(--primary-glow)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                margin: '0 auto 24px',
+                border: '2px solid var(--primary)',
+                boxShadow: 'var(--shadow-glow)'
+              }}>
+                <Trophy size={40} color="var(--primary)" />
+              </div>
+
+              <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '12px' }}>¡Gran Lanzamiento!</h2>
+              <h3 style={{ color: 'var(--primary)', marginBottom: '16px', fontSize: '1.2rem' }}>Quinielas La Carmelita</h3>
+              
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6' }}>
+                Estamos preparando la mejor plataforma interactiva para gestionar y jugar quinielas deportivas de tus torneos favoritos. 
+                Suscríbete ahora para recibir una alerta instantánea por WhatsApp cuando iniciemos.
+              </p>
+
+              {/* Formulario de Suscripción */}
+              <form onSubmit={handleSubscribe} style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'left' }}>
+                <div className="form-group">
+                  <label>Nombre Completo</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Ej. Carlos Mendoza" 
+                    value={subName} 
+                    onChange={e => setSubName(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Número de WhatsApp (10 dígitos)</label>
+                  <input 
+                    type="tel" 
+                    className="form-control" 
+                    placeholder="Ej. 3312345678" 
+                    value={subPhone} 
+                    onChange={e => setSubPhone(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
+                  Avisarme en el Lanzamiento
+                </button>
+              </form>
+
+              {/* Botón Oculto/Acceso Tester */}
+              <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>¿Eres administrador o probador del sistema?</span>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ width: 'auto', padding: '6px 12px', fontSize: '0.75rem', marginTop: '10px', marginLeft: '8px' }}
+                  onClick={() => { setActiveTab('login'); setAuthView('user-login'); }}
+                >
+                  Entrar al Portal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 2. LLENADO DE QUINIELAS (Pestaña "predictions") */}
         {activeTab === 'predictions' && (
           <div>
@@ -1794,8 +1905,9 @@ export default function App() {
       )}
 
       {/* Menú de Navegación Flotante (Bottom Navigation) */}
-      <nav className="bottom-nav">
-        {isAdmin ? (
+      {activeTab !== 'coming-soon' && activeTab !== 'login' && (
+        <nav className="bottom-nav">
+          {isAdmin ? (
           <>
             <button 
               className={`nav-item ${activeTab === 'admin-payments' ? 'active' : ''}`}
@@ -1845,6 +1957,7 @@ export default function App() {
           </>
         )}
       </nav>
+      )}
     </div>
   );
 }

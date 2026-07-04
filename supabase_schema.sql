@@ -80,3 +80,13 @@ ALTER TABLE public.matchdays DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.matches DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pools DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.predictions DISABLE ROW LEVEL SECURITY;
+
+-- 7. Tabla de Pre-registros (Newsletter / Próximamente)
+CREATE TABLE IF NOT EXISTS public.pre_registrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.pre_registrations DISABLE ROW LEVEL SECURITY;
+
