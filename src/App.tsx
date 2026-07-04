@@ -1069,7 +1069,21 @@ export default function App() {
 
       {/* Cabecera */}
       <header className="app-header">
-        <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div 
+          className="logo-container" 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+          onClick={() => {
+            if (currentUser) {
+              if (currentUser.role === 'admin') {
+                setActiveTab('admin-payments');
+              } else {
+                setActiveTab('predictions');
+              }
+            } else {
+              setActiveTab('coming-soon');
+            }
+          }}
+        >
           <img 
             src="/LOGO LA CARMELITA.png" 
             alt="Logo La Carmelita" 
