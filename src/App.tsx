@@ -3153,7 +3153,7 @@ export default function App() {
                                       {/* Local Info */}
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, true) ? (
-                                          <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                                          <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, true).substring(0, 2).toUpperCase()}</div>
                                         )}
@@ -3168,7 +3168,7 @@ export default function App() {
                                       {/* Visitante Info */}
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, false) ? (
-                                          <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                                          <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, false).substring(0, 2).toUpperCase()}</div>
                                         )}
@@ -3209,7 +3209,7 @@ export default function App() {
                                       </div>
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, true) ? (
-                                          <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                                          <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, true).substring(0, 2).toUpperCase()}</div>
                                         )}
@@ -3220,7 +3220,7 @@ export default function App() {
                                       </div>
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, false) ? (
-                                          <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                                          <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, false).substring(0, 2).toUpperCase()}</div>
                                         )}
@@ -3291,7 +3291,7 @@ export default function App() {
 
                             <form onSubmit={handleSubmitCart}>
                               <div className="form-group" style={{ marginBottom: '12px' }}>
-                                <input type="text" placeholder="Tu Nombre Completo" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
+                                <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
                               </div>
 
                               <div className="form-group" style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
