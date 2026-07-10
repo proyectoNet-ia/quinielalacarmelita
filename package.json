@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
+    "browser-image-compression": "^2.0.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
