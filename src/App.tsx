@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
   TrendingUp,
   Menu,
+  MessageCircle,
   Shield,
   Download,
   Edit2,
@@ -2403,6 +2404,84 @@ export default function App() {
   };
 
   // --- Exportación a PDF de Transparencia ---
+  
+  const handleExportMatchdayPDF = async (m: Matchday) => {
+    setLoading(true);
+    try {
+      // Fetch matches
+      const { data: matchesData } = await supabase.from('matches').select('*').eq('matchday_id', m.id).order('match_date', { ascending: true });
+      const currentMatches = matchesData || [];
+      if (currentMatches.length === 0) {
+        showAlert('error', 'No hay partidos configurados para exportar.');
+        return;
+      }
+
+      // Fetch pools and participants
+      const { data: poolsData } = await supabase.from('pools').select('*, participants(name, alias, phone)').eq('matchday_id', m.id);
+      let currentPools = (poolsData || []).map(p => ({
+        ...p,
+        participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
+      })) as Pool[];
+      
+      currentPools = currentPools.filter(p => p.payment_status === 'approved');
+
+      // Fetch predictions
+      const poolIds = currentPools.map(p => p.id);
+      let currentPredictions: Record<string, Record<string, string>> = {};
+      if (poolIds.length > 0) {
+        const { data: predData } = await supabase.from('predictions').select('*').in('pool_id', poolIds);
+        if (predData) {
+          predData.forEach(p => {
+            if (!currentPredictions[p.pool_id]) currentPredictions[p.pool_id] = {};
+            currentPredictions[p.pool_id][p.match_id] = p.selection;
+          });
+        }
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
+
+      const headers = ['Participante', 'Alias', 'Puntos', ...currentMatches.map((_, idx) => `P${idx + 1}`), 'Estado Pago'];
+      const tableData = currentPools.map(pool => {
+        const row = [
+          pool.participant?.name || 'Desconocido',
+          `@${pool.participant?.alias || 'N/A'}`,
+          pool.score !== null ? pool.score.toString() : '-',
+        ];
+        const preds = currentPredictions[pool.id] || {};
+        currentMatches.forEach(match => {
+          row.push(preds[match.id] || '-');
+        });
+        row.push(pool.payment_status === 'approved' ? 'Pagado' : 'Pendiente');
+        return row;
+      });
+
+      (doc as any).autoTable({
+        startY: 28,
+        head: [headers],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 211, 102], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 0: { fontStyle: 'bold' }, 2: { textColor: [37, 211, 102], fontStyle: 'bold' } }
+      });
+
+      doc.save(`Quiniela_${m.number}_Participantes.pdf`);
+      showAlert('success', 'PDF generado correctamente.');
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error al exportar PDF.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const handleExportPDF = () => {
     if (!activeMatchday || matches.length === 0) {
       showAlert('error', 'No hay partidos configurados para exportar.');
@@ -4004,7 +4083,7 @@ export default function App() {
                                   </button>
                                   <button 
                                     className="btn" 
-                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderRadius: '0 0 4px 4px' }}
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
                                     onClick={() => {
                                       setOpenMatchdayMenu(null);
                                       setSelectedAdminMatchday(m);
@@ -4013,6 +4092,16 @@ export default function App() {
                                     }}
                                   >
                                     <Edit2 size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Partidos
+                                  </button>
+                                  <button 
+                                    className="btn" 
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderRadius: '0 0 4px 4px' }}
+                                    onClick={() => {
+                                      setOpenMatchdayMenu(null);
+                                      handleExportMatchdayPDF(m);
+                                    }}
+                                  >
+                                    <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#25D366' }}/> Exportar
                                   </button>
                                 </div>
                               )}
@@ -4956,43 +5045,58 @@ export default function App() {
           </div>
         )}
 
-        {/* 7. ADMIN: PARTICIPANTES Y PDF (Pestaña "admin-participants") */}
+        {/* 7. ADMIN: PARTICIPANTES Y COMUNICACIÓN (Pestaña "admin-participants") */}
         {activeTab === 'admin-participants' && isAdmin && (
           <div>
-            <h2 style={{ marginBottom: '16px' }}>Listado de Participantes y Transparencia</h2>
-            
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3>Exportar Lista de Juego</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                  Genera una matriz de juego en formato PDF con los participantes y sus apuestas para compartir en el grupo de WhatsApp antes de iniciar la quiniela.
-                </p>
-              </div>
-              <button className="btn btn-primary" style={{ width: 'auto', gap: '8px' }} onClick={handleExportPDF}>
-                <FileText size={18} /> Exportar PDF
-              </button>
-            </div>
+            <h2 style={{ marginBottom: '16px' }}>Directorio de Participantes</h2>
 
             <div className="card">
               <h3>Participantes Registrados ({participants.length})</h3>
-              <table className="leaderboard-table" style={{ marginTop: '10px' }}>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Alias</th>
-                    <th>WhatsApp</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
-                      <td>@{p.alias}</td>
-                      <td>{p.phone}</td>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+                Aquí puedes ver la lista de todos los usuarios registrados y contactarlos directamente por WhatsApp.
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="leaderboard-table" style={{ marginTop: '10px', minWidth: '600px' }}>
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Alias</th>
+                      <th>WhatsApp</th>
+                      <th style={{ textAlign: 'center' }}>Contacto</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {participants.map(p => (
+                      <tr key={p.id}>
+                        <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
+                        <td>@{p.alias}</td>
+                        <td>{p.phone}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <a 
+                            href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn"
+                            style={{ 
+                              background: 'rgba(37, 211, 102, 0.1)', 
+                              color: '#25D366', 
+                              border: '1px solid #25D366', 
+                              padding: '6px 12px', 
+                              fontSize: '0.8rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <MessageCircle size={14} /> Mensaje
+                          </a>
+                        </td>
+                      </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
