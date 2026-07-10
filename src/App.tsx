@@ -1378,6 +1378,7 @@ export default function App() {
       setSuccessAlias(cartParticipantName);
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setCart([]);
       setCartParticipantName('');
       setCartParticipantAlias('');
@@ -2935,7 +2936,7 @@ export default function App() {
                     <CheckSquare size={48} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
                     <h3>¡Enhorabuena!</h3>
                     
-                    <div style={{ margin: '24px auto', padding: '16px 24px', background: 'rgba(0, 0, 0, 0.4)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255, 255, 255, 0.1)', width: '100%', maxWidth: '400px' }}>
+                    <div style={{ margin: '24px auto', padding: '16px 24px', background: 'rgba(0, 0, 0, 0.4)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255, 255, 255, 0.1)', width: '100%', maxWidth: '100%' }}>
                       <p style={{ margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>Tu Código de Referencia:</p>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
                         <h2 style={{ margin: 0, color: 'var(--primary)', letterSpacing: '2px', fontSize: '2rem', whiteSpace: 'nowrap' }}>{cartReferenceId}</h2>
@@ -2979,7 +2980,7 @@ export default function App() {
                         <h1 style={{ margin: 0, color: '#25D366', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '1px' }}>{whatsappConfig}</h1>
                       </div>
                     )}
-                    <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '8px', textAlign: 'left', margin: '0 auto', width: '100%', maxWidth: '400px' }}>
+                    <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '8px', textAlign: 'left', margin: '0 auto', width: '100%', maxWidth: '100%' }}>
                       <h4 style={{ marginBottom: '16px', color: 'var(--primary)', textAlign: 'center' }}>Datos de Pago</h4>
                       
                       <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '4px', marginBottom: '24px', width: '100%' }}>
@@ -3072,7 +3073,7 @@ export default function App() {
 
                     </div>
                     <div style={{ marginTop: '30px' }}>
-                      <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '34%', margin: '0 auto', display: 'block', padding: '12px' }}>Volver al Inicio</button>
+                      <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '100%', maxWidth: '400px', margin: '0 auto', display: 'block', padding: '12px' }}>Volver al Inicio</button>
                     </div>
                   </div>
                 ) : matches.length === 0 ? (
