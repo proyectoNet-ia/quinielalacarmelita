@@ -23,6 +23,7 @@ import {
   Users, 
   Calendar, 
   RefreshCw,
+  ArrowLeft,
   Image as ImageIcon,
   TrendingUp,
   Menu,
