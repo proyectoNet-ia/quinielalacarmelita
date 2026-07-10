@@ -289,10 +289,12 @@ select.form-control {
 
 /* Matchday Card & Predictions Selector */
 .match-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 46px 1fr 46px 1fr 46px;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 10px;
   background: var(--bg-card-hover);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -334,12 +336,11 @@ select.form-control {
 }
 
 .team-name {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  line-height: 1.2;
   width: 100%;
 }
 
@@ -381,19 +382,11 @@ select.form-control {
   color: var(--text-primary);
 }
 
-.lev-btn.selected-l {
+.lev-btn.selected-l,
+.lev-btn.selected-e,
+.lev-btn.selected-v {
   background: var(--primary);
   color: #052e16;
-}
-
-.lev-btn.selected-e {
-  background: var(--info);
-  color: #0c1a30;
-}
-
-.lev-btn.selected-v {
-  background: var(--accent);
-  color: #3b2300;
 }
 
 /* Floating Bottom Navigation (Mobile) */

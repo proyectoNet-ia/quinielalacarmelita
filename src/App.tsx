@@ -1300,7 +1300,7 @@ export default function App() {
       showAlert('error', 'Debes registrar al menos 2 quinielas.');
       return;
     }
-    if (!cartParticipantName.trim() || !cartParticipantAlias.trim() || !cartParticipantPhone.trim()) {
+    if (!cartParticipantName.trim() || !cartParticipantPhone.trim()) {
       showAlert('error', 'Por favor llena todos los datos del participante.');
       return;
     }
@@ -1318,14 +1318,14 @@ export default function App() {
       const refId = generateRandomCode();
       let participantId = '';
 
-      const { data: existingPart } = await supabase.from('participants').select('id').eq('alias', cartParticipantAlias).maybeSingle();
+      const { data: existingPart } = await supabase.from('participants').select('id').eq('alias', cartParticipantName).maybeSingle();
       if (existingPart) {
         participantId = existingPart.id;
       } else {
         const dummyPin = Math.floor(1000 + Math.random() * 9000).toString();
         const { data: newPart, error: partErr } = await supabase.from('participants').insert([{
           name: cartParticipantName,
-          alias: cartParticipantAlias,
+          alias: cartParticipantName,
           phone: cartCountryCode + cartParticipantPhone,
           pin: dummyPin
         }]).select('id').single();
@@ -1358,7 +1358,7 @@ export default function App() {
       const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
       if (predErr) throw predErr;
       
-      let msgText = `Hola, soy *${cartParticipantName}* [${cartParticipantAlias}].\r\n\r\n`;
+      let msgText = `Hola, soy *${cartParticipantName}*.\r\n\r\n`;
       cart.forEach((selections, idx) => {
         let quinielaLine = `*Quiniela ${idx + 1}* `;
         let matchIndex = 1;
@@ -1375,7 +1375,7 @@ export default function App() {
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
       setSuccessName(cartParticipantName);
-      setSuccessAlias(cartParticipantAlias);
+      setSuccessAlias(cartParticipantName);
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
       setCart([]);
@@ -3145,7 +3145,13 @@ export default function App() {
                                       </div>
               
                                       {/* Local */}
-                                      <div className="team-info">
+                                      {/* Local L */}
+                                      <div className="lev-group">
+                                        <button className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
+                                      </div>
+                                      
+                                      {/* Local Info */}
+                                      <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, true) ? (
                                           <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                                         ) : (
@@ -3154,36 +3160,24 @@ export default function App() {
                                         <span className="team-name">{getTeamName(match, true)}</span>
                                       </div>
               
-                                      {/* Controles de Apuesta L-E-V */}
+                                      {/* Controles de Apuesta E */}
                                       <div className="lev-group">
-                                        <button 
-                                          className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`}
-                                          onClick={() => handleSelectPrediction(match.id, 'L')}
-                                        >
-                                          L
-                                        </button>
-                                        <button 
-                                          className={`lev-btn ${currentSelections[match.id] === 'E' ? 'selected-e' : ''}`}
-                                          onClick={() => handleSelectPrediction(match.id, 'E')}
-                                        >
-                                          E
-                                        </button>
-                                        <button 
-                                          className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`}
-                                          onClick={() => handleSelectPrediction(match.id, 'V')}
-                                        >
-                                          V
-                                        </button>
+                                        <button className={`lev-btn ${currentSelections[match.id] === 'E' ? 'selected-e' : ''}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
                                       </div>
               
-                                      {/* Visitante */}
-                                      <div className="team-info">
+                                      {/* Visitante Info */}
+                                      <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, false) ? (
                                           <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, false).substring(0, 2).toUpperCase()}</div>
                                         )}
                                         <span className="team-name">{getTeamName(match, false)}</span>
+                                      </div>
+
+                                      {/* Visitante V */}
+                                      <div className="lev-group">
+                                        <button className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
                                       </div>
                                     </div>
                                   )
@@ -3210,7 +3204,10 @@ export default function App() {
                                           EXTRA (Desempate)
                                         </span>
                                       </div>
-                                      <div className="team-info">
+                                      <div className="lev-group">
+                                        <button className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
+                                      </div>
+                                      <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, true) ? (
                                           <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                                         ) : (
@@ -3219,17 +3216,18 @@ export default function App() {
                                         <span className="team-name">{getTeamName(match, true)}</span>
                                       </div>
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
                                         <button className={`lev-btn ${currentSelections[match.id] === 'E' ? 'selected-e' : ''}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
                                       </div>
-                                      <div className="team-info">
+                                      <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, false) ? (
                                           <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                                         ) : (
                                           <div className="team-logo-fallback">{getTeamName(match, false).substring(0, 2).toUpperCase()}</div>
                                         )}
                                         <span className="team-name">{getTeamName(match, false)}</span>
+                                      </div>
+                                      <div className="lev-group">
+                                        <button className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
                                       </div>
                                     </div>
                                   )
@@ -3246,7 +3244,7 @@ export default function App() {
                     <div style={{ flex: '1 1 300px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', position: 'sticky', top: '100px', alignSelf: 'flex-start' }}>
                       <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <CheckSquare size={20} color="var(--primary)" /> 
-                        Tu Carrito de Quinielas
+                        Tus Quinielas
                       </h3>
                       
                       <div style={{ marginBottom: '24px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '24px' }}>
@@ -3256,8 +3254,7 @@ export default function App() {
                           disabled={new Date(activeMatchday.deadline) < new Date()}
                           style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
                         >
-                          <PlusCircle size={20} /> Añadir al Carrito<br/>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9 }}>(Costo: ${activeMatchday.price_per_entry} MXN)</span>
+                          <PlusCircle size={20} /> Añadir Quiniela <span style={{ fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9 }}>(costo ${activeMatchday.price_per_entry}.00)</span>
                         </button>
                       </div>
                       {cart.length === 0 ? (
@@ -3296,9 +3293,7 @@ export default function App() {
                               <div className="form-group" style={{ marginBottom: '12px' }}>
                                 <input type="text" placeholder="Tu Nombre Completo" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
                               </div>
-                              <div className="form-group" style={{ marginBottom: '12px' }}>
-                                <input type="text" placeholder="Tu Alias" required value={cartParticipantAlias} onChange={e => setCartParticipantAlias(e.target.value)} className="form-control" style={{ background: 'var(--bg-main)' }} />
-                              </div>
+
                               <div className="form-group" style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
                                 <select 
                                   value={cartCountryCode} 
