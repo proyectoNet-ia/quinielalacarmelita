@@ -253,6 +253,10 @@ export default function App() {
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [activeMatchday, setActiveMatchday] = useState<Matchday | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [allMatchdays, setAllMatchdays] = useState<Matchday[]>([]);
+  const [selectedAdminMatchday, setSelectedAdminMatchday] = useState<Matchday | null>(null);
+  const [adminDetailView, setAdminDetailView] = useState<'matches'|'ranking'>('matches');
+  const [matchdayPoolCounts, setMatchdayPoolCounts] = useState<Record<string, number>>({});
   const [userPools, setUserPools] = useState<Pool[]>([]);
   const [allPoolsForMatchday, setAllPoolsForMatchday] = useState<Pool[]>([]);
   const [predictionsByPool, setPredictionsByPool] = useState<Record<string, Record<string, string>>>({}); // poolId -> matchId -> selection
@@ -583,6 +587,20 @@ export default function App() {
         .order('number', { ascending: false });
 
       if (matchdayErr) throw matchdayErr;
+      
+      setAllMatchdays(matchdaysData || []);
+      
+      const { data: allPoolsData, error: allPoolsErr } = await supabase
+        .from('pools')
+        .select('matchday_id');
+      if (allPoolsErr) throw allPoolsErr;
+      const counts: Record<string, number> = {};
+      if (allPoolsData) {
+        allPoolsData.forEach(p => {
+          counts[p.matchday_id] = (counts[p.matchday_id] || 0) + 1;
+        });
+      }
+      setMatchdayPoolCounts(counts);
 
       let currentMatchday = null;
       if (matchdaysData && matchdaysData.length > 0) {
@@ -3890,10 +3908,142 @@ export default function App() {
           </div>
         )}
 
+        
         {/* 6. ADMIN: GESTIÓN DE JORNADAS (Pestaña "admin-matchdays") */}
         {activeTab === 'admin-matchdays' && isAdmin && (
           <div>
             <h2 style={{ marginBottom: '16px' }}>Gestión de Quinielas y Partidos</h2>
+
+            {selectedAdminMatchday === null ? (
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                  <h3 style={{ margin: 0 }}>Listado de Quinielas</h3>
+                  <button className="btn btn-primary" onClick={() => {
+                    handleCreateMatchday();
+                    setTimeout(loadInitialData, 1000); // refresh list
+                  }}>
+                    <PlusCircle size={16} /> Crear Nueva Quiniela
+                  </button>
+                </div>
+                
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '12px 8px' }}>N°</th>
+                        <th style={{ padding: '12px 8px' }}>Estado</th>
+                        <th style={{ padding: '12px 8px' }}>Cierre</th>
+                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Participantes</th>
+                        <th style={{ padding: '12px 8px', textAlign: 'right' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allMatchdays.length === 0 ? (
+                        <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
+                      ) : (
+                        allMatchdays.map(m => (
+                          <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
+                            <td style={{ padding: '12px 8px' }}>
+                              <span style={{ 
+                                padding: '4px 8px', 
+                                borderRadius: '4px', 
+                                fontSize: '0.75rem',
+                                background: m.status === 'active' ? 'rgba(37, 211, 102, 0.1)' : m.status === 'inactive' ? 'rgba(255, 193, 7, 0.1)' : 'rgba(255,255,255,0.1)',
+                                color: m.status === 'active' ? '#25D366' : m.status === 'inactive' ? 'var(--primary)' : 'var(--text-secondary)'
+                              }}>
+                                {m.status === 'active' ? 'Abierta' : m.status === 'closed' ? 'Cerrada' : m.status === 'calculated' ? 'Calificada' : 'Inactiva'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 8px', fontSize: '0.85rem' }}>{new Date(m.deadline).toLocaleString()}</td>
+                            <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 'bold' }}>
+                              {matchdayPoolCounts[m.id] || 0}
+                            </td>
+                            <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                              <button 
+                                className="btn" 
+                                style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '6px 10px', fontSize: '0.8rem', marginRight: '8px' }}
+                                onClick={() => {
+                                  setSelectedAdminMatchday(m);
+                                  setAdminDetailView('ranking'); setActiveMatchday(m);
+                                }}
+                              >
+                                <Users size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }}/> Ranking
+                              </button>
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                                onClick={() => {
+                                  setSelectedAdminMatchday(m);
+                                  setAdminDetailView('matches');
+                                  setActiveMatchday(m); // force it active so the old detail view uses it
+                                }}
+                              >
+                                <Edit2 size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }}/> Partidos
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : adminDetailView === 'ranking' ? (
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>Ranking - Quiniela N° {selectedAdminMatchday.number}</h3>
+                  <button className="btn btn-secondary" onClick={() => { setSelectedAdminMatchday(null); loadInitialData(); }}>
+                    <ArrowLeft size={16} /> Volver a la Lista
+                  </button>
+                </div>
+                  {leaderboard.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>Aún no hay quinielas pagadas y calculadas en esta quiniela.</p>
+                  ) : (
+                    <table className="leaderboard-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '60px' }}>Pos</th>
+                          <th>Participante</th>
+                          <th style={{ textAlign: 'right' }}>Aciertos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaderboard.map((player, index) => {
+                          const pos = index + 1;
+                          let rankClass = 'rank-other';
+                          if (pos === 1) rankClass = 'rank-1';
+                          else if (pos === 2) rankClass = 'rank-2';
+                          else if (pos === 3) rankClass = 'rank-3';
+
+                          return (
+                            <tr key={player.id}>
+                              <td>
+                                <span className={`rank-badge ${rankClass}`}>{pos}</span>
+                              </td>
+                              <td>
+                                <strong style={{ color: 'white' }}>{player.name}</strong>
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>@{player.alias}</span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
+                                {player.score}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+              </div>
+            ) : (
+              <div>
+                <button className="btn btn-secondary" onClick={() => { setSelectedAdminMatchday(null); loadInitialData(); }} style={{ marginBottom: '16px' }}>
+                  <ArrowLeft size={16} /> Volver a la Lista
+                </button>
+
+        
+          
+            
 
             {/* Selector de estado de Quiniela */}
             {activeMatchday && (
@@ -4126,9 +4276,11 @@ export default function App() {
                 ))}
               </div>
             )}
+              </div>
+            )}
           </div>
         )}
-        {/* 8.4 ADMIN: GESTIÓN DE CUENTAS BANCARIAS (Pestaña "admin-bank") */}
+{/* 8.4 ADMIN: GESTIÓN DE CUENTAS BANCARIAS (Pestaña "admin-bank") */}
         {activeTab === 'admin-bank' && isAdmin && (
           <div>
             <h2 style={{ marginBottom: '16px' }}>Cuentas Bancarias y Contacto</h2>
