@@ -1310,7 +1310,7 @@ export default function App() {
               />
               
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 30px', lineHeight: '1.6', textAlign: 'center' }}>
-                ¡Demuestra tus conocimientos y <strong style={{ color: 'var(--primary)' }}>gana espectaculares premios en efectivo</strong> en cada jornada! ¡Estamos preparando la cancha para brindarte la mejor experiencia de juego! Regístrate abajo para <strong style={{ color: 'var(--primary)' }}>asegurar tu lugar en nuestra comunidad</strong> y recibir tu <strong style={{ color: 'var(--primary)' }}>acceso exclusivo</strong>.
+                ¡Demuestra tus conocimientos y <strong style={{ color: 'var(--primary)' }}>gana espectaculares premios en efectivo</strong> en cada quiniela! ¡Estamos preparando la cancha para brindarte la mejor experiencia de juego! Regístrate para <strong style={{ color: 'var(--primary)' }}>asegurar tu lugar en nuestra comunidad</strong> y no pierdas la oportunidad de participar.
               </p>
 
               {/* Formulario de Suscripción */}
