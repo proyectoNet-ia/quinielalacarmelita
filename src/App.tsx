@@ -3931,57 +3931,63 @@ export default function App() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '12px 8px' }}>N°</th>
-                        <th style={{ padding: '12px 8px' }}>Estado</th>
-                        <th style={{ padding: '12px 8px' }}>Cierre</th>
-                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Participantes</th>
-                        <th style={{ padding: '12px 8px', textAlign: 'right' }}>Acciones</th>
+                        <th style={{ padding: '16px 8px' }}>N°</th>
+                        <th style={{ padding: '16px 8px' }}>Estado</th>
+                        <th style={{ padding: '16px 8px' }}>Cierre</th>
+                        <th style={{ padding: '16px 8px', textAlign: 'center' }}>Participantes</th>
+                        <th style={{ padding: '16px 8px', textAlign: 'center' }}>Recaudado</th>
+                        <th style={{ padding: '16px 8px', textAlign: 'right' }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {allMatchdays.length === 0 ? (
-                        <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
+                        <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
                       ) : (
                         allMatchdays.map(m => (
                           <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
-                            <td style={{ padding: '12px 8px' }}>
+                            <td style={{ padding: '16px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
+                            <td style={{ padding: '16px 8px' }}>
                               <span style={{ 
-                                padding: '4px 8px', 
+                                padding: '6px 10px', 
                                 borderRadius: '4px', 
-                                fontSize: '0.75rem',
+                                fontSize: '0.8rem',
                                 background: m.status === 'active' ? 'rgba(37, 211, 102, 0.1)' : m.status === 'inactive' ? 'rgba(255, 193, 7, 0.1)' : 'rgba(255,255,255,0.1)',
                                 color: m.status === 'active' ? '#25D366' : m.status === 'inactive' ? 'var(--primary)' : 'var(--text-secondary)'
                               }}>
                                 {m.status === 'active' ? 'Abierta' : m.status === 'closed' ? 'Cerrada' : m.status === 'calculated' ? 'Calificada' : 'Inactiva'}
                               </span>
                             </td>
-                            <td style={{ padding: '12px 8px', fontSize: '0.85rem' }}>{new Date(m.deadline).toLocaleString()}</td>
-                            <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 'bold' }}>
+                            <td style={{ padding: '16px 8px', fontSize: '0.85rem' }}>{new Date(m.deadline).toLocaleString()}</td>
+                            <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
                               {matchdayPoolCounts[m.id] || 0}
                             </td>
-                            <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                              <button 
-                                className="btn" 
-                                style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '6px 10px', fontSize: '0.8rem', marginRight: '8px' }}
-                                onClick={() => {
-                                  setSelectedAdminMatchday(m);
-                                  setAdminDetailView('ranking'); setActiveMatchday(m);
-                                }}
-                              >
-                                <Users size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }}/> Ranking
-                              </button>
-                              <button 
-                                className="btn btn-primary" 
-                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
-                                onClick={() => {
-                                  setSelectedAdminMatchday(m);
-                                  setAdminDetailView('matches');
-                                  setActiveMatchday(m); // force it active so the old detail view uses it
-                                }}
-                              >
-                                <Edit2 size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }}/> Partidos
-                              </button>
+                            <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', color: '#25D366' }}>
+                              ${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}
+                            </td>
+                            <td style={{ padding: '16px 8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button 
+                                  className="btn" 
+                                  style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '8px 12px', fontSize: '0.85rem' }}
+                                  onClick={() => {
+                                    setSelectedAdminMatchday(m);
+                                    setAdminDetailView('ranking'); setActiveMatchday(m);
+                                  }}
+                                >
+                                  <Users size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Ranking
+                                </button>
+                                <button 
+                                  className="btn btn-primary" 
+                                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                                  onClick={() => {
+                                    setSelectedAdminMatchday(m);
+                                    setAdminDetailView('matches');
+                                    setActiveMatchday(m); // force it active so the old detail view uses it
+                                  }}
+                                >
+                                  <Edit2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Partidos
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
