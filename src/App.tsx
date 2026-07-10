@@ -2932,7 +2932,7 @@ export default function App() {
 
                 
                 {showSuccessScreen ? (
-                  <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className="card" style={{ textAlign: 'center', padding: '15px' }}>
                     <CheckSquare size={48} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
                     <h3>¡Enhorabuena!</h3>
                     
