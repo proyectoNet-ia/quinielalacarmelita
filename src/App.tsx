@@ -3042,6 +3042,9 @@ export default function App() {
                                   </div>
                                 )}
                               </div>
+                              <h5 style={{ textAlign: 'center', color: 'var(--primary)', margin: '0 0 12px 0', fontSize: '1rem' }}>
+                                {paymentMethod === 'transfer' ? 'Transferencia (CLABE)' : 'Depósito Efectivo'}
+                              </h5>
                               <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Banco: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.bank_name}</span></p>
                               <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Titular: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_holder}</span></p>
                               {paymentMethod === 'deposit' && b.account_number && (
@@ -3058,6 +3061,20 @@ export default function App() {
                             .filter(b => paymentMethod === 'transfer' ? b.clabe : b.account_number)
                             .map(b => (
                               <div key={b.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                                  {getBankLogo(b.bank_name) ? (
+                                    <div style={{ background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '135.2px', height: '67.6px' }}>
+                                      <img src={getBankLogo(b.bank_name)!} alt={b.bank_name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                    </div>
+                                  ) : (
+                                    <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '65px', height: '65px' }}>
+                                      <Landmark size={32} color="var(--primary)" />
+                                    </div>
+                                  )}
+                                </div>
+                                <h5 style={{ textAlign: 'center', color: 'var(--primary)', margin: '0 0 12px 0', fontSize: '1rem' }}>
+                                  {paymentMethod === 'transfer' ? 'Transferencia (CLABE)' : 'Depósito Efectivo'}
+                                </h5>
                                 <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Banco: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.bank_name}</span></p>
                                 <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Titular: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_holder}</span></p>
                                 {paymentMethod === 'deposit' && b.account_number && (
