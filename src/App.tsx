@@ -2971,7 +2971,7 @@ export default function App() {
                     </div>
 
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '10px', marginTop: '10px' }}>
-                      A continuación, realiza tu depósito o transferencia <br/> y envía tu comprobante.
+                      A continuación, realiza tu depósito o transferencia y envía tu comprobante.
                     </p>
 
                     {whatsappConfig && (
