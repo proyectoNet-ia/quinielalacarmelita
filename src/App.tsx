@@ -8,6 +8,7 @@ import Tesseract from 'tesseract.js';
 // Registrar plugin de autotable en jsPDF para evitar errores de vinculación
 applyPlugin(jsPDF);
 import { 
+  MoreVertical,
   Trophy, 
   User, 
   Lock, 
@@ -255,6 +256,7 @@ export default function App() {
   const [activeMatchday, setActiveMatchday] = useState<Matchday | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [allMatchdays, setAllMatchdays] = useState<Matchday[]>([]);
+  const [openMatchdayMenu, setOpenMatchdayMenu] = useState<string | null>(null);
   const [selectedAdminMatchday, setSelectedAdminMatchday] = useState<Matchday | null>(null);
   const [adminDetailView, setAdminDetailView] = useState<'matches'|'ranking'>('matches');
   const [matchdayPoolCounts, setMatchdayPoolCounts] = useState<Record<string, number>>({});
@@ -3964,30 +3966,56 @@ export default function App() {
                             <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', color: '#25D366' }}>
                               ${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}
                             </td>
-                            <td style={{ padding: '16px 8px' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button 
-                                  className="btn" 
-                                  style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '8px 12px', fontSize: '0.85rem' }}
-                                  onClick={() => {
-                                    setSelectedAdminMatchday(m);
-                                    setAdminDetailView('ranking'); setActiveMatchday(m);
-                                  }}
+                            <td style={{ padding: '16px 8px', position: 'relative' }}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '8px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', minWidth: '100px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                  onClick={() => setOpenMatchdayMenu(openMatchdayMenu === m.id ? null : m.id)}
                                 >
-                                  <Users size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Ranking
-                                </button>
-                                <button 
-                                  className="btn btn-primary" 
-                                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                                  onClick={() => {
-                                    setSelectedAdminMatchday(m);
-                                    setAdminDetailView('matches');
-                                    setActiveMatchday(m); // force it active so the old detail view uses it
-                                  }}
-                                >
-                                  <Edit2 size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Partidos
+                                  Opciones <MoreVertical size={14} style={{ opacity: 0.7 }}/>
                                 </button>
                               </div>
+                              {openMatchdayMenu === m.id && (
+                                <div style={{ 
+                                  position: 'absolute', 
+                                  right: '8px', 
+                                  top: '56px', 
+                                  background: 'var(--bg-card)', 
+                                  border: '1px solid var(--primary)', 
+                                  borderRadius: '8px', 
+                                  zIndex: 10, 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  padding: '4px', 
+                                  boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+                                  minWidth: '130px'
+                                }}>
+                                  <button 
+                                    className="btn" 
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', borderRadius: '4px 4px 0 0' }}
+                                    onClick={() => {
+                                      setOpenMatchdayMenu(null);
+                                      setSelectedAdminMatchday(m);
+                                      setAdminDetailView('ranking'); setActiveMatchday(m);
+                                    }}
+                                  >
+                                    <Users size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Ranking
+                                  </button>
+                                  <button 
+                                    className="btn" 
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderRadius: '0 0 4px 4px' }}
+                                    onClick={() => {
+                                      setOpenMatchdayMenu(null);
+                                      setSelectedAdminMatchday(m);
+                                      setAdminDetailView('matches');
+                                      setActiveMatchday(m);
+                                    }}
+                                  >
+                                    <Edit2 size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Partidos
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))
