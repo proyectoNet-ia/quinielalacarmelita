@@ -310,6 +310,8 @@ select.form-control {
   gap: 6px;
   width: 32%;
   text-align: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .team-logo {
@@ -342,6 +344,9 @@ select.form-control {
   text-align: center;
   line-height: 1.2;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .match-vs {
