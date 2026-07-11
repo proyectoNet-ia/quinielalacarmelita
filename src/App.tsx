@@ -5147,7 +5147,7 @@ export default function App() {
             </div>
           </div>
           );
-        })}
+        })()}
 
         {/* 8. ADMIN: DASHBOARD FINANCIERO Y VENTAS (Pestaña "admin-dashboard") */}
         {activeTab === 'admin-dashboard' && isAdmin && (() => {
