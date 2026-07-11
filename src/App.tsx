@@ -4094,6 +4094,7 @@ export default function App() {
                                       setSelectedAdminMatchday(m);
                                       setAdminDetailView('matches');
                                       setActiveMatchday(m);
+                                      loadMatches(m.id);
                                     }}
                                   >
                                     <Edit2 size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Partidos
