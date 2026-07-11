@@ -4573,13 +4573,13 @@ export default function App() {
                   </div>
                   {/* Editar hora de cierre para quiniela ya activa */}
                   <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,193,7,0.06)', border: '1px solid rgba(255,193,7,0.2)', borderRadius: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showEditDeadline ? '10px' : 0 }}>
-                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={14} /> Cierre actual: <strong style={{ color: 'var(--primary)' }}>{new Date(activeMatchday.deadline).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: showEditDeadline ? '10px' : 0 }}>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', whiteSpace: 'nowrap' }}>
+                        <Clock size={14} /> Cierre actual: <strong style={{ color: 'var(--primary)' }}>{new Date(activeMatchday.deadline).toLocaleString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
                       </span>
                       <button
                         className="btn btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
                         onClick={() => {
                           setShowEditDeadline(v => !v);
                           setEditDeadline('');
