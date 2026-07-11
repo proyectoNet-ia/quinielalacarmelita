@@ -3012,15 +3012,17 @@ export default function App() {
                 }}
               />
             </div>
-            <a 
-              href={whatsappConfig ? `https://wa.me/${whatsappConfig.replace(/\D/g, '')}` : '#'} 
-              target={whatsappConfig ? "_blank" : undefined}
-              rel="noopener noreferrer"
+            <button 
               className="btn btn-primary animate-pulse-scale"
-              onClick={(e) => {
-                if (!whatsappConfig) {
-                  e.preventDefault();
-                  showAlert('warning', 'El administrador aún no ha configurado el número de WhatsApp.');
+              onClick={() => {
+                const lastRef = localStorage.getItem('lastReferenceCode');
+                setActiveTab('verify-payment');
+                if (lastRef) {
+                  setVerifyCode(lastRef);
+                  setTimeout(() => handleVerifySearch(undefined, lastRef), 100);
+                } else {
+                  setVerifyCode('');
+                  setVerifyResults([]);
                 }
               }}
               style={{ 
@@ -3031,13 +3033,15 @@ export default function App() {
                 gap: '8px', 
                 padding: '8px 16px',
                 fontSize: '0.9rem',
-                textDecoration: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
                 width: 'max-content'
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              <FileText size={18} />
               Enviar Recibos de Pago
-            </a>
+            </button>
           </header>
         )}
 
