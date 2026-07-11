@@ -146,6 +146,7 @@ interface BankAccount {
   account_number: string;
   clabe: string;
   is_active: boolean;
+  account_type?: 'transferencia' | 'deposito';
 }
 
 interface Pool {
@@ -295,12 +296,14 @@ export default function App() {
   const [newAccountHolder, setNewAccountHolder] = useState('');
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [newClabe, setNewClabe] = useState('');
+  const [newAccountType, setNewAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
   const [editingBankId, setEditingBankId] = useState<string | null>(null);
   const [editBankName, setEditBankName] = useState('');
   const [editAccountHolder, setEditAccountHolder] = useState('');
   const [editAccountNumber, setEditAccountNumber] = useState('');
   const [editClabe, setEditClabe] = useState('');
   const [editBankActive, setEditBankActive] = useState(true);
+  const [editAccountType, setEditAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -881,7 +884,8 @@ export default function App() {
         bank_name: newBankName.trim(),
         account_holder: newAccountHolder.trim(),
         account_number: newAccountNumber.trim() || null,
-        clabe: newClabe.trim() || null
+        clabe: newClabe.trim() || null,
+        account_type: newAccountType
       }]);
       if (error) throw error;
       showAlert('success', `Cuenta agregada con éxito.`);
@@ -889,6 +893,7 @@ export default function App() {
       setNewAccountHolder('');
       setNewAccountNumber('');
       setNewClabe('');
+      setNewAccountType('transferencia');
       await loadBankAccounts();
     } catch (err: any) {
       showAlert('error', `Error al agregar cuenta: ${err.message}`);
@@ -909,7 +914,8 @@ export default function App() {
         account_holder: editAccountHolder.trim(),
         account_number: editAccountNumber.trim() || null,
         clabe: editClabe.trim() || null,
-        is_active: editBankActive
+        is_active: editBankActive,
+        account_type: editAccountType
       }).eq('id', bankId);
       if (error) throw error;
       showAlert('success', 'Cuenta actualizada.');
@@ -4703,11 +4709,21 @@ export default function App() {
                   <input type="text" placeholder="Titular de la cuenta" value={newAccountHolder} onChange={e => setNewAccountHolder(e.target.value)} required className="form-control" style={{ flex: 1, minWidth: '150px' }} />
                   <input type="text" placeholder="No. Tarjeta / Cuenta" value={newAccountNumber} onChange={e => setNewAccountNumber(e.target.value)} className="form-control" style={{ flex: 1, minWidth: '150px' }} />
                   <input type="text" placeholder="CLABE" value={newClabe} onChange={e => setNewClabe(e.target.value)} className="form-control" style={{ flex: 1, minWidth: '150px' }} />
+                  <select
+                    value={newAccountType}
+                    onChange={e => setNewAccountType(e.target.value as 'transferencia' | 'deposito')}
+                    className="form-control"
+                    style={{ flex: 1, minWidth: '160px', background: 'var(--bg-main)' }}
+                  >
+                    <option value="transferencia">Transferencia</option>
+                    <option value="deposito">Deposito</option>
+                  </select>
                   <button type="submit" className="btn btn-primary" disabled={loading}>
-                    <PlusCircle size={15} /> Añadir Cuenta
+                    <PlusCircle size={15} /> Anadir Cuenta
                   </button>
                 </div>
               </form>
+
 
               {bankAccounts.length === 0 ? (
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No hay cuentas bancarias registradas.</p>
@@ -4721,6 +4737,18 @@ export default function App() {
                           <input type="text" value={editAccountHolder} onChange={e => setEditAccountHolder(e.target.value)} className="form-control" placeholder="Titular" />
                           <input type="text" value={editAccountNumber} onChange={e => setEditAccountNumber(e.target.value)} className="form-control" placeholder="No. Cuenta" />
                           <input type="text" value={editClabe} onChange={e => setEditClabe(e.target.value)} className="form-control" placeholder="CLABE" />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Tipo de operacion</label>
+                            <select
+                              value={editAccountType}
+                              onChange={e => setEditAccountType(e.target.value as 'transferencia' | 'deposito')}
+                              className="form-control"
+                              style={{ background: 'var(--bg-main)' }}
+                            >
+                              <option value="transferencia">Transferencia</option>
+                              <option value="deposito">Deposito</option>
+                            </select>
+                          </div>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
                             <input type="checkbox" checked={editBankActive} onChange={e => setEditBankActive(e.target.checked)} />
                             Cuenta Activa
@@ -4737,6 +4765,19 @@ export default function App() {
                             {!bank.is_active && <span style={{ fontSize: '0.7rem', background: 'var(--border-color)', padding: '2px 6px', borderRadius: '4px' }}>Inactiva</span>}
                           </div>
                           <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Titular:</strong> {bank.account_holder}</p>
+                          {bank.account_type && (
+                            <p style={{ margin: '4px 0', fontSize: '0.85rem' }}>
+                              <span style={{
+                                display: 'inline-block',
+                                background: bank.account_type === 'transferencia' ? 'rgba(99,102,241,0.15)' : 'rgba(234,179,8,0.15)',
+                                color: bank.account_type === 'transferencia' ? '#818cf8' : '#facc15',
+                                padding: '2px 10px', borderRadius: '20px', fontWeight: '700',
+                                fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em'
+                              }}>
+                                {bank.account_type === 'transferencia' ? 'Transferencia' : 'Deposito'}
+                              </span>
+                            </p>
+                          )}
                           {bank.account_number && <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Cuenta/Tarjeta:</strong> {bank.account_number}</p>}
                           {bank.clabe && <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>CLABE:</strong> {bank.clabe}</p>}
                           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
@@ -4750,6 +4791,7 @@ export default function App() {
                                 setEditAccountNumber(bank.account_number || '');
                                 setEditClabe(bank.clabe || '');
                                 setEditBankActive(bank.is_active);
+                                setEditAccountType(bank.account_type || 'transferencia');
                               }}
                             >
                               <Edit2 size={14} /> Editar
