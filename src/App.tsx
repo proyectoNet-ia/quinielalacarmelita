@@ -2675,7 +2675,7 @@ export default function App() {
         currentMatches.forEach(match => {
           row.push(preds[match.id] || '-');
         });
-        row.push(pool.payment_status === 'approved' ? 'Pagado' : 'Pendiente');
+        row.push(pool.payment_status === 'approved' ? 'Pagado' : (pool.payment_receipt_url ? 'En Revisión' : 'Pendiente'));
         return row;
       });
 
@@ -3663,7 +3663,7 @@ export default function App() {
                       backgroundColor: pool.payment_status === 'approved' ? 'rgba(16, 185, 129, 0.15)' : pool.payment_status === 'rejected' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
                       color: pool.payment_status === 'approved' ? 'var(--primary)' : pool.payment_status === 'rejected' ? 'var(--danger)' : 'var(--accent)'
                     }}>
-                      {pool.payment_status === 'approved' ? 'PAGO APROBADO' : pool.payment_status === 'rejected' ? 'PAGO RECHAZADO' : 'ESPERANDO VALIDACIÓN'}
+                      {pool.payment_status === 'approved' ? 'PAGO APROBADO' : pool.payment_status === 'rejected' ? 'PAGO RECHAZADO' : (pool.payment_receipt_url ? 'PAGO EN REVISIÓN' : 'ESPERANDO VALIDACIÓN')}
                     </span>
                   </div>
 
@@ -5946,7 +5946,7 @@ export default function App() {
                                                 fontWeight: '700', 
                                                 color: pool.payment_status === 'approved' ? 'var(--primary)' : pool.payment_status === 'pending' ? '#ffb300' : 'var(--danger)'
                                               }}>
-                                                {pool.payment_status.toUpperCase()}
+                                                {pool.payment_status === 'approved' ? 'APROBADO' : pool.payment_status === 'pending' ? (pool.payment_receipt_url ? 'EN REVISIÓN' : 'PENDIENTE') : 'RECHAZADO'}
                                               </span>
                                             </div>
                                           );
@@ -6028,7 +6028,7 @@ export default function App() {
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Costo: ${pool.cost}</div>
                       </div>
                       <span className={`status-badge ${pool.payment_status}`}>
-                        {pool.payment_status === 'approved' ? 'Aprobado' : pool.payment_status === 'pending' ? 'Pendiente' : 'Rechazado'}
+                        {pool.payment_status === 'approved' ? 'Aprobado' : pool.payment_status === 'pending' ? (pool.payment_receipt_url ? 'En Revisión' : 'Pendiente') : 'Rechazado'}
                       </span>
                     </div>
                   </div>
