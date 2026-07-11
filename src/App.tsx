@@ -258,6 +258,9 @@ export default function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [allMatchdays, setAllMatchdays] = useState<Matchday[]>([]);
   const [openMatchdayMenu, setOpenMatchdayMenu] = useState<string | null>(null);
+  const [searchParticipant, setSearchParticipant] = useState('');
+  const [lastWinners, setLastWinners] = useState<any[]>([]);
+  const [lastCalculatedMatchday, setLastCalculatedMatchday] = useState<Matchday | null>(null);
   const [selectedAdminMatchday, setSelectedAdminMatchday] = useState<Matchday | null>(null);
   const [adminDetailView, setAdminDetailView] = useState<'matches'|'ranking'>('matches');
   const [matchdayPoolCounts, setMatchdayPoolCounts] = useState<Record<string, number>>({});
@@ -5045,16 +5048,56 @@ export default function App() {
           </div>
         )}
 
-        {/* 7. ADMIN: PARTICIPANTES Y COMUNICACIÓN (Pestaña "admin-participants") */}
-        {activeTab === 'admin-participants' && isAdmin && (
+                {/* 7. ADMIN: PARTICIPANTES Y COMUNICACIÓN (Pestaña "admin-participants") */}
+        {activeTab === 'admin-participants' && isAdmin && (() => {
+          const filteredParticipants = participants.filter(p => 
+            p.name.toLowerCase().includes(searchParticipant.toLowerCase()) || 
+            p.alias.toLowerCase().includes(searchParticipant.toLowerCase()) ||
+            p.phone.includes(searchParticipant)
+          );
+
+          return (
           <div>
             <h2 style={{ marginBottom: '16px' }}>Directorio de Participantes</h2>
 
+            {lastCalculatedMatchday && lastWinners.length > 0 && (
+              <div className="card" style={{ marginBottom: '20px', borderTop: '4px solid #F59E0B' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B' }}>
+                  <Trophy size={18} /> Podio de la Última Quiniela (N° {lastCalculatedMatchday.number})
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                  {lastWinners.map((winner, idx) => (
+                    <div key={winner.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                      <div style={{ 
+                        width: '32px', height: '32px', borderRadius: '50%', 
+                        background: idx === 0 ? '#F59E0B' : idx === 1 ? '#94A3B8' : '#B45309',
+                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                      }}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: 'white' }}>{winner.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>@{winner.alias} • {winner.score} aciertos</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="card">
-              <h3>Participantes Registrados ({participants.length})</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
-                Aquí puedes ver la lista de todos los usuarios registrados y contactarlos directamente por WhatsApp.
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                <h3>Participantes Registrados ({participants.length})</h3>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Buscar por nombre, alias o teléfono..." 
+                  value={searchParticipant}
+                  onChange={e => setSearchParticipant(e.target.value)}
+                  style={{ maxWidth: '300px' }}
+                />
+              </div>
+              
               <div style={{ overflowX: 'auto' }}>
                 <table className="leaderboard-table" style={{ marginTop: '10px', minWidth: '600px' }}>
                   <thead>
@@ -5066,40 +5109,45 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {participants.map(p => (
-                      <tr key={p.id}>
-                        <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
-                        <td>@{p.alias}</td>
-                        <td>{p.phone}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <a 
-                            href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn"
-                            style={{ 
-                              background: 'rgba(37, 211, 102, 0.1)', 
-                              color: '#25D366', 
-                              border: '1px solid #25D366', 
-                              padding: '6px 12px', 
-                              fontSize: '0.8rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              textDecoration: 'none'
-                            }}
-                          >
-                            <MessageCircle size={14} /> Mensaje
-                          </a>
-                        </td>
-                      </tr>
-                  ))}
-                </tbody>
-              </table>
+                    {filteredParticipants.length === 0 ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No se encontraron participantes.</td></tr>
+                    ) : (
+                      filteredParticipants.map(p => (
+                        <tr key={p.id}>
+                          <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
+                          <td>@{p.alias}</td>
+                          <td>{p.phone}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <a 
+                              href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="btn"
+                              style={{ 
+                                background: 'rgba(37, 211, 102, 0.1)', 
+                                color: '#25D366', 
+                                border: '1px solid #25D366', 
+                                padding: '6px 12px', 
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                textDecoration: 'none'
+                              }}
+                            >
+                              <MessageCircle size={14} /> Mensaje
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-        )}
+          );
+        })}
 
         {/* 8. ADMIN: DASHBOARD FINANCIERO Y VENTAS (Pestaña "admin-dashboard") */}
         {activeTab === 'admin-dashboard' && isAdmin && (() => {
