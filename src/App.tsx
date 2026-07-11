@@ -3266,15 +3266,21 @@ export default function App() {
                       A continuación, realiza tu depósito o transferencia.
                     </p>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                      Solicita la información al siguiente número:
+                      Solicita la información para realizar tu pago al siguiente número:
                     </p>
 
-                    {whatsappConfig && (
-                      <div style={{ margin: '10px auto 20px auto', display: 'inline-block' }}>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 'bold', textTransform: 'uppercase' }}>DUDAS Y SOPORTE WHATSAPP:</p>
-                        <h1 style={{ margin: 0, color: '#25D366', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '1px' }}>{whatsappConfig.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}</h1>
-                      </div>
-                    )}
+                    <button 
+                      onClick={() => {
+                        const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
+                        const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(successMessageText)}`;
+                        window.open(waUrl, '_blank');
+                      }}
+                      className="btn"
+                      style={{ padding: '12px 24px', fontSize: '1rem', background: '#25D366', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto 20px auto', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', width: '100%', maxWidth: '400px', fontWeight: 'bold' }}
+                    >
+                      <MessageCircle size={20} />
+                      Enviar mis datos a WhatsApp
+                    </button>
 
                     <button 
                       onClick={() => {
@@ -3290,8 +3296,8 @@ export default function App() {
                       <FileText size={20} />
                       Adjuntar Comprobante
                     </button>
-                                        <div style={{ marginTop: '30px' }}>
-                      <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '100%', maxWidth: '400px', margin: '0 auto', display: 'block', padding: '12px' }}>Volver al Inicio</button>
+                    <div style={{ marginTop: '50px' }}>
+                      <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '100%', maxWidth: '400px', margin: '0 auto', display: 'block', padding: '12px' }}>NUEVA QUINIELA</button>
                     </div>
                   </div>
                 ) : matches.length === 0 ? (
