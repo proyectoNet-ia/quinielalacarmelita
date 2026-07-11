@@ -5173,7 +5173,7 @@ export default function App() {
                   </tbody>
                 </table>
                 </div>
-                {totalFiltered.length > 10 && (
+                {filteredParticipants.length > 10 && (
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '16px', padding: '10px' }}>
                     <button 
                       className="btn btn-secondary" 
