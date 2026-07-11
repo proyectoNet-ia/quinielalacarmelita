@@ -3262,8 +3262,11 @@ export default function App() {
                       </div>
                     </div>
 
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '10px', marginTop: '10px' }}>
-                      A continuación, realiza tu depósito o transferencia y envía tu comprobante.
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '5px', marginTop: '10px' }}>
+                      A continuación, realiza tu depósito o transferencia.
+                    </p>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                      Solicita la información al siguiente número:
                     </p>
 
                     {whatsappConfig && (
@@ -3272,6 +3275,21 @@ export default function App() {
                         <h1 style={{ margin: 0, color: '#25D366', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '1px' }}>{whatsappConfig.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}</h1>
                       </div>
                     )}
+
+                    <button 
+                      onClick={() => {
+                        setVerifyCode(cartReferenceId);
+                        localStorage.setItem('lastReferenceCode', cartReferenceId);
+                        setShowSuccessScreen(false);
+                        setActiveTab('verify-payment');
+                        setTimeout(() => handleVerifySearch(undefined, cartReferenceId), 100);
+                      }}
+                      className="btn"
+                      style={{ padding: '12px 24px', fontSize: '1rem', background: '#128C7E', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto 20px auto', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', width: '100%', maxWidth: '400px', fontWeight: 'bold' }}
+                    >
+                      <FileText size={20} />
+                      Adjuntar Comprobante
+                    </button>
                                         <div style={{ marginTop: '30px' }}>
                       <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '100%', maxWidth: '400px', margin: '0 auto', display: 'block', padding: '12px' }}>Volver al Inicio</button>
                     </div>
