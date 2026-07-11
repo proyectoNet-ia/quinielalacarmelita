@@ -431,6 +431,8 @@ export default function App() {
   const [isReserveMatch, setIsReserveMatch] = useState(false);
   const [activationDate, setActivationDate] = useState('');
   const [firstMatchDate, setFirstMatchDate] = useState('');
+  const [editDeadline, setEditDeadline] = useState('');
+  const [showEditDeadline, setShowEditDeadline] = useState(false);
 
   // --- Formulario Suscripción (Próximamente) ---
   const [subName, setSubName] = useState('');
@@ -1991,11 +1993,11 @@ export default function App() {
       return;
     }
 
-    // Regla de cierre: La fecha límite debe ser al menos 8 horas antes del primer partido
+    // Regla de cierre: La fecha límite debe ser al menos 5 horas antes del primer partido
     const firstMatchTime = new Date(firstMatchDate).getTime();
-    const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
-    if (firstMatchTime - deadlineTime < EIGHT_HOURS_MS) {
-      showAlert('error', 'La fecha límite de cierre debe ser al menos 8 horas antes del primer juego.');
+    const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+    if (firstMatchTime - deadlineTime < FIVE_HOURS_MS) {
+      showAlert('error', 'La fecha límite de cierre debe ser al menos 5 horas antes del primer juego.');
       return;
     }
 
@@ -2075,6 +2077,32 @@ export default function App() {
       showAlert('success', `Quiniela marcada como ${newStatus.toUpperCase()}.`);
     } catch (err) {
       showAlert('error', 'Error al cambiar estado de la quiniela.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateDeadline = async () => {
+    if (!activeMatchday || !editDeadline) return;
+    const newDeadlineTime = new Date(editDeadline).getTime();
+    if (newDeadlineTime <= Date.now()) {
+      showAlert('error', 'La nueva fecha limite debe ser en el futuro.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('matchdays')
+        .update({ deadline: new Date(editDeadline).toISOString() })
+        .eq('id', activeMatchday.id);
+      if (error) throw error;
+      setActiveMatchday(prev => prev ? { ...prev, deadline: new Date(editDeadline).toISOString() } : null);
+      setAllMatchdays(prev => prev.map(m => m.id === activeMatchday.id ? { ...m, deadline: new Date(editDeadline).toISOString() } : m));
+      setShowEditDeadline(false);
+      setEditDeadline('');
+      showAlert('success', 'Hora de cierre actualizada correctamente.');
+    } catch (err) {
+      showAlert('error', 'Error al actualizar la hora de cierre.');
     } finally {
       setLoading(false);
     }
@@ -4477,7 +4505,7 @@ export default function App() {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc3545', fontWeight: 'bold' }}>
                           <AlertCircle size={16} /> Fecha y Hora Límite de Cierre
                         </label>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 8px 0' }}>Debe ser al menos 8 horas antes del primer partido.</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 8px 0' }}>Debe ser al menos 5 horas antes del primer partido.</p>
                         <input 
                           type="datetime-local" 
                           className="form-control" 
@@ -4499,6 +4527,7 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
+                  <>
                   <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                     <button 
                       className={`btn ${activeMatchday.status === 'active' ? 'btn-primary' : 'btn-secondary'}`}
@@ -4542,6 +4571,45 @@ export default function App() {
                       <RotateCcw size={14} /> Inactiva
                     </button>
                   </div>
+                  {/* Editar hora de cierre para quiniela ya activa */}
+                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,193,7,0.06)', border: '1px solid rgba(255,193,7,0.2)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showEditDeadline ? '10px' : 0 }}>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Clock size={14} /> Cierre actual: <strong style={{ color: 'var(--primary)' }}>{new Date(activeMatchday.deadline).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong>
+                      </span>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                        onClick={() => {
+                          setShowEditDeadline(v => !v);
+                          setEditDeadline('');
+                        }}
+                      >
+                        <Edit2 size={12} /> {showEditDeadline ? 'Cancelar' : 'Ajustar cierre'}
+                      </button>
+                    </div>
+                    {showEditDeadline && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="datetime-local"
+                          className="form-control"
+                          style={{ flex: 1, minWidth: '200px' }}
+                          value={editDeadline}
+                          onChange={e => setEditDeadline(e.target.value)}
+                          onFocus={e => { try { e.target.showPicker(); } catch(err) {} }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: '8px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                          onClick={handleUpdateDeadline}
+                          disabled={loading || !editDeadline}
+                        >
+                          <Save size={14} /> Guardar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  </>
                 )}
               </div>
             )}
