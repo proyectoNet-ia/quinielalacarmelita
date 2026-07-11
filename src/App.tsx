@@ -1488,19 +1488,20 @@ export default function App() {
       const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
       if (predErr) throw predErr;
       
-      let msgText = `Hola, soy *${cartParticipantName}*.\r\n\r\n`;
+      let msgText = `Hola, soy *${cartParticipantName}*, me he registrado para participar en la quiniela *Jornada ${activeMatchday?.number}*.\r\n\r\nMis pronósticos son:\r\n`;
       cart.forEach((selections, idx) => {
-        let quinielaLine = `*Quiniela ${idx + 1}* `;
+        let quinielaLine = `*Quiniela ${idx + 1}:* `;
         let matchIndex = 1;
         matches.forEach(m => {
           if (selections[m.id]) {
-            quinielaLine += `P${matchIndex}: ${selections[m.id]} `;
+            quinielaLine += `P${matchIndex}:${selections[m.id]} `;
           }
           matchIndex++;
         });
-        msgText += quinielaLine.trim() + `\r\n\r\n`;
+        msgText += quinielaLine.trim() + `\r\n`;
       });
-      msgText += `Ya me registré en *La Carmelita* con el código de referencia *${refId}*. En breve enviaré el recibo de pago para su validación y así asegurar la participación de mis quinielas.`;
+      msgText += `\r\nMi código de referencia único es: *${refId}*\r\n\r\n`;
+      msgText += `*(Instrucción)* Cuando realice el depósito o transferencia enviaré el comprobante por este chat. Para revisar el estatus de mi quiniela puedo volver a entrar a la plataforma usando este enlace: ${window.location.origin}`;
       
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
@@ -1509,6 +1510,11 @@ export default function App() {
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
+      const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
+      window.open(waUrl, '_blank');
+
       setCart([]);
       setCartParticipantName('');
       setCartParticipantAlias('');
