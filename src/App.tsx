@@ -4011,7 +4011,7 @@ export default function App() {
                   </button>
                 </div>
                 
-                <div style={{ overflowX: 'auto' }}>
+                <div style={{ overflowX: 'auto', minHeight: '250px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
@@ -4027,7 +4027,7 @@ export default function App() {
                       {allMatchdays.length === 0 ? (
                         <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
                       ) : (
-                        allMatchdays.map(m => (
+                        allMatchdays.map((m, idx) => (
                           <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '16px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
                             <td style={{ padding: '16px 8px' }}>
@@ -4062,7 +4062,8 @@ export default function App() {
                                 <div style={{ 
                                   position: 'absolute', 
                                   right: '8px', 
-                                  top: '56px', 
+                                  top: (idx >= allMatchdays.length - 2 && allMatchdays.length > 3) ? 'auto' : '56px',
+                                  bottom: (idx >= allMatchdays.length - 2 && allMatchdays.length > 3) ? '40px' : 'auto',
                                   background: 'var(--bg-card)', 
                                   border: '1px solid var(--primary)', 
                                   borderRadius: '8px', 
