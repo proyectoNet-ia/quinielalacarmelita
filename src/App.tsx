@@ -258,6 +258,7 @@ export default function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [allMatchdays, setAllMatchdays] = useState<Matchday[]>([]);
   const [openMatchdayMenu, setOpenMatchdayMenu] = useState<string | null>(null);
+  const [currentPageMatchdays, setCurrentPageMatchdays] = useState(1);
   const [searchParticipant, setSearchParticipant] = useState('');
   const [lastWinners, setLastWinners] = useState<any[]>([]);
   const [lastCalculatedMatchday, setLastCalculatedMatchday] = useState<Matchday | null>(null);
@@ -4027,7 +4028,7 @@ export default function App() {
                       {allMatchdays.length === 0 ? (
                         <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
                       ) : (
-                        allMatchdays.map((m, idx) => (
+                        allMatchdays.slice((currentPageMatchdays - 1) * 10, currentPageMatchdays * 10).map((m, idx) => (
                           <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '16px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
                             <td style={{ padding: '16px 8px' }}>
@@ -4116,6 +4117,29 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
+                {allMatchdays.length > 10 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '16px', padding: '10px' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px 16px' }}
+                      disabled={currentPageMatchdays === 1}
+                      onClick={() => setCurrentPageMatchdays(prev => Math.max(prev - 1, 1))}
+                    >
+                      Anterior
+                    </button>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                      Página {currentPageMatchdays} de {Math.ceil(allMatchdays.length / 10)}
+                    </span>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px 16px' }}
+                      disabled={currentPageMatchdays >= Math.ceil(allMatchdays.length / 10)}
+                      onClick={() => setCurrentPageMatchdays(prev => Math.min(prev + 1, Math.ceil(allMatchdays.length / 10)))}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
               </div>
             ) : adminDetailView === 'ranking' ? (
               <div className="card">
@@ -5094,7 +5118,10 @@ export default function App() {
                   className="form-control" 
                   placeholder="Buscar por nombre, alias o teléfono..." 
                   value={searchParticipant}
-                  onChange={e => setSearchParticipant(e.target.value)}
+                  onChange={e => {
+                    setSearchParticipant(e.target.value);
+                    setCurrentPageParticipants(1);
+                  }}
                   style={{ maxWidth: '300px' }}
                 />
               </div>
@@ -5144,8 +5171,31 @@ export default function App() {
                     )}
                   </tbody>
                 </table>
+                </div>
+                {totalFiltered.length > 10 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '16px', padding: '10px' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px 16px' }}
+                      disabled={currentPageParticipants === 1}
+                      onClick={() => setCurrentPageParticipants(prev => Math.max(prev - 1, 1))}
+                    >
+                      Anterior
+                    </button>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                      Página {currentPageParticipants} de {totalPagesParticipants}
+                    </span>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px 16px' }}
+                      disabled={currentPageParticipants >= totalPagesParticipants}
+                      onClick={() => setCurrentPageParticipants(prev => Math.min(prev + 1, totalPagesParticipants))}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
           </div>
           );
         })()}
