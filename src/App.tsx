@@ -4378,12 +4378,17 @@ export default function App() {
                     <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
                       <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
                         <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Costo por Entrada (MXN)</label>
-                        <input 
-                          type="number" 
-                          className="form-control" 
-                          value={matchdayPrice}
-                          onChange={e => setMatchdayPrice(Number(e.target.value))}
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <span style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>$</span>
+                          <input 
+                            type="number" 
+                            className="form-control" 
+                            style={{ paddingLeft: '28px' }}
+                            value={matchdayPrice === 0 ? '' : matchdayPrice}
+                            onChange={e => setMatchdayPrice(Number(e.target.value))}
+                            placeholder="0.00"
+                          />
+                        </div>
                       </div>
                       
                       <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
@@ -4395,31 +4400,41 @@ export default function App() {
                           style={{ background: 'var(--bg-main)' }}
                         >
                           <option value="percentage">Porcentaje de Recaudación</option>
-                          <option value="fixed">Monto Fijo (1er y 2do Lugar)</option>
+                          <option value="fixed">Monto Fijo (Ganador)</option>
                         </select>
                       </div>
 
                       {matchdayPrizeType === 'percentage' ? (
                         <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
                           <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Bolsa para el Ganador (%)</label>
-                          <input 
-                            type="number" 
-                            className="form-control" 
-                            min={0}
-                            max={100}
-                            value={prizePercentage}
-                            onChange={e => setPrizePercentage(Math.min(100, Math.max(0, Number(e.target.value))))}
-                          />
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              style={{ paddingRight: '28px' }}
+                              min={0}
+                              max={100}
+                              value={prizePercentage === 0 ? '' : prizePercentage}
+                              onChange={e => setPrizePercentage(Math.min(100, Math.max(0, Number(e.target.value))))}
+                              placeholder="0"
+                            />
+                            <span style={{ position: 'absolute', right: '12px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>%</span>
+                          </div>
                         </div>
                       ) : (
                         <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
                           <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Monto Fijo Ganador (MXN)</label>
-                          <input 
-                            type="number" 
-                            className="form-control" 
-                            value={matchdayFixedPrize1st}
-                            onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
-                          />
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <span style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>$</span>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              style={{ paddingLeft: '28px' }}
+                              value={matchdayFixedPrize1st === 0 ? '' : matchdayFixedPrize1st}
+                              onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
+                              placeholder="0.00"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
