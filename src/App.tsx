@@ -3028,7 +3028,7 @@ export default function App() {
               style={{ 
                 background: '#128C7E', 
                 color: 'white', 
-                display: 'flex', 
+                display: 'none', // Oculto temporalmente a petición
                 alignItems: 'center', 
                 gap: '8px', 
                 padding: '8px 16px',
