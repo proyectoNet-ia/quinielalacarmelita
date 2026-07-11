@@ -4772,25 +4772,41 @@ export default function App() {
 
             <div className="card">
               <form onSubmit={handleAddBankAccount} style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input type="text" placeholder="Nombre del Banco (ej. BBVA)" value={newBankName} onChange={e => setNewBankName(e.target.value)} required className="form-control" style={{ flex: 1, minWidth: '150px' }} />
-                  <input type="text" placeholder="Titular de la cuenta" value={newAccountHolder} onChange={e => setNewAccountHolder(e.target.value)} required className="form-control" style={{ flex: 1, minWidth: '150px' }} />
-                  <input type="text" placeholder="No. Tarjeta / Cuenta" value={newAccountNumber} onChange={e => setNewAccountNumber(e.target.value)} className="form-control" style={{ flex: 1, minWidth: '150px' }} />
-                  <input type="text" placeholder="CLABE" value={newClabe} onChange={e => setNewClabe(e.target.value)} className="form-control" style={{ flex: 1, minWidth: '150px' }} />
-                  <select
-                    value={newAccountType}
-                    onChange={e => setNewAccountType(e.target.value as 'transferencia' | 'deposito')}
-                    className="form-control"
-                    style={{ flex: 1, minWidth: '160px', background: 'var(--bg-main)' }}
-                  >
-                    <option value="transferencia">Transferencia</option>
-                    <option value="deposito">Deposito</option>
-                  </select>
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
-                    <PlusCircle size={15} /> Anadir Cuenta
-                  </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>Nombre del Banco</label>
+                    <input type="text" placeholder="ej. BBVA, Bancomer..." value={newBankName} onChange={e => setNewBankName(e.target.value)} required className="form-control" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>Titular de la Cuenta</label>
+                    <input type="text" placeholder="Nombre completo del titular" value={newAccountHolder} onChange={e => setNewAccountHolder(e.target.value)} required className="form-control" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>No. Tarjeta / Cuenta</label>
+                    <input type="text" placeholder="16 dígitos de tarjeta o No. cuenta" value={newAccountNumber} onChange={e => setNewAccountNumber(e.target.value)} className="form-control" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>CLABE Interbancaria</label>
+                    <input type="text" placeholder="18 dígitos" value={newClabe} onChange={e => setNewClabe(e.target.value)} className="form-control" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>Tipo de Operación</label>
+                    <select
+                      value={newAccountType}
+                      onChange={e => setNewAccountType(e.target.value as 'transferencia' | 'deposito')}
+                      className="form-control"
+                      style={{ background: 'var(--bg-main)' }}
+                    >
+                      <option value="transferencia">Transferencia</option>
+                      <option value="deposito">Depósito</option>
+                    </select>
+                  </div>
                 </div>
+                <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+                  <PlusCircle size={15} /> Añadir Cuenta
+                </button>
               </form>
+
 
 
               {bankAccounts.length === 0 ? (
