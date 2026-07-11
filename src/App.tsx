@@ -3259,20 +3259,6 @@ export default function App() {
                           Copiar Código
                         </button>
                         <p style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '0', marginBottom: 0, fontWeight: 'bold' }}>* Agrega este código en el concepto de tu transferencia</p>
-                        
-                        <button 
-                          onClick={() => {
-                            setVerifyCode(cartReferenceId);
-                            setShowSuccessScreen(false);
-                            setActiveTab('verify-payment');
-                            handleVerifySearch(undefined, cartReferenceId);
-                          }}
-                          className="btn"
-                          style={{ padding: '12px 24px', fontSize: '1rem', background: '#128C7E', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)' }}
-                        >
-                          <FileText size={20} />
-                          Enviar Comprobante
-                        </button>
                       </div>
                     </div>
 
@@ -3282,120 +3268,11 @@ export default function App() {
 
                     {whatsappConfig && (
                       <div style={{ margin: '10px auto 20px auto', display: 'inline-block' }}>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 'bold', textTransform: 'uppercase' }}>ENVÍA TUS QUINIELAS Y PAGO AL WHATSAPP:</p>
-                        <h1 style={{ margin: 0, color: '#25D366', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '1px' }}>{whatsappConfig}</h1>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 'bold', textTransform: 'uppercase' }}>DUDAS Y SOPORTE WHATSAPP:</p>
+                        <h1 style={{ margin: 0, color: '#25D366', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '1px' }}>{whatsappConfig.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}</h1>
                       </div>
                     )}
-                    <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '8px', textAlign: 'left', margin: '0 auto', width: '100%', maxWidth: '100%' }}>
-                      <h4 style={{ marginBottom: '16px', color: 'var(--primary)', textAlign: 'center' }}>Datos de Pago</h4>
-                      
-                      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '4px', marginBottom: '24px', width: '100%' }}>
-                        <button 
-                          className="btn"
-                          style={{ 
-                            flex: 1, 
-                            padding: '10px 5px', 
-                            background: paymentMethod === 'transfer' ? '#128C7E' : 'transparent',
-                            color: paymentMethod === 'transfer' ? 'white' : 'var(--text-secondary)',
-                            border: 'none',
-                            borderRadius: 'calc(var(--radius-md) - 2px)',
-                            fontWeight: paymentMethod === 'transfer' ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem'
-                          }}
-                          onClick={() => setPaymentMethod('transfer')}
-                        >
-                          Transferencia (CLABE)
-                        </button>
-                        <button 
-                          className="btn"
-                          style={{ 
-                            flex: 1, 
-                            padding: '10px 5px', 
-                            background: paymentMethod === 'deposit' ? '#128C7E' : 'transparent',
-                            color: paymentMethod === 'deposit' ? 'white' : 'var(--text-secondary)',
-                            border: 'none',
-                            borderRadius: 'calc(var(--radius-md) - 2px)',
-                            fontWeight: paymentMethod === 'deposit' ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem'
-                          }}
-                          onClick={() => setPaymentMethod('deposit')}
-                        >
-                          Depósito Efectivo
-                        </button>
-                      </div>
-
-                      <div key={paymentMethod} className="fade-transition">
-                        {bankAccounts.length === 0 ? (
-                          [
-                            { id: 'demo1', bank_name: 'BBVA Bancomer (Demo)', account_holder: 'Juan Pérez', account_number: '', clabe: '012345678901234567', is_active: true },
-                            { id: 'demo2', bank_name: 'OXXO Spin (Demo)', account_holder: 'María Rodríguez', account_number: '4231 0000 1111 2222', clabe: '', is_active: true }
-                          ]
-                            .filter(b => paymentMethod === 'transfer' ? b.clabe : b.account_number)
-                            .map(b => (
-                            <div key={b.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-                                {getBankLogo(b.bank_name) ? (
-                                  <div style={{ background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '135.2px', height: '67.6px' }}>
-                                    <img src={getBankLogo(b.bank_name)!} alt={b.bank_name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                  </div>
-                                ) : (
-                                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '65px', height: '65px' }}>
-                                    <Landmark size={32} color="var(--primary)" />
-                                  </div>
-                                )}
-                              </div>
-                              <h5 style={{ textAlign: 'center', color: 'var(--primary)', margin: '0 0 12px 0', fontSize: '1rem' }}>
-                                {paymentMethod === 'transfer' ? 'Transferencia (CLABE)' : 'Depósito Efectivo'}
-                              </h5>
-                              <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Banco: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.bank_name}</span></p>
-                              <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Titular: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_holder}</span></p>
-                              {paymentMethod === 'deposit' && b.account_number && (
-                                <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Cuenta/Tarjeta: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_number}</span></p>
-                              )}
-                              {paymentMethod === 'transfer' && b.clabe && (
-                                <p style={{ margin: '4px 0', fontWeight: 'bold' }}>CLABE: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.clabe}</span></p>
-                              )}
-                            </div>
-                          ))
-                        ) : (
-                          bankAccounts
-                            .filter(b => b.is_active)
-                            .filter(b => paymentMethod === 'transfer' ? b.clabe : b.account_number)
-                            .map(b => (
-                              <div key={b.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-                                  {getBankLogo(b.bank_name) ? (
-                                    <div style={{ background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '135.2px', height: '67.6px' }}>
-                                      <img src={getBankLogo(b.bank_name)!} alt={b.bank_name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                    </div>
-                                  ) : (
-                                    <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '65px', height: '65px' }}>
-                                      <Landmark size={32} color="var(--primary)" />
-                                    </div>
-                                  )}
-                                </div>
-                                <h5 style={{ textAlign: 'center', color: 'var(--primary)', margin: '0 0 12px 0', fontSize: '1rem' }}>
-                                  {paymentMethod === 'transfer' ? 'Transferencia (CLABE)' : 'Depósito Efectivo'}
-                                </h5>
-                                <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Banco: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.bank_name}</span></p>
-                                <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Titular: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_holder}</span></p>
-                                {paymentMethod === 'deposit' && b.account_number && (
-                                  <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Cuenta/Tarjeta: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.account_number}</span></p>
-                                )}
-                                {paymentMethod === 'transfer' && b.clabe && (
-                                  <p style={{ margin: '4px 0', fontWeight: 'bold' }}>CLABE: <span style={{ color: 'var(--text-main)', fontWeight: 'normal' }}>{b.clabe}</span></p>
-                                )}
-                              </div>
-                          ))
-                        )}
-                      </div>
-
-                    </div>
-                    <div style={{ marginTop: '30px' }}>
+                                        <div style={{ marginTop: '30px' }}>
                       <button className="btn btn-primary" onClick={() => { setShowSuccessScreen(false); setActiveTab('predictions'); }} style={{ width: '100%', maxWidth: '400px', margin: '0 auto', display: 'block', padding: '12px' }}>Volver al Inicio</button>
                     </div>
                   </div>
