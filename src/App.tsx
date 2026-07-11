@@ -432,7 +432,7 @@ export default function App() {
   };
 
   const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!subName) {
       showAlert('error', 'Por favor ingresa tu nombre.');
       return;
@@ -1746,7 +1746,7 @@ export default function App() {
   };
 
   // Crear una nueva quiniela
-  const handleCreateMatchday = async (e: React.FormEvent) => {
+  const handleCreateMatchday = async (e?: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
     if (!activeSeason) return;
 
@@ -4012,45 +4012,45 @@ export default function App() {
                   </button>
                 </div>
                 
-                <div style={{ overflowX: 'auto', minHeight: '250px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '16px 8px' }}>N°</th>
-                        <th style={{ padding: '16px 8px' }}>Estado</th>
-                        <th style={{ padding: '16px 8px' }}>Cierre</th>
-                        <th style={{ padding: '16px 8px', textAlign: 'center' }}>Participantes</th>
-                        <th style={{ padding: '16px 8px', textAlign: 'center' }}>Recaudado</th>
-                        <th style={{ padding: '16px 8px', textAlign: 'right' }}>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {allMatchdays.length === 0 ? (
-                        <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No hay quinielas creadas.</td></tr>
+                        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>No hay quinielas creadas.</div>
                       ) : (
                         allMatchdays.slice((currentPageMatchdays - 1) * 10, currentPageMatchdays * 10).map((m, idx) => (
-                          <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '16px 8px', fontWeight: 'bold' }}>Quiniela {m.number}</td>
-                            <td style={{ padding: '16px 8px' }}>
-                              <span style={{ 
-                                padding: '6px 10px', 
-                                borderRadius: '4px', 
-                                fontSize: '0.8rem',
-                                background: m.status === 'active' ? 'rgba(37, 211, 102, 0.1)' : m.status === 'inactive' ? 'rgba(255, 193, 7, 0.1)' : 'rgba(255,255,255,0.1)',
-                                color: m.status === 'active' ? '#25D366' : m.status === 'inactive' ? 'var(--primary)' : 'var(--text-secondary)'
-                              }}>
-                                {m.status === 'active' ? 'Abierta' : m.status === 'closed' ? 'Cerrada' : m.status === 'calculated' ? 'Calificada' : 'Inactiva'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '16px 8px', fontSize: '0.85rem' }}>{new Date(m.deadline).toLocaleString()}</td>
-                            <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                              {matchdayPoolCounts[m.id] || 0}
-                            </td>
-                            <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', color: '#25D366' }}>
-                              ${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}
-                            </td>
-                            <td style={{ padding: '16px 8px', position: 'relative', zIndex: openMatchdayMenu === m.id ? 50 : 1 }}>
-                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 200px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>Quiniela {m.number}</span>
+                                <span style={{ 
+                                  padding: '4px 10px', 
+                                  borderRadius: '20px', 
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  background: m.status === 'active' ? 'rgba(37, 211, 102, 0.15)' : m.status === 'inactive' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255,255,255,0.1)',
+                                  color: m.status === 'active' ? '#25D366' : m.status === 'inactive' ? 'var(--primary)' : 'var(--text-secondary)',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  {m.status === 'active' ? 'Abierta' : m.status === 'closed' ? 'Cerrada' : m.status === 'calculated' ? 'Calificada' : 'Inactiva'}
+                                </span>
+                              </div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Calendar size={14} /> Cierre: {new Date(m.deadline).toLocaleString()}
+                              </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '30px', flexWrap: 'wrap' }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Participantes</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Users size={16} style={{ color: 'var(--primary)' }}/> {matchdayPoolCounts[m.id] || 0}</div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Recaudado</div>
+                                <div style={{ fontWeight: 'bold', color: '#25D366', fontSize: '1.2rem' }}>${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}</div>
+                              </div>
+                              <div style={{ position: 'relative', zIndex: openMatchdayMenu === m.id ? 50 : 1 }}>
+                                <div>
                                 <button
                                   className="btn btn-secondary"
                                   style={{ padding: '8px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', minWidth: '100px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -4110,12 +4110,12 @@ export default function App() {
                                   </button>
                                 </div>
                               )}
-                            </td>
-                          </tr>
+                              </div>
+                            </div>
+                          </div>
                         ))
                       )}
-                    </tbody>
-                  </table>
+                    </div>
                 </div>
                 {allMatchdays.length > 10 && (
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '16px', padding: '10px' }}>
