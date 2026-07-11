@@ -1747,7 +1747,7 @@ export default function App() {
 
   // Crear una nueva quiniela
   const handleCreateMatchday = async (e?: React.FormEvent | React.MouseEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!activeSeason) return;
 
     try {
