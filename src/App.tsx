@@ -548,6 +548,10 @@ export default function App() {
       if (ref) {
         setVerifyCode(ref);
         localStorage.setItem('lastReferenceCode', ref);
+        // Execute the search automatically after a short delay to ensure state and components are ready
+        setTimeout(() => {
+          handleVerifySearch(undefined, ref);
+        }, 100);
       }
       // Limpiamos la URL para no dejarla sucia si recargan
       window.history.replaceState({}, document.title, window.location.pathname);
