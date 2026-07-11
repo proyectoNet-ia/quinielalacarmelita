@@ -1150,7 +1150,7 @@ export default function App() {
     
     let prizePool = 0;
     if (md.prize_type === 'fixed') {
-      prizePool = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+      prizePool = Number(md.fixed_prize_1st || 0);
     } else {
       const pct = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
       prizePool = totalRecaudado * (pct / 100);
@@ -1184,17 +1184,6 @@ export default function App() {
       maxScorePlayers.forEach(p => {
         payouts[p.id] = payout1st;
       });
-      
-      if (md.prize_type === 'fixed' && sortedScores.length > 1) {
-        const secondScore = sortedScores[1];
-        const secondScorePlayers = playersByScore[secondScore];
-        const N_2nd = secondScorePlayers.length;
-        const total2ndPrize = Number(md.fixed_prize_2nd || 0);
-        const payout2nd = total2ndPrize / N_2nd;
-        secondScorePlayers.forEach(p => {
-          payouts[p.id] = payout2nd;
-        });
-      }
     }
     
     return payouts;
@@ -1900,7 +1889,7 @@ export default function App() {
           prize_percentage: prizePercentage,
           prize_type: matchdayPrizeType,
           fixed_prize_1st: matchdayFixedPrize1st,
-          fixed_prize_2nd: matchdayFixedPrize2nd
+          fixed_prize_2nd: 0
         })
         .eq('id', activeMatchday.id)
         .select()
@@ -2282,7 +2271,7 @@ export default function App() {
       
       let mdPrize = 0;
       if (md.prize_type === 'fixed') {
-        mdPrize = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+        mdPrize = Number(md.fixed_prize_1st || 0);
       } else {
         const percent = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
         mdPrize = mdGross * (percent / 100);
@@ -2319,7 +2308,7 @@ export default function App() {
       
       let prize = 0;
       if (md.prize_type === 'fixed') {
-        prize = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+        prize = Number(md.fixed_prize_1st || 0);
       } else {
         const percent = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
         prize = totalApp * (percent / 100);
@@ -4423,26 +4412,15 @@ export default function App() {
                           />
                         </div>
                       ) : (
-                        <>
-                          <div className="form-group" style={{ flex: '1 1 180px', marginBottom: 0 }}>
-                            <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Premio 1er Lugar (MXN)</label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              value={matchdayFixedPrize1st}
-                              onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
-                            />
-                          </div>
-                          <div className="form-group" style={{ flex: '1 1 180px', marginBottom: 0 }}>
-                            <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Premio 2do Lugar (MXN)</label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              value={matchdayFixedPrize2nd}
-                              onChange={e => setMatchdayFixedPrize2nd(Number(e.target.value))}
-                            />
-                          </div>
-                        </>
+                        <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+                          <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Monto Fijo Ganador (MXN)</label>
+                          <input 
+                            type="number" 
+                            className="form-control" 
+                            value={matchdayFixedPrize1st}
+                            onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
+                          />
+                        </div>
                       )}
                     </div>
                     <button className="btn btn-primary" onClick={handleSaveMatchdayConfig} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -5490,7 +5468,7 @@ export default function App() {
               
               let mPrize = 0;
               if (m.prize_type === 'fixed') {
-                mPrize = Number(m.fixed_prize_1st || 0) + Number(m.fixed_prize_2nd || 0);
+                mPrize = Number(m.fixed_prize_1st || 0);
               } else {
                 const percent = m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80;
                 mPrize = mGross * (percent / 100);
@@ -5502,7 +5480,7 @@ export default function App() {
             const m = financialMatchdays.find(md => md.id === selectedFinMatchdayId);
             if (m) {
               if (m.prize_type === 'fixed') {
-                prizePoolAmount = Number(m.fixed_prize_1st || 0) + Number(m.fixed_prize_2nd || 0);
+                prizePoolAmount = Number(m.fixed_prize_1st || 0);
                 houseProfitAmount = totalApprovedAmount - prizePoolAmount;
               } else {
                 const percent = m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80;
