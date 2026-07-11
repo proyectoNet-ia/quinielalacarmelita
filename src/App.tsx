@@ -3040,7 +3040,7 @@ export default function App() {
               }}
             >
               <FileText size={18} />
-              Enviar Recibos de Pago
+              {localStorage.getItem('lastReferenceCode') ? `Subir Comprobante (${localStorage.getItem('lastReferenceCode')})` : 'Enviar Recibos de Pago'}
             </button>
           </header>
         )}
