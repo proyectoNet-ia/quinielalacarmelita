@@ -1141,6 +1141,18 @@ export default function App() {
     }
   };
 
+  const formatInputWithCommas = (val: number | string) => {
+    if (val === undefined || val === null || val === '') return '';
+    const clean = String(val).replace(/[^0-9]/g, '');
+    if (!clean) return '';
+    return Number(clean).toLocaleString('en-US');
+  };
+
+  const formatMoney = (val: number | string | null | undefined) => {
+    const num = Number(val || 0);
+    return num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const calculatePayouts = (md: Matchday | null, lb: any[]) => {
     if (!md || lb.length === 0) return {};
     
@@ -3807,7 +3819,7 @@ export default function App() {
                               {player.score}
                             </td>
                             <td style={{ textAlign: 'right', fontWeight: '800', color: prizeMoney > 0 ? '#25D366' : 'var(--text-muted)' }}>
-                              {prizeMoney > 0 ? `$${prizeMoney.toFixed(2)}` : '-'}
+                              {prizeMoney > 0 ? `$${formatMoney(prizeMoney)}` : '-'}
                             </td>
                           </tr>
                         );
@@ -4354,7 +4366,7 @@ export default function App() {
                                   {player.score}
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: '800', color: prizeMoney > 0 ? '#25D366' : 'var(--text-muted)' }}>
-                                  {prizeMoney > 0 ? `$${prizeMoney.toFixed(2)}` : '-'}
+                                  {prizeMoney > 0 ? `$${formatMoney(prizeMoney)}` : '-'}
                                 </td>
                               </tr>
                             );
@@ -4381,11 +4393,14 @@ export default function App() {
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                           <span style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>$</span>
                           <input 
-                            type="number" 
+                            type="text" 
                             className="form-control" 
                             style={{ paddingLeft: '28px' }}
-                            value={matchdayPrice === 0 ? '' : matchdayPrice}
-                            onChange={e => setMatchdayPrice(Number(e.target.value))}
+                            value={matchdayPrice === 0 ? '' : formatInputWithCommas(matchdayPrice)}
+                            onChange={e => {
+                              const clean = e.target.value.replace(/[^0-9]/g, '');
+                              setMatchdayPrice(clean ? Number(clean) : 0);
+                            }}
                             placeholder="0.00"
                           />
                         </div>
@@ -4427,11 +4442,14 @@ export default function App() {
                           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                             <span style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>$</span>
                             <input 
-                              type="number" 
+                              type="text" 
                               className="form-control" 
                               style={{ paddingLeft: '28px' }}
-                              value={matchdayFixedPrize1st === 0 ? '' : matchdayFixedPrize1st}
-                              onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
+                              value={matchdayFixedPrize1st === 0 ? '' : formatInputWithCommas(matchdayFixedPrize1st)}
+                              onChange={e => {
+                                const clean = e.target.value.replace(/[^0-9]/g, '');
+                                setMatchdayFixedPrize1st(clean ? Number(clean) : 0);
+                              }}
                               placeholder="0.00"
                             />
                           </div>
@@ -5575,7 +5593,7 @@ export default function App() {
                 <div className="card metric-card" style={{ margin: 0, padding: '16px', background: 'rgba(30, 94, 58, 0.4)', borderColor: 'rgba(224, 184, 40, 0.4)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Ingreso Aprobado</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary)', marginTop: '4px' }}>
-                    ${totalApprovedAmount.toFixed(2)} MXN
+                    ${formatMoney(totalApprovedAmount)} MXN
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
                     {approvedPools.length} quinielas aprobadas
@@ -5585,7 +5603,7 @@ export default function App() {
                 <div className="card metric-card" style={{ margin: 0, padding: '16px', background: 'rgba(30, 94, 58, 0.2)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Monto en Revisión</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#ffb300', marginTop: '4px' }}>
-                    ${totalPendingAmount.toFixed(2)} MXN
+                    ${formatMoney(totalPendingAmount)} MXN
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
                     {pendingPools.length} transacciones pendientes
@@ -5595,7 +5613,7 @@ export default function App() {
                 <div className="card metric-card" style={{ margin: 0, padding: '16px', background: 'rgba(30, 94, 58, 0.2)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Bolsa de Premios</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary)', marginTop: '4px' }}>
-                    ${prizePoolAmount.toFixed(2)} MXN
+                    ${formatMoney(prizePoolAmount)} MXN
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
                     Destinado a ganadores
@@ -5605,7 +5623,7 @@ export default function App() {
                 <div className="card metric-card" style={{ margin: 0, padding: '16px', background: 'rgba(30, 94, 58, 0.2)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Utilidad Estimada</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#10b981', marginTop: '4px' }}>
-                    ${houseProfitAmount.toFixed(2)} MXN
+                    ${formatMoney(houseProfitAmount)} MXN
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
                     Ganancia de la casa
@@ -5626,7 +5644,7 @@ export default function App() {
                 <div style={{ display: 'flex', gap: '15px', marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'var(--primary)', borderRadius: '50%' }}></span>
-                    Aprobado: ${totalApprovedAmount.toFixed(2)} MXN
+                    Aprobado: ${formatMoney(totalApprovedAmount)} MXN
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#ffb300', borderRadius: '50%' }}></span>
