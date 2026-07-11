@@ -3554,7 +3554,7 @@ export default function App() {
                                   {Object.values(c).join(', ')}
                                 </p>
                               </div>
-                              <button style={{ background: 'rgba(0,0,0,0.3)', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                              <button style={{ background: 'var(--danger)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
                                 onClick={() => setConfirmConfig({
                                   title: 'Eliminar Quiniela',
                                   message: `¿Estás seguro de eliminar la Quiniela #${i + 1} del carrito?`,
@@ -4521,7 +4521,7 @@ export default function App() {
                       <button className="btn btn-primary" onClick={handleActivateMatchday} style={{ width: '100%' }}>
                         <Play size={15} /> Validar y Activar Quiniela
                       </button>
-                      <button onClick={handleDeleteMatchday} className="btn" style={{ background: '#dc3545', border: 'none', color: 'white', fontWeight: '600' }}>
+                      <button onClick={handleDeleteMatchday} className="btn btn-danger" style={{ fontWeight: '600' }}>
                         <Trash2 size={15} /> Eliminar quiniela en creación
                       </button>
                     </div>
@@ -4717,7 +4717,7 @@ export default function App() {
                     {activeMatchday?.status === 'inactive' && (
                       <button
                         className="lev-btn"
-                        style={{ background: 'var(--bg-main)', color: 'white', borderColor: 'var(--border-color)' }}
+                        style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
                         onClick={() => handleDeleteMatch(match.id)}
                         title="Eliminar Partido"
                       >
@@ -4881,8 +4881,8 @@ export default function App() {
                               <Edit2 size={14} /> Editar
                             </button>
                             <button 
-                              className="btn btn-secondary" 
-                              style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#dc3545', borderColor: '#dc3545' }}
+                              className="btn btn-danger" 
+                              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                               onClick={() => handleDeleteBankAccount(bank.id)}
                             >
                               <Trash2 size={14} /> Eliminar
@@ -5094,7 +5094,7 @@ export default function App() {
                                       <button 
                                         type="button" 
                                         onClick={() => handleDeleteLeague(l.id)}
-                                        style={{ background: 'rgba(255,0,0,0.2)', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        style={{ background: 'var(--danger)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Eliminar Liga"
                                       >
                                         <X size={16} />
@@ -5394,7 +5394,7 @@ export default function App() {
                                       <button 
                                         type="button" 
                                         onClick={() => handleDeleteTeam(t.id)}
-                                        style={{ background: 'rgba(255,0,0,0.2)', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        style={{ background: 'var(--danger)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Eliminar Equipo"
                                       >
                                         <X size={16} />
