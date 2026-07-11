@@ -615,22 +615,7 @@ export default function App() {
         // Encontrar la primera quiniela activa o la última registrada
         currentMatchday = matchdaysData.find(m => m.status === 'active') || matchdaysData[0];
       } else {
-        // Crear Quiniela 1 por defecto para demo
-        const deadlineDate = new Date();
-        deadlineDate.setDate(deadlineDate.getDate() + 7); // Plazo de 1 semana
-        const { data: newMatchday, error: createMatchdayErr } = await supabase
-          .from('matchdays')
-          .insert([{ 
-            season_id: season.id, 
-            number: 1, 
-            status: 'active',
-            deadline: deadlineDate.toISOString(),
-            price_per_entry: 25.00
-          }])
-          .select()
-          .single();
-        if (createMatchdayErr) throw createMatchdayErr;
-        currentMatchday = newMatchday;
+        currentMatchday = null;
       }
       setActiveMatchday(currentMatchday);
 
