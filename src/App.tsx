@@ -42,7 +42,9 @@ import {
   Clock,
   Copy,
   AlertTriangle,
-  Landmark
+  Landmark,
+  Settings,
+  Save
 } from 'lucide-react';
 
 // Declaración de tipo para jsPDF autoTable para evitar errores de compilación con TS
@@ -102,6 +104,7 @@ interface Matchday {
   deadline: string;
   first_match_date?: string | null;
   price_per_entry: number;
+  prize_percentage?: number;
 }
 
 interface Match {
@@ -276,6 +279,7 @@ export default function App() {
   const [financialMatchdays, setFinancialMatchdays] = useState<Matchday[]>([]);
   const [selectedFinMatchdayId, setSelectedFinMatchdayId] = useState<string>('all');
   const [prizePercentage, setPrizePercentage] = useState<number>(80);
+  const [matchdayPrice, setMatchdayPrice] = useState<number>(25);
   const [finSearchQuery, setFinSearchQuery] = useState<string>('');
   const [expandedParticipantId, setExpandedParticipantId] = useState<string | null>(null);
 
@@ -1758,7 +1762,8 @@ export default function App() {
           number: nextNumber,
           status: 'inactive',
           deadline: deadlineDate.toISOString(),
-          price_per_entry: 25.00
+          price_per_entry: 25.00,
+          prize_percentage: 80.00
         }])
         .select()
         .single();
@@ -1770,6 +1775,33 @@ export default function App() {
       showAlert('success', `Quiniela ${nextNumber} creada con éxito.`);
     } catch (err) {
       showAlert('error', 'Error al crear la quiniela.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveMatchdayConfig = async () => {
+    if (!activeMatchday) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('matchdays')
+        .update({
+          price_per_entry: matchdayPrice,
+          prize_percentage: prizePercentage
+        })
+        .eq('id', activeMatchday.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setActiveMatchday(data);
+      setAllMatchdays(prev => prev.map(m => m.id === data.id ? data : m));
+      showAlert('success', 'Configuración de quiniela guardada.');
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error al guardar la configuración.');
     } finally {
       setLoading(false);
     }
@@ -4066,7 +4098,10 @@ export default function App() {
                                     onClick={() => {
                                       setOpenMatchdayMenu(null);
                                       setSelectedAdminMatchday(m);
-                                      setAdminDetailView('ranking'); setActiveMatchday(m);
+                                      setAdminDetailView('ranking');
+                                      setActiveMatchday(m);
+                                      setPrizePercentage(m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80);
+                                      setMatchdayPrice(m.price_per_entry || 25);
                                     }}
                                   >
                                     <Users size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Ranking
@@ -4080,6 +4115,8 @@ export default function App() {
                                       setAdminDetailView('matches');
                                       setActiveMatchday(m);
                                       loadMatches(m.id);
+                                      setPrizePercentage(m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80);
+                                      setMatchdayPrice(m.price_per_entry || 25);
                                     }}
                                   >
                                     <Edit2 size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Partidos
@@ -4178,6 +4215,39 @@ export default function App() {
                 <button className="btn btn-secondary" onClick={() => { setSelectedAdminMatchday(null); loadInitialData(); }} style={{ marginBottom: '16px' }}>
                   <ArrowLeft size={16} /> Volver a la Lista
                 </button>
+
+                {activeMatchday && (
+                  <div className="card" style={{ marginBottom: '16px' }}>
+                    <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Settings size={18} style={{ color: 'var(--primary)' }} /> Configuración de Costo y Premios
+                    </h3>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+                        <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Costo por Entrada (MXN)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          value={matchdayPrice}
+                          onChange={e => setMatchdayPrice(Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+                        <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Bolsa para el Ganador (%)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          min={0}
+                          max={100}
+                          value={prizePercentage}
+                          onChange={e => setPrizePercentage(Math.min(100, Math.max(0, Number(e.target.value))))}
+                        />
+                      </div>
+                    </div>
+                    <button className="btn btn-primary" onClick={handleSaveMatchdayConfig} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Save size={16} /> Guardar Configuración
+                    </button>
+                  </div>
+                )}
 
         
           
