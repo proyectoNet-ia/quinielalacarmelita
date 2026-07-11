@@ -542,6 +542,15 @@ export default function App() {
       setAuthView('user-login');
       // Limpiar el parámetro de la barra de direcciones para mantenerlo sigiloso
       window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('tab') === 'verify-payment') {
+      setActiveTab('verify-payment');
+      const ref = params.get('ref');
+      if (ref) {
+        setVerifyCode(ref);
+        localStorage.setItem('lastReferenceCode', ref);
+      }
+      // Limpiamos la URL para no dejarla sucia si recargan
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     loadInitialData();
@@ -1490,7 +1499,7 @@ export default function App() {
       
       let msgText = `Hola, soy *${cartParticipantName}*, me he registrado para participar en la quiniela *Jornada ${activeMatchday?.number}*.\r\n\r\nMis pronósticos son:\r\n`;
       cart.forEach((selections, idx) => {
-        let quinielaLine = `*Quiniela ${idx + 1}:* `;
+        let quinielaLine = `Quiniela ${idx + 1}: `;
         let matchIndex = 1;
         matches.forEach(m => {
           if (selections[m.id]) {
@@ -1500,8 +1509,11 @@ export default function App() {
         });
         msgText += quinielaLine.trim() + `\r\n`;
       });
-      msgText += `\r\nMi código de referencia único es: *${refId}*\r\n\r\n`;
-      msgText += `*(Instrucción)* Cuando realice el depósito o transferencia enviaré el comprobante por este chat. Para revisar el estatus de mi quiniela puedo volver a entrar a la plataforma usando este enlace: ${window.location.origin}`;
+      msgText += `\r\n*El código debe venir en la referencia de tu pago para poder identificarte y puedas conocer el estatus de tus quinielas.\r\nCódigo de Referencia Único es: REF-${refId.replace('REF-', '')}*\r\n\r\n`;
+      msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\r\n`;
+      msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}\r\n\r\n`;
+      msgText += `Para revisar el estatus de tus quiniela usa este enlace:\r\n`;
+      msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}`;
       
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
