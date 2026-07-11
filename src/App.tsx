@@ -105,6 +105,9 @@ interface Matchday {
   first_match_date?: string | null;
   price_per_entry: number;
   prize_percentage?: number;
+  prize_type?: 'percentage' | 'fixed';
+  fixed_prize_1st?: number;
+  fixed_prize_2nd?: number;
 }
 
 interface Match {
@@ -280,6 +283,9 @@ export default function App() {
   const [selectedFinMatchdayId, setSelectedFinMatchdayId] = useState<string>('all');
   const [prizePercentage, setPrizePercentage] = useState<number>(80);
   const [matchdayPrice, setMatchdayPrice] = useState<number>(25);
+  const [matchdayPrizeType, setMatchdayPrizeType] = useState<'percentage' | 'fixed'>('percentage');
+  const [matchdayFixedPrize1st, setMatchdayFixedPrize1st] = useState<number>(0);
+  const [matchdayFixedPrize2nd, setMatchdayFixedPrize2nd] = useState<number>(0);
   const [finSearchQuery, setFinSearchQuery] = useState<string>('');
   const [expandedParticipantId, setExpandedParticipantId] = useState<string | null>(null);
 
@@ -1763,7 +1769,10 @@ export default function App() {
           status: 'inactive',
           deadline: deadlineDate.toISOString(),
           price_per_entry: 25.00,
-          prize_percentage: 80.00
+          prize_percentage: 80.00,
+          prize_type: 'percentage',
+          fixed_prize_1st: 0.00,
+          fixed_prize_2nd: 0.00
         }])
         .select()
         .single();
@@ -1788,7 +1797,10 @@ export default function App() {
         .from('matchdays')
         .update({
           price_per_entry: matchdayPrice,
-          prize_percentage: prizePercentage
+          prize_percentage: prizePercentage,
+          prize_type: matchdayPrizeType,
+          fixed_prize_1st: matchdayFixedPrize1st,
+          fixed_prize_2nd: matchdayFixedPrize2nd
         })
         .eq('id', activeMatchday.id)
         .select()
@@ -2155,8 +2167,30 @@ export default function App() {
     const grossApproved = approvedPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
     const grossPending = pendingPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
     
-    const prizePool = grossApproved * (prizePercentage / 100);
-    const netHouse = grossApproved * (1 - prizePercentage / 100);
+    let prizePool = 0;
+    const poolsByMatchday: Record<string, typeof approvedPools> = {};
+    approvedPools.forEach(p => {
+      if (!poolsByMatchday[p.matchday_id]) {
+        poolsByMatchday[p.matchday_id] = [];
+      }
+      poolsByMatchday[p.matchday_id].push(p);
+    });
+
+    financialMatchdays.forEach(md => {
+      const mdPools = poolsByMatchday[md.id] || [];
+      const mdGross = mdPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
+      
+      let mdPrize = 0;
+      if (md.prize_type === 'fixed') {
+        mdPrize = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+      } else {
+        const percent = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
+        mdPrize = mdGross * (percent / 100);
+      }
+      prizePool += mdPrize;
+    });
+
+    const netHouse = grossApproved - prizePool;
 
     // Agregar resumen de métricas
     doc.autoTable({
@@ -2167,8 +2201,8 @@ export default function App() {
         ['Total de Quinielas Vendidas (Pendientes)', pendingPools.length.toString()],
         ['Monto Total Aprobado', `$${grossApproved.toFixed(2)} MXN`],
         ['Monto Total Pendiente', `$${grossPending.toFixed(2)} MXN`],
-        [`Bolsa de Premios (${prizePercentage}%)`, `$${prizePool.toFixed(2)} MXN`],
-        [`Ganancia de la Casa (${100 - prizePercentage}%)`, `$${netHouse.toFixed(2)} MXN`]
+        [`Bolsa de Premios (Dinamico)`, `$${prizePool.toFixed(2)} MXN`],
+        [`Ganancia de la Casa (Dinamico)`, `$${netHouse.toFixed(2)} MXN`]
       ],
       theme: 'striped',
       headStyles: { fillColor: [30, 94, 58], textColor: [255, 255, 255] },
@@ -2182,7 +2216,14 @@ export default function App() {
       const penPools = mdPools.filter(p => p.payment_status === 'pending');
       const totalApp = appPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
       const totalPen = penPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
-      const prize = totalApp * (prizePercentage / 100);
+      
+      let prize = 0;
+      if (md.prize_type === 'fixed') {
+        prize = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+      } else {
+        const percent = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
+        prize = totalApp * (percent / 100);
+      }
       
       return [
         `Quiniela ${md.number}`,
@@ -4102,6 +4143,9 @@ export default function App() {
                                       setActiveMatchday(m);
                                       setPrizePercentage(m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80);
                                       setMatchdayPrice(m.price_per_entry || 25);
+                                      setMatchdayPrizeType(m.prize_type || 'percentage');
+                                      setMatchdayFixedPrize1st(m.fixed_prize_1st || 0);
+                                      setMatchdayFixedPrize2nd(m.fixed_prize_2nd || 0);
                                     }}
                                   >
                                     <Users size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Ranking
@@ -4117,6 +4161,9 @@ export default function App() {
                                       loadMatches(m.id);
                                       setPrizePercentage(m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80);
                                       setMatchdayPrice(m.price_per_entry || 25);
+                                      setMatchdayPrizeType(m.prize_type || 'percentage');
+                                      setMatchdayFixedPrize1st(m.fixed_prize_1st || 0);
+                                      setMatchdayFixedPrize2nd(m.fixed_prize_2nd || 0);
                                     }}
                                   >
                                     <Edit2 size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--primary)' }}/> Partidos
@@ -4231,17 +4278,54 @@ export default function App() {
                           onChange={e => setMatchdayPrice(Number(e.target.value))}
                         />
                       </div>
+                      
                       <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
-                        <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Bolsa para el Ganador (%)</label>
-                        <input 
-                          type="number" 
-                          className="form-control" 
-                          min={0}
-                          max={100}
-                          value={prizePercentage}
-                          onChange={e => setPrizePercentage(Math.min(100, Math.max(0, Number(e.target.value))))}
-                        />
+                        <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Tipo de Premio</label>
+                        <select 
+                          className="form-control"
+                          value={matchdayPrizeType}
+                          onChange={e => setMatchdayPrizeType(e.target.value as 'percentage' | 'fixed')}
+                          style={{ background: 'var(--bg-main)' }}
+                        >
+                          <option value="percentage">Porcentaje de Recaudación</option>
+                          <option value="fixed">Monto Fijo (1er y 2do Lugar)</option>
+                        </select>
                       </div>
+
+                      {matchdayPrizeType === 'percentage' ? (
+                        <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+                          <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Bolsa para el Ganador (%)</label>
+                          <input 
+                            type="number" 
+                            className="form-control" 
+                            min={0}
+                            max={100}
+                            value={prizePercentage}
+                            onChange={e => setPrizePercentage(Math.min(100, Math.max(0, Number(e.target.value))))}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="form-group" style={{ flex: '1 1 180px', marginBottom: 0 }}>
+                            <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Premio 1er Lugar (MXN)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              value={matchdayFixedPrize1st}
+                              onChange={e => setMatchdayFixedPrize1st(Number(e.target.value))}
+                            />
+                          </div>
+                          <div className="form-group" style={{ flex: '1 1 180px', marginBottom: 0 }}>
+                            <label style={{ color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Premio 2do Lugar (MXN)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              value={matchdayFixedPrize2nd}
+                              onChange={e => setMatchdayFixedPrize2nd(Number(e.target.value))}
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
                     <button className="btn btn-primary" onClick={handleSaveMatchdayConfig} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                       <Save size={16} /> Guardar Configuración
@@ -5269,8 +5353,49 @@ export default function App() {
 
           const totalApprovedAmount = approvedPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
           const totalPendingAmount = pendingPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
-          const prizePoolAmount = totalApprovedAmount * (prizePercentage / 100);
-          const houseProfitAmount = totalApprovedAmount * (1 - prizePercentage / 100);
+          
+          let prizePoolAmount = 0;
+          let houseProfitAmount = 0;
+
+          if (selectedFinMatchdayId === 'all') {
+            const poolsByMatchday: Record<string, typeof approvedPools> = {};
+            approvedPools.forEach(p => {
+              if (!poolsByMatchday[p.matchday_id]) {
+                poolsByMatchday[p.matchday_id] = [];
+              }
+              poolsByMatchday[p.matchday_id].push(p);
+            });
+
+            financialMatchdays.forEach(m => {
+              const mPools = poolsByMatchday[m.id] || [];
+              const mGross = mPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
+              
+              let mPrize = 0;
+              if (m.prize_type === 'fixed') {
+                mPrize = Number(m.fixed_prize_1st || 0) + Number(m.fixed_prize_2nd || 0);
+              } else {
+                const percent = m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80;
+                mPrize = mGross * (percent / 100);
+              }
+              prizePoolAmount += mPrize;
+              houseProfitAmount += (mGross - mPrize);
+            });
+          } else {
+            const m = financialMatchdays.find(md => md.id === selectedFinMatchdayId);
+            if (m) {
+              if (m.prize_type === 'fixed') {
+                prizePoolAmount = Number(m.fixed_prize_1st || 0) + Number(m.fixed_prize_2nd || 0);
+                houseProfitAmount = totalApprovedAmount - prizePoolAmount;
+              } else {
+                const percent = m.prize_percentage !== undefined && m.prize_percentage !== null ? Number(m.prize_percentage) : 80;
+                prizePoolAmount = totalApprovedAmount * (percent / 100);
+                houseProfitAmount = totalApprovedAmount - prizePoolAmount;
+              }
+            } else {
+              prizePoolAmount = totalApprovedAmount * (prizePercentage / 100);
+              houseProfitAmount = totalApprovedAmount - prizePoolAmount;
+            }
+          }
 
           // Filtrar participantes según búsqueda
           const filteredParticipants = participants.filter(p => {
