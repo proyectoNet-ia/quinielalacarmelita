@@ -1513,7 +1513,7 @@ export default function App() {
         });
         msgText += quinielaLine.trim() + `\r\n`;
       });
-      msgText += `\r\n*El código debe venir en la referencia de tu pago para poder identificarte y puedas conocer el estatus de tus quinielas.\r\nCódigo de Referencia Único es: REF-${refId.replace('REF-', '')}*\r\n\r\n`;
+      msgText += `\r\nEl código debe venir en la referencia de tu pago para poder identificarte y conocer el estatus de tus quinielas.\r\n*CÓDIGO DE REFERENCIA ÚNICO ES:* REF-${refId.replace('REF-', '')}\r\n\r\n`;
       msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\r\n`;
       msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}\r\n\r\n`;
       msgText += `Para revisar el estatus de tus quiniela usa este enlace:\r\n`;
