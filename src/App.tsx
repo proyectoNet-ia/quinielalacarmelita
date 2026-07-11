@@ -4048,7 +4048,7 @@ export default function App() {
                             <td style={{ padding: '16px 8px', textAlign: 'center', fontWeight: 'bold', color: '#25D366' }}>
                               ${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}
                             </td>
-                            <td style={{ padding: '16px 8px', position: 'relative' }}>
+                            <td style={{ padding: '16px 8px', position: 'relative', zIndex: openMatchdayMenu === m.id ? 50 : 1 }}>
                               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                 <button
                                   className="btn btn-secondary"
