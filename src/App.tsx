@@ -693,7 +693,7 @@ export default function App() {
       .from('matches')
       .select('*')
       .eq('matchday_id', matchdayId)
-      .order('id', { ascending: true });
+      .order('created_at', { ascending: true });
     
     if (error) {
       console.error('Error cargando partidos:', error);
@@ -2434,7 +2434,7 @@ export default function App() {
         .from('matches')
         .select('*')
         .eq('matchday_id', matchdayId)
-        .order('id', { ascending: true });
+        .order('created_at', { ascending: true });
 
       if (mErr) throw mErr;
       if (!mData || mData.length === 0) {
@@ -2572,7 +2572,7 @@ export default function App() {
     setLoading(true);
     try {
       // Fetch matches
-      const { data: matchesData } = await supabase.from('matches').select('*').eq('matchday_id', m.id).order('match_date', { ascending: true });
+      const { data: matchesData } = await supabase.from('matches').select('*').eq('matchday_id', m.id).order('created_at', { ascending: true });
       const currentMatches = matchesData || [];
       if (currentMatches.length === 0) {
         showAlert('error', 'No hay partidos configurados para exportar.');
