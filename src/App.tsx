@@ -565,6 +565,47 @@ export default function App() {
     }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
 
+  // Cargar ganadores de la última quiniela finalizada
+  useEffect(() => {
+    if (activeTab === 'admin-participants' && isAdmin) {
+      const fetchLastWinners = async () => {
+        try {
+          const { data: matchdays } = await supabase
+            .from('matchdays')
+            .select('*')
+            .eq('status', 'calculated')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (matchdays && matchdays.length > 0) {
+            const lastM = matchdays[0];
+            setLastCalculatedMatchday(lastM);
+
+            const { data: pools } = await supabase
+              .from('pools')
+              .select('id, score, payment_status, participants(name, alias)')
+              .eq('matchday_id', lastM.id)
+              .eq('payment_status', 'approved')
+              .order('score', { ascending: false });
+
+            if (pools) {
+              const formatted = pools.map(p => ({
+                id: p.id,
+                score: p.score,
+                name: p.participants ? (p.participants as any).name : 'Anónimo',
+                alias: p.participants ? (p.participants as any).alias : 'anon'
+              }));
+              setLastWinners(formatted.slice(0, 3));
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching last winners', err);
+        }
+      };
+      fetchLastWinners();
+    }
+  }, [activeTab, isAdmin]);
+
   // Mostrar alertas temporales
   const showAlert = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -1098,6 +1139,65 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculatePayouts = (md: Matchday | null, lb: any[]) => {
+    if (!md || lb.length === 0) return {};
+    
+    const approvedCount = lb.length;
+    const pricePerEntry = md.price_per_entry || 25;
+    const totalRecaudado = approvedCount * pricePerEntry;
+    
+    let prizePool = 0;
+    if (md.prize_type === 'fixed') {
+      prizePool = Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0);
+    } else {
+      const pct = md.prize_percentage !== undefined && md.prize_percentage !== null ? Number(md.prize_percentage) : 80;
+      prizePool = totalRecaudado * (pct / 100);
+    }
+    
+    const playersByScore: Record<number, any[]> = {};
+    lb.forEach(p => {
+      if (!playersByScore[p.score]) playersByScore[p.score] = [];
+      playersByScore[p.score].push(p);
+    });
+    
+    const sortedScores = Object.keys(playersByScore)
+      .map(Number)
+      .sort((a, b) => b - a);
+      
+    const payouts: Record<string, number> = {};
+    
+    if (sortedScores.length > 0) {
+      const maxScore = sortedScores[0];
+      const maxScorePlayers = playersByScore[maxScore];
+      const N_1st = maxScorePlayers.length;
+      
+      let total1stPrize = 0;
+      if (md.prize_type === 'fixed') {
+        total1stPrize = Number(md.fixed_prize_1st || 0);
+      } else {
+        total1stPrize = prizePool;
+      }
+      
+      const payout1st = total1stPrize / N_1st;
+      maxScorePlayers.forEach(p => {
+        payouts[p.id] = payout1st;
+      });
+      
+      if (md.prize_type === 'fixed' && sortedScores.length > 1) {
+        const secondScore = sortedScores[1];
+        const secondScorePlayers = playersByScore[secondScore];
+        const N_2nd = secondScorePlayers.length;
+        const total2ndPrize = Number(md.fixed_prize_2nd || 0);
+        const payout2nd = total2ndPrize / N_2nd;
+        secondScorePlayers.forEach(p => {
+          payouts[p.id] = payout2nd;
+        });
+      }
+    }
+    
+    return payouts;
   };
 
   const loadLeaderboard = async () => {
@@ -3683,41 +3783,50 @@ export default function App() {
                 <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>
                   Aún no hay quinielas pagadas y calculadas en esta quiniela.
                 </p>
-              ) : (
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '60px' }}>Pos</th>
-                      <th>Participante</th>
-                      <th style={{ textAlign: 'right' }}>Aciertos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((player, index) => {
-                      const pos = index + 1;
-                      let rankClass = 'rank-other';
-                      if (pos === 1) rankClass = 'rank-1';
-                      else if (pos === 2) rankClass = 'rank-2';
-                      else if (pos === 3) rankClass = 'rank-3';
+              ) : (() => {
+                const payouts = calculatePayouts(activeMatchday, leaderboard);
+                return (
+                  <table className="leaderboard-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '60px' }}>Pos</th>
+                        <th>Participante</th>
+                        <th style={{ textAlign: 'right' }}>Aciertos</th>
+                        <th style={{ textAlign: 'right' }}>Premio Estimado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboard.map((player, index) => {
+                        const pos = index + 1;
+                        let rankClass = 'rank-other';
+                        if (pos === 1) rankClass = 'rank-1';
+                        else if (pos === 2) rankClass = 'rank-2';
+                        else if (pos === 3) rankClass = 'rank-3';
 
-                      return (
-                        <tr key={player.id}>
-                          <td>
-                            <span className={`rank-badge ${rankClass}`}>{pos}</span>
-                          </td>
-                          <td>
-                            <strong style={{ color: 'white' }}>{player.name}</strong>
-                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>@{player.alias}</span>
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
-                            {player.score}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                        const prizeMoney = payouts[player.id] || 0;
+
+                        return (
+                          <tr key={player.id}>
+                            <td>
+                              <span className={`rank-badge ${rankClass}`}>{pos}</span>
+                            </td>
+                            <td>
+                              <strong style={{ color: 'white' }}>{player.name}</strong>
+                              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>@{player.alias}</span>
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
+                              {player.score}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: '800', color: prizeMoney > 0 ? '#25D366' : 'var(--text-muted)' }}>
+                              {prizeMoney > 0 ? `$${prizeMoney.toFixed(2)}` : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -4221,41 +4330,50 @@ export default function App() {
                 </div>
                   {leaderboard.length === 0 ? (
                     <p style={{ color: 'var(--text-secondary)' }}>Aún no hay quinielas pagadas y calculadas en esta quiniela.</p>
-                  ) : (
-                    <table className="leaderboard-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '60px' }}>Pos</th>
-                          <th>Participante</th>
-                          <th style={{ textAlign: 'right' }}>Aciertos</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaderboard.map((player, index) => {
-                          const pos = index + 1;
-                          let rankClass = 'rank-other';
-                          if (pos === 1) rankClass = 'rank-1';
-                          else if (pos === 2) rankClass = 'rank-2';
-                          else if (pos === 3) rankClass = 'rank-3';
+                  ) : (() => {
+                    const payouts = calculatePayouts(selectedAdminMatchday, leaderboard);
+                    return (
+                      <table className="leaderboard-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '60px' }}>Pos</th>
+                            <th>Participante</th>
+                            <th style={{ textAlign: 'right' }}>Aciertos</th>
+                            <th style={{ textAlign: 'right' }}>Premio Estimado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {leaderboard.map((player, index) => {
+                            const pos = index + 1;
+                            let rankClass = 'rank-other';
+                            if (pos === 1) rankClass = 'rank-1';
+                            else if (pos === 2) rankClass = 'rank-2';
+                            else if (pos === 3) rankClass = 'rank-3';
 
-                          return (
-                            <tr key={player.id}>
-                              <td>
-                                <span className={`rank-badge ${rankClass}`}>{pos}</span>
-                              </td>
-                              <td>
-                                <strong style={{ color: 'white' }}>{player.name}</strong>
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>@{player.alias}</span>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
-                                {player.score}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
+                            const prizeMoney = payouts[player.id] || 0;
+
+                            return (
+                              <tr key={player.id}>
+                                <td>
+                                  <span className={`rank-badge ${rankClass}`}>{pos}</span>
+                                </td>
+                                <td>
+                                  <strong style={{ color: 'white' }}>{player.name}</strong>
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>@{player.alias}</span>
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
+                                  {player.score}
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: '800', color: prizeMoney > 0 ? '#25D366' : 'var(--text-muted)' }}>
+                                  {prizeMoney > 0 ? `$${prizeMoney.toFixed(2)}` : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
               </div>
             ) : (
               <div>
