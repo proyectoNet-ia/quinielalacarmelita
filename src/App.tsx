@@ -2740,26 +2740,13 @@ export default function App() {
   const availableHomeTeams = unusedTeams.filter(t => t.name !== newAwayTeam);
   const availableAwayTeams = unusedTeams.filter(t => t.name !== newHomeTeam);
 
-  // Matches ordenados: primero ligas de México, luego otras ligas, EXTRA siempre al final
-  const sortedMatches = [...matches].sort((a, b) => {
+  // Matches ordenados: orden de captura (como vienen de la DB), EXTRA siempre al final
+  const matchesWithIndex = matches.map((m, i) => ({ ...m, _originalIndex: i }));
+  const sortedMatches = matchesWithIndex.sort((a, b) => {
     // El EXTRA siempre al final
     if (a.is_reserve && !b.is_reserve) return 1;
     if (!a.is_reserve && b.is_reserve) return -1;
-
-    const teamA = teams.find(t => t.id === a.home_team_id);
-    const teamB = teams.find(t => t.id === b.home_team_id);
-    const leagueA = leagues.find(l => l.id === teamA?.league_id);
-    const leagueB = leagues.find(l => l.id === teamB?.league_id);
-
-    const isMexA = leagueA?.country?.toLowerCase().includes('méxico') || leagueA?.country?.toLowerCase().includes('mexico') ? 0 : 1;
-    const isMexB = leagueB?.country?.toLowerCase().includes('méxico') || leagueB?.country?.toLowerCase().includes('mexico') ? 0 : 1;
-
-    if (isMexA !== isMexB) return isMexA - isMexB;
-
-    // Dentro de la misma prioridad, agrupar por liga
-    const leagueNameA = leagueA?.name || '';
-    const leagueNameB = leagueB?.name || '';
-    return leagueNameA.localeCompare(leagueNameB);
+    return a._originalIndex - b._originalIndex;
   });
 
   return (
@@ -3388,35 +3375,18 @@ export default function App() {
                           return leagues.find(l => l.id === leagueId)?.name || 'Otras Ligas';
                         };
 
-                        const mainMatches = matches.filter(m => !m.is_reserve).sort((a, b) => {
-                          const tA = teams.find(t => t.id === a.home_team_id);
-                          const tB = teams.find(t => t.id === b.home_team_id);
-                          const lA = getLeagueName(tA?.league_id);
-                          const lB = getLeagueName(tB?.league_id);
-                          return lA.localeCompare(lB);
-                        });
+                        const mainMatches = matches.filter(m => !m.is_reserve);
                         const reserveMatches = matches.filter(m => m.is_reserve);
-
-                        // Agrupar mainMatches por liga
-                        const groups: Record<string, Match[]> = {};
-                        mainMatches.forEach(m => {
-                          const t = teams.find(t => t.id === m.home_team_id);
-                          const lName = getLeagueName(t?.league_id);
-                          if (!groups[lName]) groups[lName] = [];
-                          groups[lName].push(m);
-                        });
 
                         let globalIdx = 0;
                         
                         return (
                           <>
-                            {Object.keys(groups).map(league => (
-                              <div key={league} style={{ marginBottom: '20px' }}>
-
-                                {groups[league].map(match => {
-                                  globalIdx++;
-                                  const idx = globalIdx - 1;
-                                  return (
+                            <div style={{ marginBottom: '20px' }}>
+                              {mainMatches.map(match => {
+                                globalIdx++;
+                                const idx = globalIdx - 1;
+                                return (
                                     <div className="match-card" key={match.id}>
                                       {/* Indicador de partido */}
                                       <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10 }}>
@@ -3463,8 +3433,8 @@ export default function App() {
                                     </div>
                                   )
                                 })}
-                              </div>
-                            ))}
+                            </div>
+
                             {reserveMatches.length > 0 && (
                               <div style={{ marginTop: '30px' }}>
                                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', padding: '12px 16px', borderRadius: '4px', marginBottom: '16px' }}>
