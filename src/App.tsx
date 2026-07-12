@@ -360,6 +360,7 @@ export default function App() {
   const [cart, setCart] = useState<Record<string, string>[]>([]);
   const [cartParticipantName, setCartParticipantName] = useState('');
   const [nameExistsWarning, setNameExistsWarning] = useState(false);
+  const [nameInvalidError, setNameInvalidError] = useState(false);
   const [cartParticipantAlias, setCartParticipantAlias] = useState('');
   const [cartParticipantPhone, setCartParticipantPhone] = useState('');
   const [cartCountryCode, setCartCountryCode] = useState('+52');
@@ -3550,8 +3551,28 @@ export default function App() {
 
                             <form onSubmit={handleSubmitCart}>
                               <div className="form-group" style={{ marginBottom: '12px' }}>
-                                <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} className="form-control" style={{ background: 'var(--bg-main)' }} />
-                                {nameExistsWarning && (
+                                <input 
+                                  type="text" 
+                                  placeholder="Nombre" 
+                                  required 
+                                  value={cartParticipantName} 
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setCartParticipantName(val);
+                                    // Solo permite letras (incluyendo acentos y ñ), espacios, guiones, apóstrofes y puntos
+                                    const validName = /^[a-zA-Zà-ÿÀ-ÿñÑ\s\-\.'´]*$/.test(val);
+                                    setNameInvalidError(!validName && val.length > 0);
+                                  }} 
+                                  className="form-control" 
+                                  style={{ background: 'var(--bg-main)', borderColor: nameInvalidError ? 'var(--danger)' : undefined }} 
+                                />
+                                {nameInvalidError && (
+                                  <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                    <span>El nombre solo puede contener letras, espacios, guiones ( - ) y puntos ( . ). No se permiten símbolos especiales.</span>
+                                  </p>
+                                )}
+                                {nameExistsWarning && !nameInvalidError && (
                                   <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                                     <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
                                     <span>Ya has registrado quinielas en esta jornada. Por favor, usa otro nombre.</span>
@@ -3576,7 +3597,7 @@ export default function App() {
                                   <p style={{ fontSize: '0.85rem', color: 'var(--danger)', margin: 0, fontWeight: '500' }}>* Debes añadir mínimo 2 quinielas para participar.</p>
                                 </div>
                               )}
-                              <button type="submit" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} disabled={cart.length < 2 || loading || nameExistsWarning}>
+                              <button type="submit" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} disabled={cart.length < 2 || loading || nameExistsWarning || nameInvalidError}>
                                 {loading ? 'Enviando...' : 'Enviar Mis Quinielas'}
                               </button>
                             </form>
