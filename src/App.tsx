@@ -2654,9 +2654,9 @@ Mis pronósticos son:
         }
       }));
 
-      // Generar el PDF en horizontal (landscape)
+      // Generar el PDF en vertical (portrait)
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
@@ -2788,7 +2788,7 @@ Mis pronósticos son:
       currentY += 4;
       const mid = Math.ceil(matchesLegend.length / 2);
       for (let i = 0; i < matchesLegend.length; i++) {
-        const xPos = i < mid ? 14 : 150;
+        const xPos = i < mid ? 14 : 110;
         const yPos = currentY + (i % mid) * 4;
         doc.text(matchesLegend[i], xPos, yPos);
       }
@@ -2858,7 +2858,7 @@ Mis pronósticos son:
         }
       }));
 
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42);
       doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
@@ -3002,7 +3002,7 @@ Mis pronósticos son:
       }));
 
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
@@ -3138,7 +3138,7 @@ Mis pronósticos son:
       // Imprimir en dos columnas para ahorrar espacio
       const mid = Math.ceil(matchesLegend.length / 2);
       for (let i = 0; i < matchesLegend.length; i++) {
-        const xPos = i < mid ? 14 : 150;
+        const xPos = i < mid ? 14 : 110;
         const yPos = currentY + (i % mid) * 4;
         doc.text(matchesLegend[i], xPos, yPos);
       }
