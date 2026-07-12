@@ -3550,7 +3550,7 @@ export default function App() {
 
                             <form onSubmit={handleSubmitCart}>
                               <div className="form-group" style={{ marginBottom: '12px' }}>
-                                <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
+                                <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} className="form-control" style={{ background: 'var(--bg-main)' }} />
                                 {nameExistsWarning && (
                                   <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                                     <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
