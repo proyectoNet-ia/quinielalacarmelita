@@ -1557,8 +1557,7 @@ Mis pronósticos son:
       });
       msgText += `\nCódigo de Referencia:\n*REF-${refId.replace('REF-', '')}*\n\n`;
       msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\n\n`;
-      const appBaseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const voucherUrl = `${appBaseUrl}/?tab=verify-payment&ref=${refId}`;
+      const voucherUrl = `https://www.quinielalacarmelita.com/?tab=verify-payment&ref=${refId}`;
       msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\n`;
       msgText += `${voucherUrl}\n\n`;
       msgText += `Nuestro agente te compartirá la información para realizar tu pago.`;
