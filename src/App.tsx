@@ -4424,9 +4424,11 @@ Mis pronósticos son:
               <>
                 {(() => {
                   const pendingBatches = allPoolsForMatchday
-                    .filter(p => p.payment_status === 'pending' && p.payment_receipt_url)
+                    .filter(p => p.payment_status === 'pending')
                     .reduce((acc, pool) => {
-                      const code = pool.reference_code || 'SIN_CODIGO';
+                      const code = pool.reference_code && pool.reference_code.trim() !== '' 
+                        ? pool.reference_code 
+                        : `INDIVIDUAL_${pool.id}`;
                       if (!acc[code]) {
                         acc[code] = [];
                       }
@@ -4498,7 +4500,9 @@ Mis pronósticos son:
                               {/* Información principal */}
                               <div style={{ flex: '1 1 300px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                  <h4 style={{ color: 'white', fontSize: '1.1rem', margin: 0 }}>REF: {code}</h4>
+                                  <h4 style={{ color: 'white', fontSize: '1.1rem', margin: 0 }}>
+                                    {code.startsWith('INDIVIDUAL_') ? 'Pago Directo (Sin Folio)' : `REF: ${code}`}
+                                  </h4>
                                   <div style={{ fontSize: '0.75rem', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', border: `1px solid ${riskColor}`, color: riskColor }}>
                                     {riskText}
                                   </div>
@@ -4537,14 +4541,28 @@ Mis pronósticos son:
                                 <button 
                                   className="btn btn-primary" 
                                   style={{ padding: '8px', fontSize: '0.85rem' }}
-                                  onClick={() => handleValidatePaymentBatch(code, 'approved')}
+                                  onClick={() => {
+                                    if (code.startsWith('INDIVIDUAL_')) {
+                                      const poolId = code.replace('INDIVIDUAL_', '');
+                                      handleValidatePayment(poolId, 'approved');
+                                    } else {
+                                      handleValidatePaymentBatch(code, 'approved');
+                                    }
+                                  }}
                                 >
                                   <Check size={14} /> Aprobar {batch.length}
                                 </button>
                                 <button 
                                   className="btn btn-danger" 
                                   style={{ padding: '8px', fontSize: '0.85rem', border: 'none' }}
-                                  onClick={() => handleValidatePaymentBatch(code, 'rejected')}
+                                  onClick={() => {
+                                    if (code.startsWith('INDIVIDUAL_')) {
+                                      const poolId = code.replace('INDIVIDUAL_', '');
+                                      handleValidatePayment(poolId, 'rejected');
+                                    } else {
+                                      handleValidatePaymentBatch(code, 'rejected');
+                                    }
+                                  }}
                                 >
                                   <X size={14} /> Rechazar {batch.length}
                                 </button>
@@ -4610,7 +4628,7 @@ Mis pronósticos son:
             ) : (
               (() => {
                 const ITEMS_PER_PAGE = 20;
-                const historyPools = financialPools.filter(p => p.payment_status !== 'pending' || !p.payment_receipt_url || p.matchday_id !== activeMatchday?.id);
+                const historyPools = financialPools.filter(p => p.payment_status !== 'pending' || p.matchday_id !== activeMatchday?.id);
                 const totalPages = Math.ceil(historyPools.length / ITEMS_PER_PAGE);
                 const currentPools = historyPools.slice((adminHistoryPage - 1) * ITEMS_PER_PAGE, adminHistoryPage * ITEMS_PER_PAGE);
 
