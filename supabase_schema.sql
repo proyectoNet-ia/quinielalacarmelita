@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.matchdays (
     number INTEGER NOT NULL,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'closed', 'calculated')),
     deadline TIMESTAMP WITH TIME ZONE NOT NULL,
+    first_match_date TIMESTAMP WITH TIME ZONE,
     price_per_entry NUMERIC DEFAULT 25.00 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -89,4 +90,25 @@ CREATE TABLE IF NOT EXISTS public.pre_registrations (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 ALTER TABLE public.pre_registrations DISABLE ROW LEVEL SECURITY;
+
+-- 8. Tabla de Equipos
+CREATE TABLE IF NOT EXISTS public.teams (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT UNIQUE NOT NULL,
+    logo_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.teams DISABLE ROW LEVEL SECURITY;
+
+-- 9. Tabla de Cuentas Bancarias (Configuración)
+CREATE TABLE IF NOT EXISTS public.bank_accounts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bank_name TEXT NOT NULL,
+    account_holder TEXT NOT NULL,
+    account_number TEXT,
+    clabe TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.bank_accounts DISABLE ROW LEVEL SECURITY;
 
