@@ -2616,19 +2616,23 @@ Mis pronósticos son:
       doc.setFontSize(10);
       doc.text(`La Carmelita | Fecha de Generación: ${new Date().toLocaleString()}`, 14, 21);
 
-      // Cabeceras de tabla: Alias, Puntos, Partido 1, Partido 2...
-      const headers = ['Participante', 'Alias', ...mData.map((_, idx) => `P${idx + 1}`)];
+      // Cabeceras de tabla: #, Participante, P1, P2... , Aciertos
+      const headers = ['#', 'Participante', ...mData.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
 
       // Mapear filas
-      const tableRows = formattedPools.map(p => {
+      const tableRows = formattedPools.map((p, pIdx) => {
         const name = p.participant?.name || 'Invitado';
-        const alias = p.participant?.alias ? `@${p.participant.alias}` : 'anon';
         
+        let aciertos = 0;
         const selections = mData.map(match => {
-          return predictionsMap[p.id]?.[match.id] || '-';
+          const sel = predictionsMap[p.id]?.[match.id] || '-';
+          if (match.result && sel === match.result) {
+            aciertos++;
+          }
+          return sel;
         });
 
-        return [name, alias, ...selections];
+        return [pIdx + 1, name, ...selections, aciertos];
       });
 
       // Glosario de partidos al final
@@ -2644,14 +2648,37 @@ Mis pronósticos son:
         headStyles: {
           fillColor: [30, 94, 58], // Color verde de la marca
           textColor: [255, 255, 255],
-          fontStyle: 'bold'
+          fontStyle: 'bold',
+          halign: 'center'
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242]
         },
         styles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          halign: 'center'
+        },
+        columnStyles: {
+          1: { halign: 'left', fontStyle: 'bold' } // Alinear nombre a la izquierda
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            if (data.column.index >= 2 && data.column.index < 2 + mData.length) {
+              const matchIdx = data.column.index - 2;
+              const match = mData[matchIdx];
+              const cellValue = data.cell.raw;
+              if (match && match.result && cellValue === match.result) {
+                data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
+                data.cell.styles.textColor = [0, 0, 0];       // Texto negro
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+            if (data.column.index === 2 + mData.length) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
+            }
+          }
         }
       });
 
@@ -2728,30 +2755,63 @@ Mis pronósticos son:
       doc.setFontSize(10);
       doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
 
-      const headers = ['Participante', 'Alias', 'Puntos', ...currentMatches.map((_, idx) => `P${idx + 1}`), 'Estado Pago'];
-      const tableData = currentPools.map(pool => {
-        const row = [
-          pool.participant?.name || 'Desconocido',
-          `@${pool.participant?.alias || 'N/A'}`,
-          pool.score !== null ? pool.score.toString() : '-',
-        ];
+      const headers = ['#', 'Participante', ...currentMatches.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
+      const tableData = currentPools.map((pool, pIdx) => {
+        const name = pool.participant?.name || 'Desconocido';
         const preds = currentPredictions[pool.id] || {};
-        currentMatches.forEach(match => {
-          row.push(preds[match.id] || '-');
+        
+        let aciertos = 0;
+        const selections = currentMatches.map(match => {
+          const sel = preds[match.id] || '-';
+          if (match.result && sel === match.result) {
+            aciertos++;
+          }
+          return sel;
         });
-        row.push(pool.payment_status === 'approved' ? 'Pagado' : (pool.payment_receipt_url ? 'En Revisión' : 'Pendiente'));
-        return row;
+
+        return [pIdx + 1, name, ...selections, aciertos];
       });
 
       (doc as any).autoTable({
         startY: 28,
         head: [headers],
         body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [37, 211, 102], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 8, cellPadding: 2 },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        columnStyles: { 0: { fontStyle: 'bold' }, 2: { textColor: [37, 211, 102], fontStyle: 'bold' } }
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [37, 211, 102], 
+          textColor: [255, 255, 255], 
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 2,
+          halign: 'center'
+        },
+        alternateRowStyles: { 
+          fillColor: [248, 250, 252] 
+        },
+        columnStyles: { 
+          1: { halign: 'left', fontStyle: 'bold' } 
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            if (data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
+              const matchIdx = data.column.index - 2;
+              const match = currentMatches[matchIdx];
+              const cellValue = data.cell.raw;
+              if (match && match.result && cellValue === match.result) {
+                data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
+                data.cell.styles.textColor = [0, 0, 0];       // Texto negro
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+            if (data.column.index === 2 + currentMatches.length) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+            }
+          }
+        }
       });
 
       doc.save(`Quiniela_${m.number}_Participantes.pdf`);
@@ -2785,28 +2845,28 @@ Mis pronósticos son:
     doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
 
     // Configurar columnas de la matriz
-    const headers = ['Participante', 'Alias', 'Puntos', ...matches.map((_, idx) => `P${idx + 1}`), 'Estado Pago'];
+    const headers = ['#', 'Participante', ...matches.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
 
     // Mapear filas de datos
     const tableData = allPoolsForMatchday
       .filter(p => p.payment_status === 'approved') // Solo quinielas validadas
-      .map(p => {
+      .map((p, pIdx) => {
         const participantName = p.participant?.name || 'Invitado';
-        const participantAlias = p.participant?.alias || 'anon';
-        const totalPoints = p.score;
-
-        // Pronósticos en orden de partidos
+        
+        let aciertos = 0;
         const gameSelections = matches.map(match => {
           const sel = predictionsByPool[p.id]?.[match.id] || '-';
+          if (match.result && sel === match.result) {
+            aciertos++;
+          }
           return sel;
         });
 
         return [
+          pIdx + 1,
           participantName,
-          participantAlias,
-          totalPoints.toString(),
           ...gameSelections,
-          p.payment_status.toUpperCase()
+          aciertos
         ];
       });
 
@@ -2824,14 +2884,37 @@ Mis pronósticos son:
       headStyles: {
         fillColor: [16, 185, 129], // Emerald green
         textColor: [255, 255, 255],
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        halign: 'center'
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252] // light grey
       },
       styles: {
         fontSize: 8,
-        cellPadding: 2
+        cellPadding: 2,
+        halign: 'center'
+      },
+      columnStyles: {
+        1: { halign: 'left', fontStyle: 'bold' } 
+      },
+      didParseCell: function(data) {
+        if (data.section === 'body') {
+          if (data.column.index >= 2 && data.column.index < 2 + matches.length) {
+            const matchIdx = data.column.index - 2;
+            const match = matches[matchIdx];
+            const cellValue = data.cell.raw;
+            if (match && match.result && cellValue === match.result) {
+              data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
+              data.cell.styles.textColor = [0, 0, 0];       // Texto negro
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+          if (data.column.index === 2 + matches.length) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+          }
+        }
       }
     });
 
