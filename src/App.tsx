@@ -4661,15 +4661,46 @@ Mis pronósticos son:
                                     </span>
                                   )}
                                 </div>
-                                <button
-                                  className="btn btn-secondary"
-                                  onClick={() => handleRevertPayment(pool.id)}
-                                  style={{ marginTop: '8px', padding: '4px 8px', fontSize: '0.7rem', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  title="Regresar a estado Pendiente"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                                  Deshacer
-                                </button>
+                                <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                                  {pool.payment_status === 'approved' && (
+                                    <button
+                                      className="btn btn-secondary"
+                                      onClick={() => handleRevertPayment(pool.id)}
+                                      style={{ padding: '4px 8px', fontSize: '0.7rem', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      title="Regresar a estado Pendiente"
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                      Deshacer
+                                    </button>
+                                  )}
+                                  {pool.payment_status === 'pending' && (
+                                    <>
+                                      <button
+                                        className="btn btn-primary"
+                                        onClick={() => handleValidatePayment(pool.id, 'approved')}
+                                        style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--primary)', color: 'black', border: 'none' }}
+                                      >
+                                        <Check size={10} /> Aprobar
+                                      </button>
+                                      <button
+                                        className="btn btn-danger"
+                                        onClick={() => handleValidatePayment(pool.id, 'rejected')}
+                                        style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--danger)', color: 'white', border: 'none' }}
+                                      >
+                                        <X size={10} /> Rechazar
+                                      </button>
+                                    </>
+                                  )}
+                                  {pool.payment_status === 'rejected' && (
+                                    <button
+                                      className="btn btn-primary"
+                                      onClick={() => handleValidatePayment(pool.id, 'approved')}
+                                      style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--primary)', color: 'black', border: 'none' }}
+                                    >
+                                      <Check size={10} /> Aprobar
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
