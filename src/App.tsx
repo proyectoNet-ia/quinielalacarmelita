@@ -1540,7 +1540,10 @@ export default function App() {
       const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
       if (predErr) throw predErr;
       
-      let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.\r\n\r\nMis pronósticos son:\r\n`;
+      let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.
+
+Mis pronósticos son:
+`;
       cart.forEach((selections, idx) => {
         let quinielaLine = `Quiniela ${idx + 1}: `;
         let selArray: string[] = [];
@@ -1550,13 +1553,13 @@ export default function App() {
           }
         });
         quinielaLine += selArray.join(',');
-        msgText += quinielaLine + `\r\n`;
+        msgText += quinielaLine + `\n`;
       });
-      msgText += `\r\nCódigo de Referencia:\r\n*REF-${refId.replace('REF-', '')}*\r\n\r\n`;
-      msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\r\n\r\n`;
+      msgText += `\nCódigo de Referencia:\n*REF-${refId.replace('REF-', '')}*\n\n`;
+      msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\n\n`;
       const voucherUrl = `${window.location.origin}/?tab=verify-payment&ref=${refId}`;
-      msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\r\n`;
-      msgText += `${voucherUrl}\r\n\r\n`;
+      msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\n`;
+      msgText += `${voucherUrl}\n\n`;
       msgText += `Nuestro agente te compartirá la información para realizar tu pago.`;
 
       
@@ -1569,11 +1572,7 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
-      // Separamos el mensaje en dos partes: texto normal + URL sin doble-codificación
-      // Esto garantiza que la URL sea reconocida como enlace clickable en WhatsApp
-      const msgParts = msgText.split(voucherUrl);
-      const encodedText = msgParts.map(part => encodeURIComponent(part)).join(encodeURIComponent(voucherUrl).replace(/%26/g, '&').replace(/%3D/g, '=').replace(/%3F/g, '?'));
-      const waUrl = `https://wa.me/${targetPhone}?text=${encodedText}`;
+      const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
       window.open(waUrl, '_blank');
 
       setCart([]);
@@ -3321,10 +3320,7 @@ export default function App() {
                     <button 
                       onClick={() => {
                         const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
-                        const successVoucherUrl = `${window.location.origin}/?tab=verify-payment&ref=${cartReferenceId}`;
-                        const parts = successMessageText.split(successVoucherUrl);
-                        const encodedMsg = parts.map(p => encodeURIComponent(p)).join(encodeURIComponent(successVoucherUrl).replace(/%26/g, '&').replace(/%3D/g, '=').replace(/%3F/g, '?'));
-                        const waUrl = `https://wa.me/${targetPhone}?text=${encodedMsg}`;
+                        const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(successMessageText)}`;
                         window.open(waUrl, '_blank');
                       }}
                       className="btn"
