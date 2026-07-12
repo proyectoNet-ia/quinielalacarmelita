@@ -359,6 +359,7 @@ export default function App() {
   // --- Estados de Carrito y Registro Rápido ---
   const [cart, setCart] = useState<Record<string, string>[]>([]);
   const [cartParticipantName, setCartParticipantName] = useState('');
+  const [nameExistsWarning, setNameExistsWarning] = useState(false);
   const [cartParticipantAlias, setCartParticipantAlias] = useState('');
   const [cartParticipantPhone, setCartParticipantPhone] = useState('');
   const [cartCountryCode, setCartCountryCode] = useState('+52');
@@ -369,6 +370,32 @@ export default function App() {
   const [successMessageText, setSuccessMessageText] = useState('');
   const [whatsappConfig, setWhatsappConfig] = useState('');
 
+  useEffect(() => {
+    const checkName = async () => {
+      if (cartParticipantName.trim().length < 3) {
+        setNameExistsWarning(false);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('participants')
+        .select('id')
+        .ilike('alias', cartParticipantName.trim())
+        .maybeSingle();
+        
+      if (data) {
+        setNameExistsWarning(true);
+      } else {
+        setNameExistsWarning(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      checkName();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [cartParticipantName]);
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/\D/g, '').substring(0, 10);
     let formatted = '';
@@ -3504,6 +3531,12 @@ export default function App() {
                             <form onSubmit={handleSubmitCart}>
                               <div className="form-group" style={{ marginBottom: '12px' }}>
                                 <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
+                                {nameExistsWarning && (
+                                  <p style={{ color: 'var(--warning, #f59e0b)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                    <span>Este nombre ya existe, si no eres tú, usa otro nombre.</span>
+                                  </p>
+                                )}
                               </div>
 
                               <div className="form-group" style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
