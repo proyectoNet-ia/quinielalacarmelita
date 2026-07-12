@@ -246,6 +246,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('predictions'); // coming-soon, predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants, verify-payment
   const [adminPendingPage, setAdminPendingPage] = useState(1);
   const [adminHistoryPage, setAdminHistoryPage] = useState(1);
+  const [historyMatchdayFilter, setHistoryMatchdayFilter] = useState<string>('all');
   const [authView, setAuthView] = useState<'user-login' | 'user-register' | 'admin-login'>('user-login');
 
   // --- Verificación Pública de Pagos ---
@@ -4628,7 +4629,37 @@ Mis pronósticos son:
         {/* ADMIN: HISTORIAL DE PAGOS */}
         {activeTab === 'admin-history' && isAdmin && (
           <div>
-            <h2 style={{ marginBottom: '16px' }}>Historial General de Pagos</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <h2 style={{ margin: 0 }}>Historial General de Pagos</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="history-matchday-select" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  Filtrar por Quiniela:
+                </label>
+                <select
+                  id="history-matchday-select"
+                  value={historyMatchdayFilter}
+                  onChange={(e) => {
+                    setHistoryMatchdayFilter(e.target.value);
+                    setAdminHistoryPage(1); // Reiniciar paginación al filtrar
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-main)',
+                    border: '1px solid var(--border-color)',
+                    color: 'white',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">Todas las Quinielas</option>
+                  {financialMatchdays.map(m => (
+                    <option key={m.id} value={m.id}>Quiniela N° {m.number}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {!financialPools || financialPools.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
                 No hay quinielas registradas en el historial.
@@ -4636,7 +4667,10 @@ Mis pronósticos son:
             ) : (
               (() => {
                 const ITEMS_PER_PAGE = 20;
-                const historyPools = financialPools.filter(p => p.payment_status !== 'pending' || p.matchday_id !== activeMatchday?.id);
+                let historyPools = financialPools.filter(p => p.payment_status !== 'pending' || p.matchday_id !== activeMatchday?.id);
+                if (historyMatchdayFilter !== 'all') {
+                  historyPools = historyPools.filter(p => p.matchday_id === historyMatchdayFilter);
+                }
 
                 // Agrupar quinielas del historial por usuario y jornada
                 const groupedPoolsMap: Record<string, {
