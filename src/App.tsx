@@ -319,6 +319,21 @@ export default function App() {
     const tByName = teams.find(t => t.name === teamNameLegacy);
     return tByName ? tByName.name : teamNameLegacy;
   };
+
+  const getTeamCode = (match: Match, isHome: boolean) => {
+    const teamId = isHome ? match.home_team_id : match.away_team_id;
+    const teamNameLegacy = isHome ? match.home_team : match.away_team;
+    if (teamId) {
+      const t = teams.find(t => t.id === teamId);
+      if (t && t.code) return t.code.toUpperCase();
+    }
+    const tByName = teams.find(t => t.name === teamNameLegacy);
+    if (tByName && tByName.code) return tByName.code.toUpperCase();
+    
+    // Fallback: usar las primeras 3 letras del nombre
+    const name = getTeamName(match, isHome);
+    return name.substring(0, 3).toUpperCase();
+  };
   
   const getTeamLogo = (match: Match, isHome: boolean) => {
     const teamId = isHome ? match.home_team_id : match.away_team_id;
@@ -2634,26 +2649,6 @@ Mis pronósticos son:
         }
       }
 
-      // 5. Pre-cargar logos en Base64 para el PDF
-      const loadedLogos: Record<string, string> = {};
-      const uniqueLogoUrls = Array.from(new Set(
-        mData.flatMap(m => [
-          getTeamLogo(m, true),
-          getTeamLogo(m, false)
-        ]).filter(Boolean) as string[]
-      ));
-
-      await Promise.all(uniqueLogoUrls.map(async (url) => {
-        try {
-          const base64 = await getBase64ImageFromUrl(url);
-          if (base64) {
-            loadedLogos[url] = base64;
-          }
-        } catch (e) {
-          console.error("Error preloading logo:", url, e);
-        }
-      }));
-
       // Generar el PDF en vertical (portrait)
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -2703,7 +2698,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
+          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242]
@@ -2723,33 +2718,25 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            const logoWidth = Math.min(6, cell.width - 2);
-            const logoHeight = logoWidth;
-            const logoX = centerX - logoWidth / 2;
+            const homeCode = getTeamCode(match, true);
+            const awayCode = getTeamCode(match, false);
 
-            // Dibujar logo Local
-            const homeLogoUrl = getTeamLogo(match, true);
-            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
-            if (homeLogoBase64) {
-              try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
-              } catch (e) {}
-            }
-
-            // Dibujar "vs"
-            doc.setFontSize(6);
+            doc.setFontSize(7);
             doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
-            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
-            // Dibujar logo Visitante
-            const awayLogoUrl = getTeamLogo(match, false);
-            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
-            if (awayLogoBase64) {
-              try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
-              } catch (e) {}
-            }
+            // Dibujar código Local vertical
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(6.5);
+            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+
+            // Dibujar código Visitante vertical
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7);
+            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -2838,26 +2825,6 @@ Mis pronósticos son:
         }
       }
 
-      // Pre-cargar logos en Base64 para el PDF
-      const loadedLogos: Record<string, string> = {};
-      const uniqueLogoUrls = Array.from(new Set(
-        currentMatches.flatMap(m => [
-          getTeamLogo(m, true),
-          getTeamLogo(m, false)
-        ]).filter(Boolean) as string[]
-      ));
-
-      await Promise.all(uniqueLogoUrls.map(async (url) => {
-        try {
-          const base64 = await getBase64ImageFromUrl(url);
-          if (base64) {
-            loadedLogos[url] = base64;
-          }
-        } catch (e) {
-          console.error("Error preloading logo:", url, e);
-        }
-      }));
-
       // Glosario de partidos al final
       const matchesLegend = currentMatches.map((m, idx) => {
         return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
@@ -2898,7 +2865,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
+          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
         },
         styles: { 
           fontSize: 8, 
@@ -2918,33 +2885,25 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            const logoWidth = Math.min(6, cell.width - 2);
-            const logoHeight = logoWidth;
-            const logoX = centerX - logoWidth / 2;
+            const homeCode = getTeamCode(match, true);
+            const awayCode = getTeamCode(match, false);
 
-            // Dibujar logo Local
-            const homeLogoUrl = getTeamLogo(match, true);
-            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
-            if (homeLogoBase64) {
-              try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
-              } catch (e) {}
-            }
-
-            // Dibujar "vs"
-            doc.setFontSize(6);
+            doc.setFontSize(7);
             doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
-            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
-            // Dibujar logo Visitante
-            const awayLogoUrl = getTeamLogo(match, false);
-            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
-            if (awayLogoBase64) {
-              try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
-              } catch (e) {}
-            }
+            // Dibujar código Local vertical
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(6.5);
+            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+
+            // Dibujar código Visitante vertical
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7);
+            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -3003,26 +2962,6 @@ Mis pronósticos son:
 
     setLoading(true);
     try {
-      // Pre-cargar logos en Base64 para el PDF
-      const loadedLogos: Record<string, string> = {};
-      const uniqueLogoUrls = Array.from(new Set(
-        matches.flatMap(m => [
-          getTeamLogo(m, true),
-          getTeamLogo(m, false)
-        ]).filter(Boolean) as string[]
-      ));
-
-      await Promise.all(uniqueLogoUrls.map(async (url) => {
-        try {
-          const base64 = await getBase64ImageFromUrl(url);
-          if (base64) {
-            loadedLogos[url] = base64;
-          }
-        } catch (e) {
-          console.error("Error preloading logo:", url, e);
-        }
-      }));
-
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -3079,7 +3018,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
+          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242] // light grey
@@ -3099,33 +3038,25 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            const logoWidth = Math.min(6, cell.width - 2);
-            const logoHeight = logoWidth;
-            const logoX = centerX - logoWidth / 2;
+            const homeCode = getTeamCode(match, true);
+            const awayCode = getTeamCode(match, false);
 
-            // Dibujar logo Local
-            const homeLogoUrl = getTeamLogo(match, true);
-            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
-            if (homeLogoBase64) {
-              try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
-              } catch (e) {}
-            }
-            
-            // Dibujar "vs"
-            doc.setFontSize(6);
+            doc.setFontSize(7);
             doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
-            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
-            // Dibujar logo Visitante
-            const awayLogoUrl = getTeamLogo(match, false);
-            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
-            if (awayLogoBase64) {
-              try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
-              } catch (e) {}
-            }
+            // Dibujar código Local vertical
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(6.5);
+            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+
+            // Dibujar código Visitante vertical
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7);
+            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
