@@ -3152,6 +3152,264 @@ Mis pronósticos son:
       setLoading(false);
     }
   };
+
+  const handleGenerateSocialFlyer = async (matchday: Matchday) => {
+    setLoading(true);
+    try {
+      // 1. Obtener partidos de la quiniela
+      const { data: matchesData, error: mErr } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('matchday_id', matchday.id)
+        .order('created_at', { ascending: true });
+
+      if (mErr) throw mErr;
+      const currentMatches = matchesData || [];
+      if (currentMatches.length === 0) {
+        showAlert('error', 'No hay partidos cargados para generar el flyer.');
+        return;
+      }
+
+      // 2. Pre-cargar imágenes asíncronas para el Canvas
+      const getTeamLogoUrl = (match: Match, isHome: boolean) => {
+        const teamId = isHome ? match.home_team_id : match.away_team_id;
+        const teamNameLegacy = isHome ? match.home_team : match.away_team;
+        if (teamId) {
+          const t = teams.find(t => t.id === teamId);
+          if (t) return t.logo_url;
+        }
+        const tByName = teams.find(t => t.name === teamNameLegacy);
+        return tByName?.logo_url;
+      };
+
+      const loadImage = (url: string): Promise<HTMLImageElement | null> => {
+        return new Promise((resolve) => {
+          if (!url) {
+            resolve(null);
+            return;
+          }
+          const img = new Image();
+          img.setAttribute('crossOrigin', 'anonymous');
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+        });
+      };
+
+      // Cargar banner o elementos
+      const mascotImg = await loadImage('/PERICO.png');
+      const mainLogoImg = await loadImage('/LOGO LA CARMELITA.png');
+
+      // Cargar todos los logos de los partidos
+      const matchLogos: Record<string, { home: HTMLImageElement | null, away: HTMLImageElement | null }> = {};
+      await Promise.all(currentMatches.map(async (match) => {
+        const homeUrl = getTeamLogoUrl(match, true);
+        const awayUrl = getTeamLogoUrl(match, false);
+        const [homeImg, awayImg] = await Promise.all([
+          homeUrl ? loadImage(homeUrl) : Promise.resolve(null),
+          awayUrl ? loadImage(awayUrl) : Promise.resolve(null)
+        ]);
+        matchLogos[match.id] = { home: homeImg, away: awayImg };
+      }));
+
+      // 3. Crear canvas off-screen
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No se pudo inicializar el Canvas.');
+
+      // Fondo blanco
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1080, 1350);
+
+      // Cabecera Verde
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 200);
+      gradient.addColorStop(0, '#1e5e3a');
+      gradient.addColorStop(1, '#15803d');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1080, 200);
+
+      // Dibujar mascota (Perico)
+      if (mascotImg) {
+        const aspect = mascotImg.width / mascotImg.height;
+        const h = 150;
+        const w = h * aspect;
+        ctx.drawImage(mascotImg, 50, 25, w, h);
+      }
+
+      // Dibujar Logo La Carmelita centrado
+      if (mainLogoImg) {
+        const aspect = mainLogoImg.width / mainLogoImg.height;
+        const h = 120;
+        const w = h * aspect;
+        const xPos = 540 - w / 2;
+        ctx.drawImage(mainLogoImg, xPos, 40, w, h);
+      }
+
+      // Texto de Cierre en Rojo
+      ctx.fillStyle = '#dc2626'; // Rojo
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 44px Helvetica';
+      
+      const formatDeadlineSpanish = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+        const dayName = days[d.getDay()];
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return `SE CIERRA EL ${dayName} A LAS ${hours}:${minutes} ${ampm}`;
+      };
+
+      const deadlineText = formatDeadlineSpanish(matchday.deadline);
+      ctx.fillText(deadlineText, 540, 260);
+
+      // Dibujar Partidos
+      const numMatches = currentMatches.length;
+      const startY = 320;
+      const endY = 1040;
+      const totalHeight = endY - startY;
+      const rowHeight = numMatches > 10 ? totalHeight / numMatches : 72;
+      const fontSizeName = numMatches > 10 ? 25 : 30;
+      const logoSize = numMatches > 10 ? 34 : 42;
+
+      currentMatches.forEach((match, idx) => {
+        const yPos = startY + idx * rowHeight;
+        
+        // Centrar verticalmente en la fila
+        const textY = yPos + rowHeight / 2 + 8;
+        const logoY = yPos + rowHeight / 2 - logoSize / 2;
+
+        const homeName = getTeamName(match, true);
+        const awayName = getTeamName(match, false);
+        const homeLogo = matchLogos[match.id]?.home;
+        const awayLogo = matchLogos[match.id]?.away;
+
+        // 1. Nombre Local (Alineado derecha, a x=410)
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#1e293b';
+        ctx.font = `bold ${fontSizeName}px Helvetica`;
+        ctx.fillText(homeName, 410, textY);
+
+        // 2. Logo Local (x=430)
+        if (homeLogo) {
+          ctx.drawImage(homeLogo, 430, logoY, logoSize, logoSize);
+        } else {
+          // Fallback círculo
+          ctx.fillStyle = '#3b82f6';
+          ctx.beginPath();
+          ctx.arc(430 + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.font = `bold ${fontSizeName * 0.6}px Helvetica`;
+          ctx.fillText(homeName.substring(0, 1).toUpperCase(), 430 + logoSize / 2, logoY + logoSize / 2 + 6);
+        }
+
+        // 3. VS (x=540)
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#dc2626';
+        ctx.font = `bold ${fontSizeName * 0.9}px Helvetica`;
+        ctx.fillText('VS', 540, textY);
+
+        // 4. Logo Visitante (x=610)
+        if (awayLogo) {
+          ctx.drawImage(awayLogo, 610, logoY, logoSize, logoSize);
+        } else {
+          // Fallback círculo
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(610 + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.font = `bold ${fontSizeName * 0.6}px Helvetica`;
+          ctx.fillText(awayName.substring(0, 1).toUpperCase(), 610 + logoSize / 2, logoY + logoSize / 2 + 6);
+        }
+
+        // 5. Nombre Visitante (Alineado izquierda, a x=670)
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#1e293b';
+        ctx.font = `bold ${fontSizeName}px Helvetica`;
+        ctx.fillText(awayName, 670, textY);
+      });
+
+      // Sección WhatsApp
+      ctx.fillStyle = '#dc2626';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 28px Helvetica';
+      ctx.fillText('ENVÍA TUS QUINIELAS Y PAGO AL:', 540, 1110);
+
+      // Icono WhatsApp y Número
+      const rawPhone = whatsappConfig || '3122440708';
+      const phoneText = rawPhone.length === 10 
+        ? rawPhone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') 
+        : rawPhone;
+      
+      // Dibujar círculo de WhatsApp
+      ctx.fillStyle = '#25D366';
+      ctx.beginPath();
+      ctx.arc(280, 1170, 32, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '32px Helvetica';
+      ctx.textAlign = 'center';
+      ctx.fillText('📞', 280, 1181);
+
+      // Escribir número
+      ctx.fillStyle = '#111827';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 64px Helvetica';
+      ctx.fillText(phoneText, 330, 1190);
+
+      // Caja de Costo y Nombre (Margen inferior)
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(50, 1225, 980, 95);
+
+      // Línea divisoria de la caja
+      ctx.beginPath();
+      ctx.moveTo(400, 1225);
+      ctx.lineTo(400, 1320);
+      ctx.stroke();
+
+      // Texto de Costo (Izquierda)
+      ctx.fillStyle = '#dc2626';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 32px Helvetica';
+      ctx.fillText(`COSTO: $${matchday.price_per_entry || 25}`, 70, 1265);
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 18px Helvetica';
+      ctx.fillText('MÍNIMO 2 QUINIELAS', 70, 1298);
+
+      // Texto de Nombre (Derecha)
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 28px Helvetica';
+      ctx.fillText('NOMBRE:', 420, 1282);
+
+      // Caja blanca para escribir nombre
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeRect(570, 1245, 430, 55);
+
+      // Descargar Imagen
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `Flyer_LaCarmelita_Quiniela_${matchday.number}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      showAlert('success', 'Imagen para redes sociales generada y descargada.');
+    } catch (e) {
+      console.error(e);
+      showAlert('error', 'Error al generar la imagen para redes sociales.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Equipos disponibles para agregar a la quiniela
   const unusedTeams = teams.filter(t => !matches.some(m => m.home_team_id === t.id || m.away_team_id === t.id || m.home_team === t.name || m.away_team === t.name));
   const availableHomeTeams = unusedTeams.filter(t => t.name !== newAwayTeam);
@@ -4602,13 +4860,23 @@ Mis pronósticos son:
                                   </button>
                                   <button 
                                     className="btn" 
-                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderRadius: '0 0 4px 4px' }}
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', borderRadius: '0' }}
                                     onClick={() => {
                                       setOpenMatchdayMenu(null);
                                       handleExportMatchdayPDF(m);
                                     }}
                                   >
-                                    <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#25D366' }}/> Exportar
+                                    <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#25D366' }}/> Exportar PDF
+                                  </button>
+                                  <button 
+                                    className="btn" 
+                                    style={{ background: 'transparent', color: 'white', padding: '10px 12px', fontSize: '0.9rem', textAlign: 'left', border: 'none', borderRadius: '0 0 4px 4px' }}
+                                    onClick={() => {
+                                      setOpenMatchdayMenu(null);
+                                      handleGenerateSocialFlyer(m);
+                                    }}
+                                  >
+                                    <ImageIcon size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#38bdf8' }}/> Imagen Redes
                                   </button>
                                 </div>
                               )}
