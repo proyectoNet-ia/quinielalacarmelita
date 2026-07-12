@@ -1903,18 +1903,22 @@ Mis pronósticos son:
   // --- Acciones de Administrador ---
 
   // Aprobar / Rechazar Pagos
-  const handleValidatePayment = async (poolId: string, status: 'approved' | 'rejected') => {
+  const handleValidatePayment = async (poolIdOrIds: string | string[], status: 'approved' | 'rejected') => {
     try {
       setLoading(true);
+      const ids = Array.isArray(poolIdOrIds) ? poolIdOrIds : [poolIdOrIds];
       const { error } = await supabase
         .from('pools')
         .update({ payment_status: status })
-        .eq('id', poolId);
+        .in('id', ids);
 
       if (error) throw error;
       
       showAlert('success', `Pago ${status === 'approved' ? 'APROBADO' : 'RECHAZADO'} correctamente.`);
       loadAllPoolsForMatchday();
+      if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history')) {
+        loadFinancialData();
+      }
     } catch (err) {
       showAlert('error', 'Error al validar el pago.');
     } finally {
@@ -1942,6 +1946,9 @@ Mis pronósticos son:
           
           showAlert('success', `Bloque de pagos ${status === 'approved' ? 'APROBADO' : 'RECHAZADO'} correctamente.`);
           loadAllPoolsForMatchday();
+          if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history')) {
+            loadFinancialData();
+          }
         } catch (err) {
           showAlert('error', 'Error al validar el bloque de pagos.');
         } finally {
@@ -1951,10 +1958,11 @@ Mis pronósticos son:
     });
   };
 
-  const handleRevertPayment = (poolId: string) => {
+  const handleRevertPayment = (poolIdOrIds: string | string[]) => {
+    const ids = Array.isArray(poolIdOrIds) ? poolIdOrIds : [poolIdOrIds];
     setConfirmConfig({
       title: 'Deshacer Acción',
-      message: '¿Seguro que deseas regresar esta quiniela a estado PENDIENTE?\n\nVolverá a aparecer en tu lista de validación.',
+      message: '¿Seguro que deseas regresar estas quinielas a estado PENDIENTE?\n\nVolverán a aparecer en tu lista de validación.',
       confirmText: 'Sí, Deshacer',
       confirmColor: 'var(--text-secondary)',
       onConfirm: async () => {
@@ -1964,11 +1972,11 @@ Mis pronósticos son:
           const { error } = await supabase
             .from('pools')
             .update({ payment_status: 'pending' })
-            .eq('id', poolId);
+            .in('id', ids);
 
           if (error) throw error;
           
-          showAlert('success', 'Quiniela regresada a estado PENDIENTE exitosamente.');
+          showAlert('success', 'Quinielas regresadas a estado PENDIENTE exitosamente.');
           loadAllPoolsForMatchday();
           if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history')) {
             loadFinancialData();
@@ -4629,31 +4637,70 @@ Mis pronósticos son:
               (() => {
                 const ITEMS_PER_PAGE = 20;
                 const historyPools = financialPools.filter(p => p.payment_status !== 'pending' || p.matchday_id !== activeMatchday?.id);
-                const totalPages = Math.ceil(historyPools.length / ITEMS_PER_PAGE);
-                const currentPools = historyPools.slice((adminHistoryPage - 1) * ITEMS_PER_PAGE, adminHistoryPage * ITEMS_PER_PAGE);
+
+                // Agrupar quinielas del historial por usuario y jornada
+                const groupedPoolsMap: Record<string, {
+                  participantId: string;
+                  participant: any;
+                  matchdayId: string;
+                  matchdayNum: string | number;
+                  paymentStatus: string;
+                  paymentReceiptUrl?: string;
+                  validationFlags?: string[];
+                  pools: Pool[];
+                }> = {};
+
+                historyPools.forEach(pool => {
+                  const key = `${pool.participant_id || 'INV'}_${pool.matchday_id}`;
+                  if (!groupedPoolsMap[key]) {
+                    const matchdayNum = financialMatchdays.find(m => m.id === pool.matchday_id)?.number || 'N/A';
+                    groupedPoolsMap[key] = {
+                      participantId: pool.participant_id,
+                      participant: pool.participant,
+                      matchdayId: pool.matchday_id,
+                      matchdayNum,
+                      paymentStatus: pool.payment_status,
+                      paymentReceiptUrl: pool.payment_receipt_url,
+                      validationFlags: pool.validation_flags || [],
+                      pools: []
+                    };
+                  }
+                  groupedPoolsMap[key].pools.push(pool);
+                  
+                  if (pool.payment_receipt_url && !groupedPoolsMap[key].paymentReceiptUrl) {
+                    groupedPoolsMap[key].paymentReceiptUrl = pool.payment_receipt_url;
+                  }
+                });
+
+                const groupedHistoryList = Object.values(groupedPoolsMap);
+                const totalPages = Math.ceil(groupedHistoryList.length / ITEMS_PER_PAGE);
+                const currentGroups = groupedHistoryList.slice((adminHistoryPage - 1) * ITEMS_PER_PAGE, adminHistoryPage * ITEMS_PER_PAGE);
 
                 return (
                   <div>
                     <div className="payment-grid">
-                      {currentPools.map((pool) => {
-                        const name = pool.participant?.name || 'Usuario';
-                        const alias = pool.participant?.alias || 'alias';
-                        const phone = pool.participant?.phone || 'Sin número';
-                        const matchdayNum = financialMatchdays.find(m => m.id === pool.matchday_id)?.number || 'N/A';
+                      {currentGroups.map((group) => {
+                        const name = group.participant?.name || 'Usuario';
+                        const alias = group.participant?.alias || 'alias';
+                        const phone = group.participant?.phone || 'Sin número';
+                        const matchdayNum = group.matchdayNum;
+                        const poolIds = group.pools.map(p => p.id);
 
                         // Parse payment type from flags
-                        const rawFlags = pool.validation_flags || [];
                         let paymentType = null;
-                        rawFlags.forEach(f => {
-                          if (f.startsWith('[TYPE:TRANSFERENCIA]')) paymentType = 'TRANSFERENCIA';
-                          if (f.startsWith('[TYPE:DEPOSITO]')) paymentType = 'DEPÓSITO';
+                        group.pools.forEach(pool => {
+                          const rawFlags = pool.validation_flags || [];
+                          rawFlags.forEach(f => {
+                            if (f.startsWith('[TYPE:TRANSFERENCIA]')) paymentType = 'TRANSFERENCIA';
+                            if (f.startsWith('[TYPE:DEPOSITO]')) paymentType = 'DEPÓSITO';
+                          });
                         });
 
                         return (
-                          <div className="payment-card" key={pool.id}>
+                          <div className="payment-card" key={`${group.participantId}_${group.matchdayId}`} style={{ border: '1px solid var(--border-color)', background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
-                                <h4 style={{ color: 'white' }}>{name}</h4>
+                                <h4 style={{ color: 'white', margin: 0 }}>{name}</h4>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                   Alias: @{alias} | Tel: {phone}
                                 </span>
@@ -4664,14 +4711,14 @@ Mis pronósticos son:
                                   fontWeight: '800', 
                                   padding: '2px 6px', 
                                   borderRadius: 'var(--radius-sm)',
-                                  backgroundColor: pool.payment_status === 'approved' ? 'var(--primary-glow)' : pool.payment_status === 'rejected' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.1)',
-                                  color: pool.payment_status === 'approved' ? 'var(--primary)' : pool.payment_status === 'rejected' ? 'var(--danger)' : 'var(--text-muted)'
+                                  backgroundColor: group.paymentStatus === 'approved' ? 'var(--primary-glow)' : group.paymentStatus === 'rejected' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.1)',
+                                  color: group.paymentStatus === 'approved' ? 'var(--primary)' : group.paymentStatus === 'rejected' ? 'var(--danger)' : 'var(--text-muted)'
                                 }}>
-                                  {pool.payment_status.toUpperCase()}
+                                  {group.paymentStatus.toUpperCase()}
                                 </span>
                                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                   <span style={{ fontSize: '0.65rem', fontWeight: '800', padding: '2px 6px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}>
-                                    Quiniela N° {matchdayNum}
+                                    Quiniela N° {matchdayNum} ({group.pools.length} {group.pools.length === 1 ? 'part.' : 'parts.'})
                                   </span>
                                   {paymentType && (
                                     <span style={{ fontSize: '0.65rem', fontWeight: '800', padding: '2px 6px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
@@ -4680,10 +4727,10 @@ Mis pronósticos son:
                                   )}
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
-                                  {pool.payment_status === 'approved' && (
+                                  {group.paymentStatus === 'approved' && (
                                     <button
                                       className="btn btn-secondary"
-                                      onClick={() => handleRevertPayment(pool.id)}
+                                      onClick={() => handleRevertPayment(poolIds)}
                                       style={{ padding: '4px 8px', fontSize: '0.7rem', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px' }}
                                       title="Regresar a estado Pendiente"
                                     >
@@ -4691,28 +4738,28 @@ Mis pronósticos son:
                                       Deshacer
                                     </button>
                                   )}
-                                  {pool.payment_status === 'pending' && (
+                                  {group.paymentStatus === 'pending' && (
                                     <>
                                       <button
                                         className="btn btn-primary"
-                                        onClick={() => handleValidatePayment(pool.id, 'approved')}
+                                        onClick={() => handleValidatePayment(poolIds, 'approved')}
                                         style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--primary)', color: 'black', border: 'none' }}
                                       >
                                         <Check size={10} /> Aprobar
                                       </button>
                                       <button
                                         className="btn btn-danger"
-                                        onClick={() => handleValidatePayment(pool.id, 'rejected')}
+                                        onClick={() => handleValidatePayment(poolIds, 'rejected')}
                                         style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--danger)', color: 'white', border: 'none' }}
                                       >
                                         <X size={10} /> Rechazar
                                       </button>
                                     </>
                                   )}
-                                  {pool.payment_status === 'rejected' && (
+                                  {group.paymentStatus === 'rejected' && (
                                     <button
                                       className="btn btn-primary"
-                                      onClick={() => handleValidatePayment(pool.id, 'approved')}
+                                      onClick={() => handleValidatePayment(poolIds, 'approved')}
                                       style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--primary)', color: 'black', border: 'none' }}
                                     >
                                       <Check size={10} /> Aprobar
@@ -4722,33 +4769,43 @@ Mis pronósticos son:
                               </div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '4px', margin: '12px 0' }}>
-                              {matches.map((m, mIdx) => (
-                                <div 
-                                  key={m.id} 
-                                  style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '0.6rem', padding: '2px 0', borderRadius: '4px' }}
-                                  title={getTeamName(m, true) + ' vs ' + getTeamName(m, false)}
-                                >
-                                  <span style={{ fontSize: '0.45rem', display: 'block', color: 'var(--text-muted)' }}>P{mIdx + 1}</span>
-                                  {predictionsByPool[pool.id]?.[m.id] || '-'}
+                            {/* Lista de predicciones de las quinielas del usuario */}
+                            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {group.pools.map((p, pIdx) => (
+                                <div key={p.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 'bold' }}>
+                                    Quiniela #{pIdx + 1} {p.reference_code ? `(Ref: ${p.reference_code})` : '(Sin folio)'}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '4px' }}>
+                                    {matches.map((m, mIdx) => (
+                                      <div 
+                                        key={m.id} 
+                                        style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '0.6rem', padding: '2px 0', borderRadius: '4px' }}
+                                        title={getTeamName(m, true) + ' vs ' + getTeamName(m, false)}
+                                      >
+                                        <span style={{ fontSize: '0.45rem', display: 'block', color: 'var(--text-muted)' }}>P{mIdx + 1}</span>
+                                        {predictionsByPool[p.id]?.[m.id] || '-'}
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               ))}
                             </div>
 
-                            {pool.payment_receipt_url ? (
-                              <div>
+                            {group.paymentReceiptUrl ? (
+                              <div style={{ marginTop: '12px' }}>
                                 <img 
-                                  src={pool.payment_receipt_url} 
+                                  src={group.paymentReceiptUrl} 
                                   alt="Comprobante" 
                                   className="receipt-img"
-                                  onClick={() => setViewReceiptUrl(pool.payment_receipt_url)}
+                                  onClick={() => setViewReceiptUrl(group.paymentReceiptUrl!)}
                                 />
                                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textAlign: 'center', marginTop: '4px' }}>
                                   🔎 Clic para ampliar
                                 </span>
                               </div>
                             ) : (
-                              <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)' }}>
+                              <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)', marginTop: '12px' }}>
                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>Sin comprobante</span>
                               </div>
                             )}
