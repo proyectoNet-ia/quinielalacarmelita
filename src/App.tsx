@@ -3774,7 +3774,7 @@ Mis pronósticos son:
                                           P{idx + 1}
                                         </span>
                                         <span style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem', fontWeight: '800', boxShadow: '0 0 10px rgba(255,193,7,0.3)' }} title="Aplica solo como desempate si se anula algún partido">
-                                          EXTRA (Desempate)
+                                          EXTRA
                                         </span>
                                       </div>
                                       <div className="lev-group">
