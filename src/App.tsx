@@ -2703,7 +2703,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 35 // Cabeceras altas para acomodar logos y texto vertical
+          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242]
@@ -2723,12 +2723,6 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            // Dibujar número de partido (P1, P2...)
-            doc.setFontSize(6);
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
-            
             const logoWidth = Math.min(6, cell.width - 2);
             const logoHeight = logoWidth;
             const logoX = centerX - logoWidth / 2;
@@ -2738,30 +2732,22 @@ Mis pronósticos son:
             const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
             if (homeLogoBase64) {
               try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
               } catch (e) {}
             }
-            
-            // Dibujar nombre Local (vertical)
-            doc.setFontSize(5);
-            const homeName = getTeamName(match, true).substring(0, 8);
-            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
 
             // Dibujar "vs"
-            doc.setFontSize(5.5);
-            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
-
-            // Dibujar nombre Visitante (vertical)
-            doc.setFontSize(5);
-            const awayName = getTeamName(match, false).substring(0, 8);
-            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
             // Dibujar logo Visitante
             const awayLogoUrl = getTeamLogo(match, false);
             const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
             if (awayLogoBase64) {
               try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
               } catch (e) {}
             }
           }
@@ -2907,7 +2893,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 35 // Cabeceras altas
+          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
         },
         styles: { 
           fontSize: 8, 
@@ -2927,12 +2913,6 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            // Dibujar número de partido
-            doc.setFontSize(6);
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
-            
             const logoWidth = Math.min(6, cell.width - 2);
             const logoHeight = logoWidth;
             const logoX = centerX - logoWidth / 2;
@@ -2942,30 +2922,22 @@ Mis pronósticos son:
             const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
             if (homeLogoBase64) {
               try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
               } catch (e) {}
             }
-            
-            // Dibujar nombre Local (vertical)
-            doc.setFontSize(5);
-            const homeName = getTeamName(match, true).substring(0, 8);
-            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
 
             // Dibujar "vs"
-            doc.setFontSize(5.5);
-            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
-
-            // Dibujar nombre Visitante (vertical)
-            doc.setFontSize(5);
-            const awayName = getTeamName(match, false).substring(0, 8);
-            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
             // Dibujar logo Visitante
             const awayLogoUrl = getTeamLogo(match, false);
             const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
             if (awayLogoBase64) {
               try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
               } catch (e) {}
             }
           }
@@ -3085,7 +3057,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 35 // Cabeceras altas
+          minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252] // light grey
@@ -3105,12 +3077,6 @@ Mis pronósticos son:
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             
-            // Dibujar número de partido
-            doc.setFontSize(6);
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
-            
             const logoWidth = Math.min(6, cell.width - 2);
             const logoHeight = logoWidth;
             const logoX = centerX - logoWidth / 2;
@@ -3120,30 +3086,22 @@ Mis pronósticos son:
             const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
             if (homeLogoBase64) {
               try {
-                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 2, logoWidth, logoHeight);
               } catch (e) {}
             }
             
-            // Dibujar nombre Local (vertical)
-            doc.setFontSize(5);
-            const homeName = getTeamName(match, true).substring(0, 8);
-            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
-
             // Dibujar "vs"
-            doc.setFontSize(5.5);
-            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
-
-            // Dibujar nombre Visitante (vertical)
-            doc.setFontSize(5);
-            const awayName = getTeamName(match, false).substring(0, 8);
-            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text('vs', centerX, cell.y + 10, { align: 'center' });
 
             // Dibujar logo Visitante
             const awayLogoUrl = getTeamLogo(match, false);
             const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
             if (awayLogoBase64) {
               try {
-                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 12, logoWidth, logoHeight);
               } catch (e) {}
             }
           }
