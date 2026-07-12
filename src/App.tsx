@@ -2649,6 +2649,9 @@ Mis pronósticos son:
         }
       }
 
+      // Cargar logo de La Carmelita
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+
       // Generar el PDF en vertical (portrait)
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -2656,12 +2659,24 @@ Mis pronósticos son:
         format: 'a4'
       });
 
-      // Encabezado
-      doc.setFontSize(18);
-      doc.setTextColor(15, 23, 42); // Slate 900
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
+      // Encabezado con Logo y texto en Negro
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
+        } catch (e) {
+          console.error("Error drawing logo:", e);
+        }
+      }
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
+      doc.setTextColor(0, 0, 0); // Negro puro
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
+      
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60); // Gris muy oscuro
+      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
 
       // Cabeceras de tabla: #, Participante, [vacío para partidos], Aciertos
       const headers = ['#', 'Participante', ...mData.map(() => '  '), 'Aciertos'];
@@ -2688,7 +2703,7 @@ Mis pronósticos son:
       });
 
       doc.autoTable({
-        startY: 26,
+        startY: 34,
         head: [headers],
         body: tableRows,
         theme: 'grid',
@@ -2830,12 +2845,29 @@ Mis pronósticos son:
         return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
       });
 
+      // Cargar logo de La Carmelita
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      doc.setFontSize(18);
-      doc.setTextColor(15, 23, 42);
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
+
+      // Encabezado con Logo y texto en Negro
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
+        } catch (e) {
+          console.error("Error drawing logo:", e);
+        }
+      }
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
+      doc.setTextColor(0, 0, 0); // Negro puro
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
+      
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60); // Gris muy oscuro
+      doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
 
       const headers = ['#', 'Participante', ...currentMatches.map(() => '  '), 'Aciertos'];
       const tableData = currentPools.map((pool, pIdx) => {
@@ -2855,7 +2887,7 @@ Mis pronósticos son:
       });
 
       (doc as any).autoTable({
-        startY: 28,
+        startY: 34,
         head: [headers],
         body: tableData,
         theme: 'grid',
@@ -2962,18 +2994,33 @@ Mis pronósticos son:
 
     setLoading(true);
     try {
+      // Cargar logo de La Carmelita
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
 
-      // Encabezado
-      doc.setFontSize(18);
-      doc.setTextColor(15, 23, 42); // Slate 900
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
+      // Encabezado con Logo y texto en Negro
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
+        } catch (e) {
+          console.error("Error drawing logo:", e);
+        }
+      }
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
+      doc.setTextColor(0, 0, 0); // Negro puro
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
+      
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60); // Gris muy oscuro
+      doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
 
       // Configurar columnas de la matriz
       const headers = ['#', 'Participante', ...matches.map(() => '  '), 'Aciertos'];
@@ -3008,7 +3055,7 @@ Mis pronósticos son:
 
       // Renderizar tabla con autoTable
       doc.autoTable({
-        startY: 26,
+        startY: 34,
         head: [headers],
         body: tableData,
         theme: 'grid',
