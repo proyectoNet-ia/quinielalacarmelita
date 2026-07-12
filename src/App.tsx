@@ -5881,7 +5881,7 @@ export default function App() {
                 className="btn" 
                 onClick={() => {
                   setActiveTab('predictions');
-                  setShowSuccessScreen(true);
+                  setShowSuccessScreen(false);
                 }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
