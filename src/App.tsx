@@ -246,7 +246,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('predictions'); // coming-soon, predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants, verify-payment
   const [adminPendingPage, setAdminPendingPage] = useState(1);
   const [adminHistoryPage, setAdminHistoryPage] = useState(1);
-  const [historyMatchdayFilter, setHistoryMatchdayFilter] = useState<string>('all');
+  const [historyMatchdayFilter, setHistoryMatchdayFilter] = useState<string>('');
   const [authView, setAuthView] = useState<'user-login' | 'user-register' | 'admin-login'>('user-login');
 
   // --- Verificación Pública de Pagos ---
@@ -4653,7 +4653,7 @@ Mis pronósticos son:
                     outline: 'none'
                   }}
                 >
-                  <option value="all">Todas las Quinielas</option>
+                  <option value="">-- Selecciona una Quiniela --</option>
                   {financialMatchdays.map(m => (
                     <option key={m.id} value={m.id}>Quiniela N° {m.number}</option>
                   ))}
@@ -4666,11 +4666,19 @@ Mis pronósticos son:
               </p>
             ) : (
               (() => {
+                if (historyMatchdayFilter === '') {
+                  return (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', margin: 0 }}>
+                        Por favor, selecciona una quiniela del menú de arriba para desplegar el historial de pagos.
+                      </p>
+                    </div>
+                  );
+                }
+
                 const ITEMS_PER_PAGE = 20;
                 let historyPools = financialPools.filter(p => p.payment_status !== 'pending' || p.matchday_id !== activeMatchday?.id);
-                if (historyMatchdayFilter !== 'all') {
-                  historyPools = historyPools.filter(p => p.matchday_id === historyMatchdayFilter);
-                }
+                historyPools = historyPools.filter(p => p.matchday_id === historyMatchdayFilter);
 
                 // Agrupar quinielas del historial por usuario y jornada
                 const groupedPoolsMap: Record<string, {
