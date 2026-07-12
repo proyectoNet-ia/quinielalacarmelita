@@ -1553,9 +1553,11 @@ export default function App() {
       });
       msgText += `\r\nCódigo de Referencia:\r\n*REF-${refId.replace('REF-', '')}*\r\n\r\n`;
       msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\r\n\r\n`;
+      const voucherUrl = `${window.location.origin}/?tab=verify-payment&ref=${refId}`;
       msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\r\n`;
-      msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}\r\n\r\n`;
+      msgText += `${voucherUrl}\r\n\r\n`;
       msgText += `Nuestro agente te compartirá la información para realizar tu pago.`;
+
       
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
@@ -1566,7 +1568,11 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
-      const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
+      // Separamos el mensaje en dos partes: texto normal + URL sin doble-codificación
+      // Esto garantiza que la URL sea reconocida como enlace clickable en WhatsApp
+      const msgParts = msgText.split(voucherUrl);
+      const encodedText = msgParts.map(part => encodeURIComponent(part)).join(encodeURIComponent(voucherUrl).replace(/%26/g, '&').replace(/%3D/g, '=').replace(/%3F/g, '?'));
+      const waUrl = `https://wa.me/${targetPhone}?text=${encodedText}`;
       window.open(waUrl, '_blank');
 
       setCart([]);
@@ -3314,7 +3320,10 @@ export default function App() {
                     <button 
                       onClick={() => {
                         const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
-                        const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(successMessageText)}`;
+                        const successVoucherUrl = `${window.location.origin}/?tab=verify-payment&ref=${cartReferenceId}`;
+                        const parts = successMessageText.split(successVoucherUrl);
+                        const encodedMsg = parts.map(p => encodeURIComponent(p)).join(encodeURIComponent(successVoucherUrl).replace(/%26/g, '&').replace(/%3D/g, '=').replace(/%3F/g, '?'));
+                        const waUrl = `https://wa.me/${targetPhone}?text=${encodedMsg}`;
                         window.open(waUrl, '_blank');
                       }}
                       className="btn"
