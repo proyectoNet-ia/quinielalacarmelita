@@ -2664,9 +2664,9 @@ Mis pronósticos son:
       // Encabezado
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42); // Slate 900
-      doc.text(`Matriz de Pronósticos - Quiniela N° ${matchday.number}`, 14, 15);
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
       doc.setFontSize(10);
-      doc.text(`La Carmelita | Fecha de Generación: ${new Date().toLocaleString()}`, 14, 21);
+      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
 
       // Cabeceras de tabla: #, Participante, [vacío para partidos], Aciertos
       const headers = ['#', 'Participante', ...mData.map(() => '  '), 'Aciertos'];
@@ -2793,7 +2793,7 @@ Mis pronósticos son:
         doc.text(matchesLegend[i], xPos, yPos);
       }
 
-      doc.save(`Pronosticos_LaCarmelita_Quiniela_${matchday.number}.pdf`);
+      doc.save(`Quinielas_LaCarmelita_Quiniela_${matchday.number}_Participantes.pdf`);
       showAlert('success', `Matriz de pronósticos de la Quiniela ${matchday.number} descargada.`);
     } catch (err) {
       console.error('Error al exportar pronósticos de quiniela:', err);
@@ -2858,6 +2858,11 @@ Mis pronósticos son:
         }
       }));
 
+      // Glosario de partidos al final
+      const matchesLegend = currentMatches.map((m, idx) => {
+        return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
+      });
+
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42);
@@ -2888,7 +2893,7 @@ Mis pronósticos son:
         body: tableData,
         theme: 'grid',
         headStyles: { 
-          fillColor: [37, 211, 102], 
+          fillColor: [30, 94, 58], // Color verde de la marca
           textColor: [255, 255, 255], 
           fontStyle: 'bold',
           halign: 'center',
@@ -2901,7 +2906,7 @@ Mis pronósticos son:
           halign: 'center'
         },
         alternateRowStyles: { 
-          fillColor: [248, 250, 252] 
+          fillColor: [240, 245, 242] 
         },
         columnStyles: { 
           1: { halign: 'left', fontStyle: 'bold' } 
@@ -2956,13 +2961,30 @@ Mis pronósticos son:
             }
             if (data.column.index === 2 + currentMatches.length) {
               data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+              data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
             }
           }
         }
       });
 
-      doc.save(`Quiniela_${m.number}_Participantes.pdf`);
+      // Agregar leyenda de partidos al final de la página
+      let currentY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Glosario de Partidos:', 14, currentY);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(8);
+
+      currentY += 4;
+      // Imprimir en dos columnas para ahorrar espacio
+      const mid = Math.ceil(matchesLegend.length / 2);
+      for (let i = 0; i < matchesLegend.length; i++) {
+        const xPos = i < mid ? 14 : 110;
+        const yPos = currentY + (i % mid) * 4;
+        doc.text(matchesLegend[i], xPos, yPos);
+      }
+
+      doc.save(`Quinielas_LaCarmelita_Quiniela_${m.number}_Participantes.pdf`);
       showAlert('success', 'PDF generado correctamente.');
     } catch (err) {
       console.error(err);
@@ -3052,7 +3074,7 @@ Mis pronósticos son:
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [16, 185, 129], // Emerald green
+          fillColor: [30, 94, 58], // Color verde de la marca
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
@@ -3060,7 +3082,7 @@ Mis pronósticos son:
           minCellHeight: 18 // Cabeceras ajustadas a 18mm para solo logos y vs
         },
         alternateRowStyles: {
-          fillColor: [248, 250, 252] // light grey
+          fillColor: [240, 245, 242] // light grey
         },
         styles: {
           fontSize: 8,
@@ -3120,7 +3142,7 @@ Mis pronósticos son:
             }
             if (data.column.index === 2 + matches.length) {
               data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+              data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
             }
           }
         }
@@ -3143,7 +3165,7 @@ Mis pronósticos son:
         doc.text(matchesLegend[i], xPos, yPos);
       }
 
-      doc.save(`Quinielas_LaCarmelita_Quiniela_${activeMatchday.number}.pdf`);
+      doc.save(`Quinielas_LaCarmelita_Quiniela_${activeMatchday.number}_Participantes.pdf`);
       showAlert('success', 'PDF de transparencia descargado con éxito.');
     } catch (err) {
       console.error('Error al exportar PDF:', err);
