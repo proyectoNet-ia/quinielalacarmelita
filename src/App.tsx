@@ -271,7 +271,8 @@ export default function App() {
   const [lastCalculatedMatchday, setLastCalculatedMatchday] = useState<Matchday | null>(null);
   const [selectedAdminMatchday, setSelectedAdminMatchday] = useState<Matchday | null>(null);
   const [adminDetailView, setAdminDetailView] = useState<'matches'|'ranking'>('matches');
-  const [matchdayPoolCounts, setMatchdayPoolCounts] = useState<Record<string, number>>({});
+  const [matchdayApprovedParticipants, setMatchdayApprovedParticipants] = useState<Record<string, number>>({});
+  const [matchdayApprovedPools, setMatchdayApprovedPools] = useState<Record<string, number>>({});
   const [userPools, setUserPools] = useState<Pool[]>([]);
   const [allPoolsForMatchday, setAllPoolsForMatchday] = useState<Pool[]>([]);
   const [predictionsByPool, setPredictionsByPool] = useState<Record<string, Record<string, string>>>({}); // poolId -> matchId -> selection
@@ -708,15 +709,34 @@ export default function App() {
       
       const { data: allPoolsData, error: allPoolsErr } = await supabase
         .from('pools')
-        .select('matchday_id');
+        .select('matchday_id, participant_id, payment_status');
       if (allPoolsErr) throw allPoolsErr;
-      const counts: Record<string, number> = {};
+      
+      const approvedParts: Record<string, Set<string>> = {};
+      const approvedPools: Record<string, number> = {};
+      
       if (allPoolsData) {
         allPoolsData.forEach(p => {
-          counts[p.matchday_id] = (counts[p.matchday_id] || 0) + 1;
+          if (p.payment_status === 'approved') {
+            // Contar quinielas aprobadas (vendidas)
+            approvedPools[p.matchday_id] = (approvedPools[p.matchday_id] || 0) + 1;
+            
+            // Recolectar participantes únicos aprobados
+            if (!approvedParts[p.matchday_id]) {
+              approvedParts[p.matchday_id] = new Set();
+            }
+            approvedParts[p.matchday_id].add(p.participant_id);
+          }
         });
       }
-      setMatchdayPoolCounts(counts);
+      
+      const participantCounts: Record<string, number> = {};
+      Object.keys(approvedParts).forEach(mId => {
+        participantCounts[mId] = approvedParts[mId].size;
+      });
+      
+      setMatchdayApprovedParticipants(participantCounts);
+      setMatchdayApprovedPools(approvedPools);
 
       let currentMatchday = null;
       if (matchdaysData && matchdaysData.length > 0) {
@@ -4212,11 +4232,15 @@ Mis pronósticos son:
                             <div style={{ display: 'flex', alignItems: 'center', gap: '30px', flexWrap: 'wrap' }}>
                               <div style={{ textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Participantes</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Users size={16} style={{ color: 'var(--primary)' }}/> {matchdayPoolCounts[m.id] || 0}</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Users size={16} style={{ color: 'var(--primary)' }}/> {matchdayApprovedParticipants[m.id] || 0}</div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Vendidas</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FileText size={16} style={{ color: 'var(--primary)' }}/> {matchdayApprovedPools[m.id] || 0}</div>
                               </div>
                               <div style={{ textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Recaudado</div>
-                                <div style={{ fontWeight: 'bold', color: '#25D366', fontSize: '1.2rem' }}>${((matchdayPoolCounts[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}</div>
+                                <div style={{ fontWeight: 'bold', color: '#25D366', fontSize: '1.2rem' }}>${((matchdayApprovedPools[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}</div>
                               </div>
                               <div style={{ position: 'relative', zIndex: openMatchdayMenu === m.id ? 50 : 1 }}>
                                 <div>
