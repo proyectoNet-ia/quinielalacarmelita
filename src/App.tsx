@@ -5643,6 +5643,25 @@ Mis pronósticos son:
             }
           }
 
+          // Calcular datos de rentabilidad / punto de equilibrio
+          const currentFinMatchday = selectedFinMatchdayId === 'all'
+            ? null
+            : financialMatchdays.find(md => md.id === selectedFinMatchdayId);
+            
+          const isFixed = selectedFinMatchdayId === 'all'
+            ? financialMatchdays.some(m => m.prize_type === 'fixed')
+            : (currentFinMatchday ? currentFinMatchday.prize_type === 'fixed' : false);
+            
+          const pricePerEntry = currentFinMatchday 
+            ? Number(currentFinMatchday.price_per_entry || 25) 
+            : (financialMatchdays[0] ? Number(financialMatchdays[0].price_per_entry || 25) : 25);
+            
+          const targetPrize = prizePoolAmount; // Bolsa de premios
+          const breakEvenCount = pricePerEntry > 0 ? Math.ceil(targetPrize / pricePerEntry) : 0;
+          const approvedCount = approvedPools.length;
+          const percentOfBreakEven = breakEvenCount > 0 ? Math.min(100, Math.round((approvedCount / breakEvenCount) * 100)) : 100;
+          const netProfit = totalApprovedAmount - targetPrize;
+
           // Filtrar participantes según búsqueda
           const filteredParticipants = participants.filter(p => {
             const query = finSearchQuery.toLowerCase();
@@ -5773,6 +5792,50 @@ Mis pronósticos son:
                   </span>
                 </div>
               </div>
+
+              {/* Barra de Rentabilidad / Punto de Equilibrio */}
+              {isFixed && targetPrize > 0 && (
+                <div className="card" style={{ padding: '16px', marginBottom: '16px', background: 'rgba(30, 94, 58, 0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <TrendingUp size={16} style={{ color: netProfit >= 0 ? '#10b981' : '#ef4444' }} />
+                      Rentabilidad de la Quiniela (Meta: {breakEvenCount} Quinielas para cubrir la Bolsa)
+                    </span>
+                    <span style={{ color: netProfit >= 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                      {netProfit >= 0 ? `Ganancia: +$${formatMoney(netProfit)} MXN` : `Faltan: $${formatMoney(Math.abs(netProfit))} MXN`}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    <span>Vendidas: {approvedCount} / {breakEvenCount}</span>
+                    <span>{percentOfBreakEven}% cubierto</span>
+                  </div>
+
+                  <div className="progress-bar-container" style={{ width: '100%', height: '12px', background: 'rgba(0, 0, 0, 0.3)', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div 
+                      className="progress-bar" 
+                      style={{ 
+                        width: `${percentOfBreakEven}%`, 
+                        height: '100%', 
+                        background: netProfit >= 0 
+                          ? 'linear-gradient(90deg, #10b981, #25D366)' 
+                          : 'linear-gradient(90deg, #ef4444, #ffb300)',
+                        transition: 'width 0.3s ease'
+                      }}
+                    ></div>
+                  </div>
+                  
+                  {netProfit >= 0 ? (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>
+                      🎉 ¡Punto de equilibrio superado! La quiniela es rentable.
+                    </p>
+                  ) : (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Se necesitan vender {breakEvenCount - approvedCount} quinielas más para cubrir la bolsa de premios de ${formatMoney(targetPrize)} MXN.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Desglose de Ventas por Quiniela */}
               {selectedFinMatchdayId === 'all' && (
