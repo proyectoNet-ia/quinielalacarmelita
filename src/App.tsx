@@ -3249,8 +3249,7 @@ Mis pronósticos son:
             {activeMatchday && activeMatchday.status !== 'inactive' ? (
               <div>
                 {!showSuccessScreen && (
-                  <>
-                    <div className="card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(16, 185, 129, 0.05))' }}>
+                  <div className="card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(16, 185, 129, 0.05))' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: '700' }}>Temporada Activa</span>
@@ -3302,56 +3301,7 @@ Mis pronósticos son:
                     )}
                   </div>
                 </div>
-
-                {(() => {
-                  const targetPrize = activeMatchday?.prize_type === 'fixed' ? Number(activeMatchday.fixed_prize_1st || 0) : 0;
-                  const pricePerEntry = activeMatchday ? Number(activeMatchday.price_per_entry || 25) : 25;
-                  const breakEvenCount = pricePerEntry > 0 ? Math.ceil(targetPrize / pricePerEntry) : 0;
-                  const approvedCount = activeMatchday ? (matchdayApprovedPools[activeMatchday.id] || 0) : 0;
-                  const percentOfBreakEven = breakEvenCount > 0 ? Math.min(100, Math.round((approvedCount / breakEvenCount) * 100)) : 100;
-                  const totalApprovedAmount = approvedCount * pricePerEntry;
-                  const netProfit = totalApprovedAmount - targetPrize;
-
-                  if (activeMatchday?.prize_type !== 'fixed' || targetPrize <= 0) return null;
-
-                  return (
-                    <div className="card" style={{ padding: '16px', marginBottom: '16px', background: 'rgba(30, 94, 58, 0.1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <TrendingUp size={16} style={{ color: netProfit >= 0 ? '#10b981' : '#ffb300' }} />
-                          Garantía de la Bolsa (Bolsa de Premios: ${formatMoney(targetPrize)} MXN)
-                        </span>
-                        <span style={{ color: netProfit >= 0 ? '#10b981' : '#ffb300', fontWeight: 'bold' }}>
-                          {netProfit >= 0 ? `Bolsa Garantizada` : `${percentOfBreakEven}% Cubierto`}
-                        </span>
-                      </div>
-
-                      <div className="progress-bar-container" style={{ width: '100%', height: '12px', background: 'rgba(0, 0, 0, 0.3)', borderRadius: '6px', overflow: 'hidden' }}>
-                        <div 
-                          className="progress-bar" 
-                          style={{ 
-                            width: `${percentOfBreakEven}%`, 
-                            height: '100%', 
-                            background: netProfit >= 0 
-                              ? 'linear-gradient(90deg, #10b981, #25D366)' 
-                              : 'linear-gradient(90deg, #ffb300, #ffc107)',
-                            transition: 'width 0.3s ease'
-                          }}
-                        ></div>
-                      </div>
-                      
-                      <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {netProfit >= 0 ? (
-                          <span style={{ color: '#10b981', fontWeight: '600' }}>🎉 ¡Bolsa de premios garantizada! Se han vendido {approvedCount} quinielas.</span>
-                        ) : (
-                          <span>Se han vendido <strong>{approvedCount}</strong> de las <strong>{breakEvenCount}</strong> quinielas necesarias para cubrir la bolsa de premios de manera independiente.</span>
-                        )}
-                      </p>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
+                )}
 
 
                 
