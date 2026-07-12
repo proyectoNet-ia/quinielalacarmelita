@@ -1501,23 +1501,23 @@ export default function App() {
       const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
       if (predErr) throw predErr;
       
-      let msgText = `Hola, soy *${cartParticipantName}*, me he registrado para participar en la quiniela *Jornada ${activeMatchday?.number}*.\r\n\r\nMis pronósticos son:\r\n`;
+      let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.\r\n\r\nMis pronósticos son:\r\n`;
       cart.forEach((selections, idx) => {
         let quinielaLine = `Quiniela ${idx + 1}: `;
-        let matchIndex = 1;
+        let selArray: string[] = [];
         matches.forEach(m => {
           if (selections[m.id]) {
-            quinielaLine += `P${matchIndex}:${selections[m.id]} `;
+            selArray.push(selections[m.id]);
           }
-          matchIndex++;
         });
-        msgText += quinielaLine.trim() + `\r\n`;
+        quinielaLine += selArray.join(',');
+        msgText += quinielaLine + `\r\n`;
       });
-      msgText += `\r\nEl código debe venir en la referencia de tu pago para poder identificarte y conocer el estatus de tus quinielas.\r\n*CÓDIGO DE REFERENCIA ÚNICO ES:* REF-${refId.replace('REF-', '')}\r\n\r\n`;
+      msgText += `\r\nCódigo de Referencia:\r\n*REF-${refId.replace('REF-', '')}*\r\n\r\n`;
+      msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\r\n\r\n`;
       msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\r\n`;
       msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}\r\n\r\n`;
-      msgText += `Para revisar el estatus de tus quiniela usa este enlace:\r\n`;
-      msgText += `${window.location.origin}?tab=verify-payment&ref=${refId}`;
+      msgText += `Nuestro agente te compartirá la información para realizar tu pago.`;
       
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
