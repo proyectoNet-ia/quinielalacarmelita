@@ -330,6 +330,38 @@ export default function App() {
     const tByName = teams.find(t => t.name === teamNameLegacy);
     return tByName?.logo_url;
   };
+
+  const getBase64ImageFromUrl = (imageUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!imageUrl) {
+        resolve('');
+        return;
+      }
+      const img = new Image();
+      img.setAttribute('crossOrigin', 'anonymous');
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 64, 64);
+          try {
+            const dataURL = canvas.toDataURL('image/png');
+            resolve(dataURL);
+          } catch (e) {
+            resolve('');
+          }
+        } else {
+          resolve('');
+        }
+      };
+      img.onerror = () => {
+        resolve('');
+      };
+      img.src = imageUrl.startsWith('http') ? imageUrl : `${window.location.origin}${imageUrl}`;
+    });
+  };
   const [newTeamName, setNewTeamName] = useState('');
   const [teamSearchTerm, setTeamSearchTerm] = useState('');
   const [teamLeagueFilter, setTeamLeagueFilter] = useState('');
@@ -2602,7 +2634,27 @@ Mis pronósticos son:
         }
       }
 
-      // 5. Generar el PDF en horizontal (landscape)
+      // 5. Pre-cargar logos en Base64 para el PDF
+      const loadedLogos: Record<string, string> = {};
+      const uniqueLogoUrls = Array.from(new Set(
+        mData.flatMap(m => [
+          getTeamLogo(m, true),
+          getTeamLogo(m, false)
+        ]).filter(Boolean) as string[]
+      ));
+
+      await Promise.all(uniqueLogoUrls.map(async (url) => {
+        try {
+          const base64 = await getBase64ImageFromUrl(url);
+          if (base64) {
+            loadedLogos[url] = base64;
+          }
+        } catch (e) {
+          console.error("Error preloading logo:", url, e);
+        }
+      }));
+
+      // Generar el PDF en horizontal (landscape)
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -2616,8 +2668,8 @@ Mis pronósticos son:
       doc.setFontSize(10);
       doc.text(`La Carmelita | Fecha de Generación: ${new Date().toLocaleString()}`, 14, 21);
 
-      // Cabeceras de tabla: #, Participante, P1, P2... , Aciertos
-      const headers = ['#', 'Participante', ...mData.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
+      // Cabeceras de tabla: #, Participante, [vacío para partidos], Aciertos
+      const headers = ['#', 'Participante', ...mData.map(() => '  '), 'Aciertos'];
 
       // Mapear filas
       const tableRows = formattedPools.map((p, pIdx) => {
@@ -2649,7 +2701,9 @@ Mis pronósticos son:
           fillColor: [30, 94, 58], // Color verde de la marca
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle',
+          minCellHeight: 35 // Cabeceras altas para acomodar logos y texto vertical
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242]
@@ -2661,6 +2715,56 @@ Mis pronósticos son:
         },
         columnStyles: {
           1: { halign: 'left', fontStyle: 'bold' } // Alinear nombre a la izquierda
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
+            const matchIdx = data.column.index - 2;
+            const match = mData[matchIdx];
+            const cell = data.cell;
+            const centerX = cell.x + cell.width / 2;
+            
+            // Dibujar número de partido (P1, P2...)
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
+            
+            const logoWidth = Math.min(6, cell.width - 2);
+            const logoHeight = logoWidth;
+            const logoX = centerX - logoWidth / 2;
+
+            // Dibujar logo Local
+            const homeLogoUrl = getTeamLogo(match, true);
+            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
+            if (homeLogoBase64) {
+              try {
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+              } catch (e) {}
+            }
+            
+            // Dibujar nombre Local (vertical)
+            doc.setFontSize(5);
+            const homeName = getTeamName(match, true).substring(0, 8);
+            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFontSize(5.5);
+            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
+
+            // Dibujar nombre Visitante (vertical)
+            doc.setFontSize(5);
+            const awayName = getTeamName(match, false).substring(0, 8);
+            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+
+            // Dibujar logo Visitante
+            const awayLogoUrl = getTeamLogo(match, false);
+            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
+            if (awayLogoBase64) {
+              try {
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+              } catch (e) {}
+            }
+          }
         },
         didParseCell: function(data) {
           if (data.section === 'body') {
@@ -2748,6 +2852,26 @@ Mis pronósticos son:
         }
       }
 
+      // Pre-cargar logos en Base64 para el PDF
+      const loadedLogos: Record<string, string> = {};
+      const uniqueLogoUrls = Array.from(new Set(
+        currentMatches.flatMap(m => [
+          getTeamLogo(m, true),
+          getTeamLogo(m, false)
+        ]).filter(Boolean) as string[]
+      ));
+
+      await Promise.all(uniqueLogoUrls.map(async (url) => {
+        try {
+          const base64 = await getBase64ImageFromUrl(url);
+          if (base64) {
+            loadedLogos[url] = base64;
+          }
+        } catch (e) {
+          console.error("Error preloading logo:", url, e);
+        }
+      }));
+
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42);
@@ -2755,7 +2879,7 @@ Mis pronósticos son:
       doc.setFontSize(10);
       doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
 
-      const headers = ['#', 'Participante', ...currentMatches.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
+      const headers = ['#', 'Participante', ...currentMatches.map(() => '  '), 'Aciertos'];
       const tableData = currentPools.map((pool, pIdx) => {
         const name = pool.participant?.name || 'Desconocido';
         const preds = currentPredictions[pool.id] || {};
@@ -2781,7 +2905,9 @@ Mis pronósticos son:
           fillColor: [37, 211, 102], 
           textColor: [255, 255, 255], 
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle',
+          minCellHeight: 35 // Cabeceras altas
         },
         styles: { 
           fontSize: 8, 
@@ -2793,6 +2919,56 @@ Mis pronósticos son:
         },
         columnStyles: { 
           1: { halign: 'left', fontStyle: 'bold' } 
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
+            const matchIdx = data.column.index - 2;
+            const match = currentMatches[matchIdx];
+            const cell = data.cell;
+            const centerX = cell.x + cell.width / 2;
+            
+            // Dibujar número de partido
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
+            
+            const logoWidth = Math.min(6, cell.width - 2);
+            const logoHeight = logoWidth;
+            const logoX = centerX - logoWidth / 2;
+
+            // Dibujar logo Local
+            const homeLogoUrl = getTeamLogo(match, true);
+            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
+            if (homeLogoBase64) {
+              try {
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+              } catch (e) {}
+            }
+            
+            // Dibujar nombre Local (vertical)
+            doc.setFontSize(5);
+            const homeName = getTeamName(match, true).substring(0, 8);
+            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFontSize(5.5);
+            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
+
+            // Dibujar nombre Visitante (vertical)
+            doc.setFontSize(5);
+            const awayName = getTeamName(match, false).substring(0, 8);
+            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+
+            // Dibujar logo Visitante
+            const awayLogoUrl = getTeamLogo(match, false);
+            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
+            if (awayLogoBase64) {
+              try {
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+              } catch (e) {}
+            }
+          }
         },
         didParseCell: function(data) {
           if (data.section === 'body') {
@@ -2825,118 +3001,198 @@ Mis pronósticos son:
   };
 
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!activeMatchday || matches.length === 0) {
       showAlert('error', 'No hay partidos configurados para exportar.');
       return;
     }
 
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
+    setLoading(true);
+    try {
+      // Pre-cargar logos en Base64 para el PDF
+      const loadedLogos: Record<string, string> = {};
+      const uniqueLogoUrls = Array.from(new Set(
+        matches.flatMap(m => [
+          getTeamLogo(m, true),
+          getTeamLogo(m, false)
+        ]).filter(Boolean) as string[]
+      ));
 
-    // Encabezado
-    doc.setFontSize(18);
-    doc.setTextColor(15, 23, 42); // Slate 900
-    doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
-
-    // Configurar columnas de la matriz
-    const headers = ['#', 'Participante', ...matches.map((_, idx) => `P${idx + 1}`), 'Aciertos'];
-
-    // Mapear filas de datos
-    const tableData = allPoolsForMatchday
-      .filter(p => p.payment_status === 'approved') // Solo quinielas validadas
-      .map((p, pIdx) => {
-        const participantName = p.participant?.name || 'Invitado';
-        
-        let aciertos = 0;
-        const gameSelections = matches.map(match => {
-          const sel = predictionsByPool[p.id]?.[match.id] || '-';
-          if (match.result && sel === match.result) {
-            aciertos++;
+      await Promise.all(uniqueLogoUrls.map(async (url) => {
+        try {
+          const base64 = await getBase64ImageFromUrl(url);
+          if (base64) {
+            loadedLogos[url] = base64;
           }
-          return sel;
-        });
+        } catch (e) {
+          console.error("Error preloading logo:", url, e);
+        }
+      }));
 
-        return [
-          pIdx + 1,
-          participantName,
-          ...gameSelections,
-          aciertos
-        ];
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
       });
 
-    // Agregar leyenda de partidos al pie de página o inicio del PDF para claridad
-    const matchesLegend = matches.map((m, idx) => {
-      return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
-    });
+      // Encabezado
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42); // Slate 900
+      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 21);
 
-    // Renderizar tabla con autoTable
-    doc.autoTable({
-      startY: 26,
-      head: [headers],
-      body: tableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [16, 185, 129], // Emerald green
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252] // light grey
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        halign: 'center'
-      },
-      columnStyles: {
-        1: { halign: 'left', fontStyle: 'bold' } 
-      },
-      didParseCell: function(data) {
-        if (data.section === 'body') {
-          if (data.column.index >= 2 && data.column.index < 2 + matches.length) {
+      // Configurar columnas de la matriz
+      const headers = ['#', 'Participante', ...matches.map(() => '  '), 'Aciertos'];
+
+      // Mapear filas de datos
+      const tableData = allPoolsForMatchday
+        .filter(p => p.payment_status === 'approved') // Solo quinielas validadas
+        .map((p, pIdx) => {
+          const participantName = p.participant?.name || 'Invitado';
+          
+          let aciertos = 0;
+          const gameSelections = matches.map(match => {
+            const sel = predictionsByPool[p.id]?.[match.id] || '-';
+            if (match.result && sel === match.result) {
+              aciertos++;
+            }
+            return sel;
+          });
+
+          return [
+            pIdx + 1,
+            participantName,
+            ...gameSelections,
+            aciertos
+          ];
+        });
+
+      // Agregar leyenda de partidos al pie de página o inicio del PDF para claridad
+      const matchesLegend = matches.map((m, idx) => {
+        return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
+      });
+
+      // Renderizar tabla con autoTable
+      doc.autoTable({
+        startY: 26,
+        head: [headers],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [16, 185, 129], // Emerald green
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle',
+          minCellHeight: 35 // Cabeceras altas
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252] // light grey
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          halign: 'center'
+        },
+        columnStyles: {
+          1: { halign: 'left', fontStyle: 'bold' } 
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + matches.length) {
             const matchIdx = data.column.index - 2;
             const match = matches[matchIdx];
-            const cellValue = data.cell.raw;
-            if (match && match.result && cellValue === match.result) {
-              data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
-              data.cell.styles.textColor = [0, 0, 0];       // Texto negro
-              data.cell.styles.fontStyle = 'bold';
+            const cell = data.cell;
+            const centerX = cell.x + cell.width / 2;
+            
+            // Dibujar número de partido
+            doc.setFontSize(6);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('Helvetica', 'bold');
+            doc.text(`P${matchIdx + 1}`, centerX, cell.y + 4, { align: 'center' });
+            
+            const logoWidth = Math.min(6, cell.width - 2);
+            const logoHeight = logoWidth;
+            const logoX = centerX - logoWidth / 2;
+
+            // Dibujar logo Local
+            const homeLogoUrl = getTeamLogo(match, true);
+            const homeLogoBase64 = homeLogoUrl ? loadedLogos[homeLogoUrl] : '';
+            if (homeLogoBase64) {
+              try {
+                doc.addImage(homeLogoBase64, 'PNG', logoX, cell.y + 5, logoWidth, logoHeight);
+              } catch (e) {}
+            }
+            
+            // Dibujar nombre Local (vertical)
+            doc.setFontSize(5);
+            const homeName = getTeamName(match, true).substring(0, 8);
+            doc.text(homeName, centerX, cell.y + 13, { angle: 270, align: 'center' });
+
+            // Dibujar "vs"
+            doc.setFontSize(5.5);
+            doc.text('vs', centerX, cell.y + 18, { align: 'center' });
+
+            // Dibujar nombre Visitante (vertical)
+            doc.setFontSize(5);
+            const awayName = getTeamName(match, false).substring(0, 8);
+            doc.text(awayName, centerX, cell.y + 22, { angle: 270, align: 'center' });
+
+            // Dibujar logo Visitante
+            const awayLogoUrl = getTeamLogo(match, false);
+            const awayLogoBase64 = awayLogoUrl ? loadedLogos[awayLogoUrl] : '';
+            if (awayLogoBase64) {
+              try {
+                doc.addImage(awayLogoBase64, 'PNG', logoX, cell.y + 27, logoWidth, logoHeight);
+              } catch (e) {}
             }
           }
-          if (data.column.index === 2 + matches.length) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+        },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            if (data.column.index >= 2 && data.column.index < 2 + matches.length) {
+              const matchIdx = data.column.index - 2;
+              const match = matches[matchIdx];
+              const cellValue = data.cell.raw;
+              if (match && match.result && cellValue === match.result) {
+                data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
+                data.cell.styles.textColor = [0, 0, 0];       // Texto negro
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+            if (data.column.index === 2 + matches.length) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [248, 250, 252]; // Fondo gris para columna Aciertos
+            }
           }
         }
+      });
+
+      // Agregar leyenda de partidos al final de la página
+      let currentY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Glosario de Partidos:', 14, currentY);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(8);
+
+      currentY += 4;
+      // Imprimir en dos columnas para ahorrar espacio
+      const mid = Math.ceil(matchesLegend.length / 2);
+      for (let i = 0; i < matchesLegend.length; i++) {
+        const xPos = i < mid ? 14 : 150;
+        const yPos = currentY + (i % mid) * 4;
+        doc.text(matchesLegend[i], xPos, yPos);
       }
-    });
 
-    // Agregar leyenda de partidos al final de la página
-    let currentY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(10);
-    doc.setFont('Helvetica', 'bold');
-    doc.text('Glosario de Partidos:', 14, currentY);
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-
-    currentY += 4;
-    // Imprimir en dos columnas para ahorrar espacio
-    const mid = Math.ceil(matchesLegend.length / 2);
-    for (let i = 0; i < matchesLegend.length; i++) {
-      const xPos = i < mid ? 14 : 150;
-      const yPos = currentY + (i % mid) * 4;
-      doc.text(matchesLegend[i], xPos, yPos);
+      doc.save(`Quinielas_LaCarmelita_Quiniela_${activeMatchday.number}.pdf`);
+      showAlert('success', 'PDF de transparencia descargado con éxito.');
+    } catch (err) {
+      console.error('Error al exportar PDF:', err);
+      showAlert('error', 'Error al exportar PDF.');
+    } finally {
+      setLoading(false);
     }
-
-    doc.save(`Quinielas_LaCarmelita_Quiniela_${activeMatchday.number}.pdf`);
-    showAlert('success', 'PDF de transparencia descargado con éxito.');
   };
   // Equipos disponibles para agregar a la quiniela
   const unusedTeams = teams.filter(t => !matches.some(m => m.home_team_id === t.id || m.away_team_id === t.id || m.home_team === t.name || m.away_team === t.name));
