@@ -372,19 +372,30 @@ export default function App() {
 
   useEffect(() => {
     const checkName = async () => {
-      if (cartParticipantName.trim().length < 3) {
+      if (cartParticipantName.trim().length < 3 || !activeMatchday) {
         setNameExistsWarning(false);
         return;
       }
       
-      const { data } = await supabase
+      const { data: part } = await supabase
         .from('participants')
         .select('id')
         .ilike('alias', cartParticipantName.trim())
         .maybeSingle();
         
-      if (data) {
-        setNameExistsWarning(true);
+      if (part) {
+        const { data: pools } = await supabase
+          .from('pools')
+          .select('id')
+          .eq('participant_id', part.id)
+          .eq('matchday_id', activeMatchday.id)
+          .limit(1);
+          
+        if (pools && pools.length > 0) {
+          setNameExistsWarning(true);
+        } else {
+          setNameExistsWarning(false);
+        }
       } else {
         setNameExistsWarning(false);
       }
@@ -395,7 +406,7 @@ export default function App() {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [cartParticipantName]);
+  }, [cartParticipantName, activeMatchday]);
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/\D/g, '').substring(0, 10);
     let formatted = '';
@@ -3532,9 +3543,9 @@ export default function App() {
                               <div className="form-group" style={{ marginBottom: '12px' }}>
                                 <input type="text" placeholder="Nombre" required value={cartParticipantName} onChange={e => setCartParticipantName(e.target.value)} onBlur={() => setCartParticipantName(toCapitalCase(cartParticipantName))} className="form-control" style={{ background: 'var(--bg-main)' }} />
                                 {nameExistsWarning && (
-                                  <p style={{ color: 'var(--warning, #f59e0b)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                  <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                                     <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-                                    <span>Este nombre ya existe, si no eres tú, usa otro nombre.</span>
+                                    <span>Ya has registrado quinielas en esta jornada. Por favor, usa otro nombre.</span>
                                   </p>
                                 )}
                               </div>
@@ -3556,7 +3567,7 @@ export default function App() {
                                   <p style={{ fontSize: '0.85rem', color: 'var(--danger)', margin: 0, fontWeight: '500' }}>* Debes añadir mínimo 2 quinielas para participar.</p>
                                 </div>
                               )}
-                              <button type="submit" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} disabled={cart.length < 2 || loading}>
+                              <button type="submit" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} disabled={cart.length < 2 || loading || nameExistsWarning}>
                                 {loading ? 'Enviando...' : 'Enviar Mis Quinielas'}
                               </button>
                             </form>
