@@ -671,6 +671,20 @@ export default function App() {
     }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
 
+  // Auto-actualizar datos cada 30 segundos si el usuario es administrador
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const interval = setInterval(() => {
+      loadFinancialData();
+      if (activeMatchday?.id) {
+        loadAllPoolsForMatchday();
+      }
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [isAdmin, activeMatchday?.id]);
+
   // Cargar ganadores de la última quiniela finalizada
   useEffect(() => {
     if (activeTab === 'admin-participants' && isAdmin) {
@@ -1609,7 +1623,6 @@ export default function App() {
       if (predErr) throw predErr;
       
       let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.
-
 Mis pronósticos son:
 `;
       cart.forEach((selections, idx) => {
@@ -1623,12 +1636,7 @@ Mis pronósticos son:
         quinielaLine += selArray.join(',');
         msgText += quinielaLine + `\n`;
       });
-      msgText += `\nCódigo de Referencia:\n*REF-${refId.replace('REF-', '')}*\n\n`;
-      msgText += `El código debes incluirlo en la REFERENCIA de tu voucher, para identificar tu pago.\n\n`;
-      const voucherUrl = `https://www.quinielalacarmelita.com/?tab=verify-payment&ref=${refId}`;
-      msgText += `(Instrucción) Cuando realices el depósito o transferencia envía el comprobante a la siguiente URL:\n`;
-      msgText += `${voucherUrl}\n\n`;
-      msgText += `Nuestro agente te compartirá la información para realizar tu pago.`;
+      msgText += `\nNuestro agente te compartirá la información para realizar tu pago.`;
 
       
       setCartReferenceId(refId);
@@ -3514,9 +3522,35 @@ Mis pronósticos son:
                 <button 
                   className={`sidebar-menu-item ${activeTab === 'admin-payments' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('admin-payments'); setIsSidebarOpen(false); }}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%' }}
                 >
-                  <DollarSign size={18} />
-                  <span>Validar Pagos</span>
+                  <DollarSign size={18} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, textAlign: 'left' }}>Validar Pagos</span>
+                  {(() => {
+                    const pendingCount = allPoolsForMatchday.filter(p => p.payment_status === 'pending').length;
+                    if (pendingCount > 0) {
+                      return (
+                        <span style={{ 
+                          backgroundColor: 'var(--danger)', 
+                          color: 'white', 
+                          fontSize: '0.7rem', 
+                          fontWeight: '800', 
+                          padding: '2px 6px', 
+                          borderRadius: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          lineHeight: '1',
+                          minWidth: '18px',
+                          height: '18px',
+                          marginLeft: '8px'
+                        }}>
+                          {pendingCount}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </button>
                 <button 
                   className={`sidebar-menu-item ${activeTab === 'admin-history' ? 'active' : ''}`}
