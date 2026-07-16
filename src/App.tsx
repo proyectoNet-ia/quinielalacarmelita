@@ -2730,7 +2730,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
+          minCellHeight: 30 // Cabeceras de 30mm para acomodar texto vertical
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242]
@@ -2758,17 +2758,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -2914,7 +2914,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
+          minCellHeight: 30 // Cabeceras de 30mm para acomodar texto vertical
         },
         styles: { 
           fontSize: 8, 
@@ -2942,17 +2942,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -3082,7 +3082,7 @@ Mis pronósticos son:
           fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
-          minCellHeight: 22 // Cabeceras de 22mm para acomodar texto vertical
+          minCellHeight: 30 // Cabeceras de 30mm para acomodar texto vertical
         },
         alternateRowStyles: {
           fillColor: [240, 245, 242] // light grey
@@ -3110,17 +3110,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 12.5, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 18, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
           }
         },
         didParseCell: function(data) {
