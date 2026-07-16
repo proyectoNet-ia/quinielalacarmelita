@@ -3852,6 +3852,13 @@ Mis pronósticos son:
                     <div>
                       <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: '700' }}>Temporada Activa</span>
                       <h2>Quiniela N° {activeMatchday.number}</h2>
+                      {activeMatchday.prize_type === 'fixed' && activeMatchday.fixed_prize_1st ? (
+                        <div style={{ marginTop: '4px' }}>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--accent)', fontWeight: '600' }}>
+                            🏆 Bolsa asegurada de ${Number(activeMatchday.fixed_prize_1st).toLocaleString('en-US')} MXN
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Costo de entrada</span>
