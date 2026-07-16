@@ -44,7 +44,8 @@ import {
   AlertTriangle,
   Landmark,
   Settings,
-  Save
+  Save,
+  Edit
 } from 'lucide-react';
 
 // Declaración de tipo para jsPDF autoTable para evitar errores de compilación con TS
@@ -232,6 +233,7 @@ const SearchableSelect = ({ value, onChange, options, placeholder }: { value: st
           ))}
         </ul>
       )}
+
     </div>
   );
 };
@@ -267,12 +269,14 @@ export default function App() {
   const [allMatchdays, setAllMatchdays] = useState<Matchday[]>([]);
   const [openMatchdayMenu, setOpenMatchdayMenu] = useState<string | null>(null);
   const [currentPageMatchdays, setCurrentPageMatchdays] = useState(1);
+  const [currentPageParticipants, setCurrentPageParticipants] = useState(1);
   const [searchParticipant, setSearchParticipant] = useState('');
   const [lastWinners, setLastWinners] = useState<any[]>([]);
   const [lastCalculatedMatchday, setLastCalculatedMatchday] = useState<Matchday | null>(null);
   const [selectedAdminMatchday, setSelectedAdminMatchday] = useState<Matchday | null>(null);
   const [adminDetailView, setAdminDetailView] = useState<'matches'|'ranking'>('matches');
   const [matchdayApprovedParticipants, setMatchdayApprovedParticipants] = useState<Record<string, number>>({});
+  const [matchdayApprovedBots, setMatchdayApprovedBots] = useState<Record<string, number>>({});
   const [matchdayApprovedPools, setMatchdayApprovedPools] = useState<Record<string, number>>({});
   const [userPools, setUserPools] = useState<Pool[]>([]);
   const [allPoolsForMatchday, setAllPoolsForMatchday] = useState<Pool[]>([]);
@@ -308,6 +312,10 @@ export default function App() {
   const [editClabe, setEditClabe] = useState('');
   const [editBankActive, setEditBankActive] = useState(true);
   const [editAccountType, setEditAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
+
+  // --- Estados Generador Bots ---
+  const [botInputText, setBotInputText] = useState('');
+  const [isGeneratingBots, setIsGeneratingBots] = useState(false);
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -356,14 +364,24 @@ export default function App() {
         return;
       }
       const img = new Image();
+      // Usar proxy especializado en imágenes (wsrv.nl) para evitar bloqueos CORS
+      // No aplicamos proxy si ya es un servicio que sí soporta CORS nativamente
+      if (
+        imageUrl.startsWith('http') && 
+        !imageUrl.includes('supabase.co') && 
+        !imageUrl.includes('wikimedia.org') && 
+        !imageUrl.includes('githubusercontent.com')
+      ) {
+        imageUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(imageUrl);
+      }
       img.setAttribute('crossOrigin', 'anonymous');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
+        canvas.width = img.naturalWidth || img.width || 500;
+        canvas.height = img.naturalHeight || img.height || 500;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(img, 0, 0, 64, 64);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           try {
             const dataURL = canvas.toDataURL('image/png');
             resolve(dataURL);
@@ -406,6 +424,12 @@ export default function App() {
   const [editLeagueCountry, setEditLeagueCountry] = useState('');
   const [editLeagueLogoUrl, setEditLeagueLogoUrl] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // --- Estados de Edición de Participantes ---
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [editParticipantName, setEditParticipantName] = useState('');
+  const [editParticipantAlias, setEditParticipantAlias] = useState('');
+  const [editParticipantPhone, setEditParticipantPhone] = useState('');
 
   // --- Estados de Carrito y Registro Rápido ---
   const [cart, setCart] = useState<Record<string, string>[]>([]);
@@ -773,33 +797,52 @@ export default function App() {
       
       const { data: allPoolsData, error: allPoolsErr } = await supabase
         .from('pools')
-        .select('matchday_id, participant_id, payment_status');
+        .select(`
+          matchday_id, 
+          participant_id, 
+          payment_status,
+          participants (
+            phone
+          )
+        `);
       if (allPoolsErr) throw allPoolsErr;
       
       const approvedParts: Record<string, Set<string>> = {};
+      const approvedBots: Record<string, Set<string>> = {};
       const approvedPools: Record<string, number> = {};
       
       if (allPoolsData) {
-        allPoolsData.forEach(p => {
+        allPoolsData.forEach((p: any) => {
           if (p.payment_status === 'approved') {
-            // Contar quinielas aprobadas (vendidas)
-            approvedPools[p.matchday_id] = (approvedPools[p.matchday_id] || 0) + 1;
+            const isBot = p.participants?.phone === 'BOT-0000';
+            
+            if (!isBot) {
+              // Contar quinielas aprobadas (vendidas reales)
+              approvedPools[p.matchday_id] = (approvedPools[p.matchday_id] || 0) + 1;
+            }
             
             // Recolectar participantes únicos aprobados
             if (!approvedParts[p.matchday_id]) {
               approvedParts[p.matchday_id] = new Set();
+              approvedBots[p.matchday_id] = new Set();
             }
             approvedParts[p.matchday_id].add(p.participant_id);
+            if (isBot) {
+              approvedBots[p.matchday_id].add(p.participant_id);
+            }
           }
         });
       }
       
       const participantCounts: Record<string, number> = {};
+      const botCounts: Record<string, number> = {};
       Object.keys(approvedParts).forEach(mId => {
         participantCounts[mId] = approvedParts[mId].size;
+        botCounts[mId] = approvedBots[mId].size;
       });
       
       setMatchdayApprovedParticipants(participantCounts);
+      setMatchdayApprovedBots(botCounts);
       setMatchdayApprovedPools(approvedPools);
 
       let currentMatchday = null;
@@ -860,10 +903,22 @@ export default function App() {
       // Cargar pronósticos de estas quinielas
       if (data && data.length > 0) {
         const poolIds = data.map(p => p.id);
-        const { data: predData, error: predErr } = await supabase
-          .from('predictions')
-          .select('*')
-          .in('pool_id', poolIds);
+        let predData: any[] = [];
+        let predErr = null;
+        try {
+          const chunkSize = 80;
+          for (let i = 0; i < poolIds.length; i += chunkSize) {
+            const chunk = poolIds.slice(i, i + chunkSize);
+            const { data: chunkData, error: chunkErr } = await supabase
+              .from('predictions')
+              .select('*')
+              .in('pool_id', chunk);
+            if (chunkErr) throw chunkErr;
+            if (chunkData) predData = [...predData, ...chunkData];
+          }
+        } catch (err) {
+          predErr = err;
+        }
         
         if (!predErr && predData) {
           const map: Record<string, Record<string, string>> = {};
@@ -906,10 +961,22 @@ export default function App() {
       // Cargar predicciones asociadas
       if (formattedPools.length > 0) {
         const poolIds = formattedPools.map(p => p.id);
-        const { data: predData, error: predErr } = await supabase
-          .from('predictions')
-          .select('*')
-          .in('pool_id', poolIds);
+        let predData: any[] = [];
+        let predErr = null;
+        try {
+          const chunkSize = 80;
+          for (let i = 0; i < poolIds.length; i += chunkSize) {
+            const chunk = poolIds.slice(i, i + chunkSize);
+            const { data: chunkData, error: chunkErr } = await supabase
+              .from('predictions')
+              .select('*')
+              .in('pool_id', chunk);
+            if (chunkErr) throw chunkErr;
+            if (chunkData) predData = [...predData, ...chunkData];
+          }
+        } catch (err) {
+          predErr = err;
+        }
         
         if (!predErr && predData) {
           const map: Record<string, Record<string, string>> = {};
@@ -969,10 +1036,12 @@ export default function App() {
 
         if (pErr) throw pErr;
 
-        const formattedPools = (pData || []).map(p => ({
-          ...p,
-          participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
-        })) as Pool[];
+        const formattedPools = (pData || [])
+          .map(p => ({
+            ...p,
+            participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
+          }))
+          .filter(p => p.participant?.phone !== 'BOT-0000') as Pool[];
         
         setFinancialPools(formattedPools);
       } else {
@@ -1923,6 +1992,115 @@ Mis pronósticos son:
   // --- Acciones de Administrador ---
 
   // Aprobar / Rechazar Pagos
+  const handleGenerateBots = async () => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay jornada activa.');
+      return;
+    }
+    if (!botInputText.trim()) {
+      showAlert('error', 'Ingresa al menos un nombre y cantidad.');
+      return;
+    }
+    
+    setIsGeneratingBots(true);
+    
+    try {
+      const lines = botInputText.split('\n').filter(line => line.trim());
+      const newParticipantsToCreate: any[] = [];
+      const botConfigs: { name: string; count: number }[] = [];
+      
+      lines.forEach(line => {
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+          const name = parts[0].trim();
+          const count = parseInt(parts[1].trim(), 10) || 1;
+          botConfigs.push({ name, count });
+          
+          const exists = participants.find(p => p.name.toLowerCase() === name.toLowerCase());
+          if (!exists) {
+            const alias = name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000);
+            newParticipantsToCreate.push({
+              name,
+              alias,
+              phone: 'BOT-0000',
+              pin: Math.floor(1000 + Math.random() * 9000).toString(),
+              role: 'user'
+            });
+          }
+        }
+      });
+
+      let finalParticipantsList = [...participants];
+      if (newParticipantsToCreate.length > 0) {
+        const { data: insertedParts, error: errParts } = await supabase.from('participants').insert(newParticipantsToCreate).select();
+        if (errParts) throw errParts;
+        if (insertedParts) {
+          finalParticipantsList = [...finalParticipantsList, ...insertedParts];
+        }
+      }
+
+      const options = ['L', 'E', 'V'];
+      let poolsToInsert: any[] = [];
+      let totalQuinielas = 0;
+      
+      for (const config of botConfigs) {
+        const participant = finalParticipantsList.find(p => p.name.toLowerCase() === config.name.toLowerCase());
+        if (participant) {
+          for (let i = 0; i < config.count; i++) {
+            poolsToInsert.push({
+              participant_id: participant.id,
+              matchday_id: activeMatchday.id,
+              payment_status: 'approved',
+              reference_code: `BOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            });
+            totalQuinielas++;
+          }
+        }
+      }
+
+      if (poolsToInsert.length === 0) {
+         showAlert('info', 'No se generaron quinielas.');
+         return;
+      }
+
+      const { data: insertedPools, error: errPools } = await supabase.from('pools').insert(poolsToInsert).select();
+      if (errPools) throw errPools;
+
+      if (insertedPools && insertedPools.length > 0) {
+        const predictionsToInsert: any[] = [];
+        insertedPools.forEach(pool => {
+          matches.forEach(match => {
+            const randomChoice = options[Math.floor(Math.random() * options.length)];
+            predictionsToInsert.push({
+              pool_id: pool.id,
+              match_id: match.id,
+              selection: randomChoice
+            });
+          });
+        });
+
+        const chunkSize = 500;
+        for (let i = 0; i < predictionsToInsert.length; i += chunkSize) {
+          const chunk = predictionsToInsert.slice(i, i + chunkSize);
+          const { error: errPreds } = await supabase.from('predictions').insert(chunk);
+          if (errPreds) throw errPreds;
+        }
+      }
+
+      showAlert('success', `¡Se generaron exitosamente ${totalQuinielas} quinielas bot!`);
+      setBotInputText('');
+      await loadParticipants();
+      await loadAllPoolsForMatchday();
+      await loadLeaderboard();
+
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al generar bots');
+    } finally {
+      setIsGeneratingBots(false);
+    }
+  };
+
   const handleValidatePayment = async (poolIdOrIds: string | string[], status: 'approved' | 'rejected') => {
     try {
       setLoading(true);
@@ -1976,6 +2154,34 @@ Mis pronósticos son:
         }
       }
     });
+  };
+
+  const handleUpdateParticipant = async () => {
+    if (!editingParticipant) return;
+    if (!editParticipantName.trim() || !editParticipantAlias.trim()) {
+      showAlert('error', 'El nombre y el alias no pueden estar vacíos.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('participants').update({
+        name: editParticipantName.trim(),
+        alias: editParticipantAlias.trim(),
+        phone: editParticipantPhone.trim()
+      }).eq('id', editingParticipant.id);
+
+      if (error) throw error;
+      
+      showAlert('success', 'Participante actualizado correctamente.');
+      setEditingParticipant(null);
+      await loadParticipants();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al actualizar el participante.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRevertPayment = (poolIdOrIds: string | string[]) => {
@@ -2656,16 +2862,32 @@ Mis pronósticos son:
       const formattedPools = (pData || []).map(p => ({
         ...p,
         participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
-      })) as Pool[];
+      })).sort((a, b) => {
+        const nameA = a.participant?.name || '';
+        const nameB = b.participant?.name || '';
+        return nameA.localeCompare(nameB);
+      }) as Pool[];
 
       // 4. Obtener predicciones asociadas
       let predictionsMap: Record<string, Record<string, string>> = {};
       if (formattedPools.length > 0) {
         const poolIds = formattedPools.map(p => p.id);
-        const { data: predData, error: predErr } = await supabase
-          .from('predictions')
-          .select('*')
-          .in('pool_id', poolIds);
+        let predData: any[] = [];
+        let predErr = null;
+        try {
+          const chunkSize = 80;
+          for (let i = 0; i < poolIds.length; i += chunkSize) {
+            const chunk = poolIds.slice(i, i + chunkSize);
+            const { data: chunkData, error: chunkErr } = await supabase
+              .from('predictions')
+              .select('*')
+              .in('pool_id', chunk);
+            if (chunkErr) throw chunkErr;
+            if (chunkData) predData = [...predData, ...chunkData];
+          }
+        } catch (err) {
+          predErr = err;
+        }
 
         if (predErr) throw predErr;
         
@@ -2675,6 +2897,18 @@ Mis pronósticos son:
             predictionsMap[p.pool_id][p.match_id] = p.selection;
           });
         }
+      }
+
+      // Cargar logos de los equipos
+      const matchLogos: Record<string, { home: string, away: string }> = {};
+      for (const m of mData) {
+        const hl = getTeamLogo(m, true);
+        const al = getTeamLogo(m, false);
+        let hb = '';
+        let ab = '';
+        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        matchLogos[m.id] = { home: hb, away: ab };
       }
 
       // Cargar logo de La Carmelita
@@ -2687,27 +2921,12 @@ Mis pronósticos son:
         format: 'a4'
       });
 
-      // Encabezado con Logo y texto en Negro
-      if (logoBase64) {
-        try {
-          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
-        } catch (e) {
-          console.error("Error drawing logo:", e);
-        }
-      }
-
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
-      doc.setTextColor(0, 0, 0); // Negro puro
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
-      
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(9);
-      doc.setTextColor(60, 60, 60); // Gris muy oscuro
-      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 15);
 
-      // Cabeceras de tabla: #, Participante, [vacío para partidos], Aciertos
-      const headers = ['#', 'Participante', ...mData.map(() => '  '), 'Aciertos'];
+      const headers = ['#', '  ', ...mData.map(() => '  '), 'Aciertos'];
 
       // Mapear filas
       const tableRows = formattedPools.map((p, pIdx) => {
@@ -2725,13 +2944,10 @@ Mis pronósticos son:
         return [pIdx + 1, name, ...selections, aciertos];
       });
 
-      // Glosario de partidos al final
-      const matchesLegend = mData.map((m, idx) => {
-        return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
-      });
+
 
       doc.autoTable({
-        startY: 34,
+        startY: 20,
         head: [headers],
         body: tableRows,
         theme: 'grid',
@@ -2755,45 +2971,76 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } // Alinear nombre a la izquierda
         },
         didDrawCell: function(data) {
+          if (data.section === 'head' && data.column.index === 1) {
+            if (logoBase64) {
+              try {
+                // Dibujar logo centrado en la celda de Participante
+                const logoW = data.cell.width - 10; // 5mm padding on each side
+                const logoH = logoW / 2.5; // aspect ratio 2.5
+                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+              } catch (e) {}
+            }
+          }
           if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
             const matchIdx = data.column.index - 2;
             const match = mData[matchIdx];
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
+            const shiftX = 2; // Desplazamiento a la derecha para centrar visualmente
             
             const homeCode = getTeamCode(match, true);
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            doc.setTextColor(255, 255, 255);
+            if (match.is_reserve) {
+              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
+            } else {
+              doc.setTextColor(255, 255, 255);
+            }
             doc.setFont('Helvetica', 'bold');
 
-            // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
+            const logos = matchLogos[match.id];
+            
+            if (logos && logos.home) {
+              try { doc.addImage(logos.home, 'PNG', centerX - 2.8, cell.y + 3, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(homeCode, centerX + shiftX, cell.y + 7, { angle: 90, align: 'center' });
+            }
 
-            // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { align: 'center' }); // Sin rotar
 
-            // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
+            if (logos && logos.away) {
+              try { doc.addImage(logos.away, 'PNG', centerX - 2.8, cell.y + 20.5, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(awayCode, centerX + shiftX, cell.y + 23, { angle: 90, align: 'center' });
+            }
           }
         },
         didParseCell: function(data) {
-          if (data.section === 'body') {
-            if (data.column.index >= 2 && data.column.index < 2 + mData.length) {
-              const matchIdx = data.column.index - 2;
-              const match = mData[matchIdx];
+          if (data.column.index >= 2 && data.column.index < 2 + mData.length) {
+            const matchIdx = data.column.index - 2;
+            const match = mData[matchIdx];
+            
+            // Resaltar toda la tira del partido de desempate en rojo tenue
+            if (match.is_reserve) {
+              data.cell.styles.fillColor = [255, 235, 235]; // Fondo rojo tenue
+            }
+
+            if (data.section === 'body') {
               const cellValue = data.cell.raw;
+              // Si el participante acertó
               if (match && match.result && cellValue === match.result) {
-                data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
+                data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo (acierto)
                 data.cell.styles.textColor = [0, 0, 0];       // Texto negro
                 data.cell.styles.fontStyle = 'bold';
               }
             }
+          }
+          if (data.section === 'body') {
             if (data.column.index === 2 + mData.length) {
               data.cell.styles.fontStyle = 'bold';
               data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
@@ -2802,26 +3049,7 @@ Mis pronósticos son:
         }
       });
 
-      // Agregar leyenda de partidos al final
-      let currentY = (doc as any).lastAutoTable.finalY + 10;
-      // Verificar si cabe en la página actual, si no, agregar una nueva
-      if (currentY > 180) {
-        doc.addPage();
-        currentY = 20;
-      }
-      doc.setFontSize(10);
-      doc.setFont('Helvetica', 'bold');
-      doc.text('Glosario de Partidos:', 14, currentY);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(8);
-
-      currentY += 4;
-      const mid = Math.ceil(matchesLegend.length / 2);
-      for (let i = 0; i < matchesLegend.length; i++) {
-        const xPos = i < mid ? 14 : 110;
-        const yPos = currentY + (i % mid) * 4;
-        doc.text(matchesLegend[i], xPos, yPos);
-      }
+      
 
       doc.save(`Quinielas_LaCarmelita_Quiniela_${matchday.number}_Participantes.pdf`);
       showAlert('success', `Matriz de pronósticos de la Quiniela ${matchday.number} descargada.`);
@@ -2854,12 +3082,25 @@ Mis pronósticos son:
       })) as Pool[];
       
       currentPools = currentPools.filter(p => p.payment_status === 'approved');
+      
+      // Mezclar bots y participantes reales ordenándolos alfabéticamente
+      currentPools.sort((a, b) => {
+        const nameA = a.participant?.name || '';
+        const nameB = b.participant?.name || '';
+        return nameA.localeCompare(nameB);
+      });
 
       // Fetch predictions
       const poolIds = currentPools.map(p => p.id);
       let currentPredictions: Record<string, Record<string, string>> = {};
       if (poolIds.length > 0) {
-        const { data: predData } = await supabase.from('predictions').select('*').in('pool_id', poolIds);
+        let predData: any[] = [];
+        const chunkSize = 80;
+        for (let i = 0; i < poolIds.length; i += chunkSize) {
+          const chunk = poolIds.slice(i, i + chunkSize);
+          const { data: chunkData } = await supabase.from('predictions').select('*').in('pool_id', chunk);
+          if (chunkData) predData = [...predData, ...chunkData];
+        }
         if (predData) {
           predData.forEach(p => {
             if (!currentPredictions[p.pool_id]) currentPredictions[p.pool_id] = {};
@@ -2869,9 +3110,19 @@ Mis pronósticos son:
       }
 
       // Glosario de partidos al final
-      const matchesLegend = currentMatches.map((m, idx) => {
-        return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
-      });
+      
+
+      // Cargar logos de los equipos
+      const matchLogos: Record<string, { home: string, away: string }> = {};
+      for (const m of mData) {
+        const hl = getTeamLogo(m, true);
+        const al = getTeamLogo(m, false);
+        let hb = '';
+        let ab = '';
+        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        matchLogos[m.id] = { home: hb, away: ab };
+      }
 
       // Cargar logo de La Carmelita
       const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
@@ -2915,7 +3166,7 @@ Mis pronósticos son:
       });
 
       (doc as any).autoTable({
-        startY: 34,
+        startY: 20,
         head: [headers],
         body: tableData,
         theme: 'grid',
@@ -2939,31 +3190,53 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } 
         },
         didDrawCell: function(data) {
-          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
+          if (data.section === 'head' && data.column.index === 1) {
+            if (logoBase64) {
+              try {
+                // Dibujar logo centrado en la celda de Participante
+                const logoW = data.cell.width - 10; // 5mm padding on each side
+                const logoH = logoW / 2.5; // aspect ratio 2.5
+                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+              } catch (e) {}
+            }
+          }
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
             const matchIdx = data.column.index - 2;
-            const match = currentMatches[matchIdx];
+            const match = mData[matchIdx];
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
+            const shiftX = 2; // Desplazamiento a la derecha para centrar visualmente
             
             const homeCode = getTeamCode(match, true);
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            doc.setTextColor(255, 255, 255);
+            if (match.is_reserve) {
+              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
+            } else {
+              doc.setTextColor(255, 255, 255);
+            }
             doc.setFont('Helvetica', 'bold');
 
-            // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
+            const logos = matchLogos[match.id];
+            
+            if (logos && logos.home) {
+              try { doc.addImage(logos.home, 'PNG', centerX - 2.8, cell.y + 3, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(homeCode, centerX + shiftX, cell.y + 7, { angle: 90, align: 'center' });
+            }
 
-            // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { align: 'center' }); // Sin rotar
 
-            // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
+            if (logos && logos.away) {
+              try { doc.addImage(logos.away, 'PNG', centerX - 2.8, cell.y + 20.5, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(awayCode, centerX + shiftX, cell.y + 23, { angle: 90, align: 'center' });
+            }
           }
         },
         didParseCell: function(data) {
@@ -2986,22 +3259,7 @@ Mis pronósticos son:
         }
       });
 
-      // Agregar leyenda de partidos al final de la página
-      let currentY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(10);
-      doc.setFont('Helvetica', 'bold');
-      doc.text('Glosario de Partidos:', 14, currentY);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(8);
-
-      currentY += 4;
-      // Imprimir en dos columnas para ahorrar espacio
-      const mid = Math.ceil(matchesLegend.length / 2);
-      for (let i = 0; i < matchesLegend.length; i++) {
-        const xPos = i < mid ? 14 : 110;
-        const yPos = currentY + (i % mid) * 4;
-        doc.text(matchesLegend[i], xPos, yPos);
-      }
+      
 
       doc.save(`Quinielas_LaCarmelita_Quiniela_${m.number}_Participantes.pdf`);
       showAlert('success', 'PDF generado correctamente.');
@@ -3022,6 +3280,18 @@ Mis pronósticos son:
 
     setLoading(true);
     try {
+      // Cargar logos de los equipos
+      const matchLogos: Record<string, { home: string, away: string }> = {};
+      for (const m of mData) {
+        const hl = getTeamLogo(m, true);
+        const al = getTeamLogo(m, false);
+        let hb = '';
+        let ab = '';
+        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        matchLogos[m.id] = { home: hb, away: ab };
+      }
+
       // Cargar logo de La Carmelita
       const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
 
@@ -3053,10 +3323,16 @@ Mis pronósticos son:
       // Configurar columnas de la matriz
       const headers = ['#', 'Participante', ...matches.map(() => '  '), 'Aciertos'];
 
-      // Mapear filas de datos
-      const tableData = allPoolsForMatchday
-        .filter(p => p.payment_status === 'approved') // Solo quinielas validadas
-        .map((p, pIdx) => {
+      // Mapear filas de datos y ordenarlas alfabéticamente para mezclar bots
+      const validPools = [...allPoolsForMatchday]
+        .filter(p => p.payment_status === 'approved')
+        .sort((a, b) => {
+          const nameA = a.participant?.name || '';
+          const nameB = b.participant?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+
+      const tableData = validPools.map((p, pIdx) => {
           const participantName = p.participant?.name || 'Invitado';
           
           let aciertos = 0;
@@ -3077,13 +3353,11 @@ Mis pronósticos son:
         });
 
       // Agregar leyenda de partidos al pie de página o inicio del PDF para claridad
-      const matchesLegend = matches.map((m, idx) => {
-        return `P${idx + 1}: ${getTeamName(m, true)} vs ${getTeamName(m, false)}`;
-      });
+      
 
       // Renderizar tabla con autoTable
       doc.autoTable({
-        startY: 34,
+        startY: 20,
         head: [headers],
         body: tableData,
         theme: 'grid',
@@ -3107,31 +3381,53 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } 
         },
         didDrawCell: function(data) {
-          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + matches.length) {
+          if (data.section === 'head' && data.column.index === 1) {
+            if (logoBase64) {
+              try {
+                // Dibujar logo centrado en la celda de Participante
+                const logoW = data.cell.width - 10; // 5mm padding on each side
+                const logoH = logoW / 2.5; // aspect ratio 2.5
+                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+              } catch (e) {}
+            }
+          }
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
             const matchIdx = data.column.index - 2;
-            const match = matches[matchIdx];
+            const match = mData[matchIdx];
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
+            const shiftX = 2; // Desplazamiento a la derecha para centrar visualmente
             
             const homeCode = getTeamCode(match, true);
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            doc.setTextColor(255, 255, 255);
+            if (match.is_reserve) {
+              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
+            } else {
+              doc.setTextColor(255, 255, 255);
+            }
             doc.setFont('Helvetica', 'bold');
 
-            // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
+            const logos = matchLogos[match.id];
+            
+            if (logos && logos.home) {
+              try { doc.addImage(logos.home, 'PNG', centerX - 2.8, cell.y + 3, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(homeCode, centerX + shiftX, cell.y + 7, { angle: 90, align: 'center' });
+            }
 
-            // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { align: 'center' }); // Sin rotar
 
-            // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
+            if (logos && logos.away) {
+              try { doc.addImage(logos.away, 'PNG', centerX - 2.8, cell.y + 20.5, 5.6, 5.6); } catch(e) {}
+            } else {
+              doc.text(awayCode, centerX + shiftX, cell.y + 23, { angle: 90, align: 'center' });
+            }
           }
         },
         didParseCell: function(data) {
@@ -3154,22 +3450,7 @@ Mis pronósticos son:
         }
       });
 
-      // Agregar leyenda de partidos al final de la página
-      let currentY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(10);
-      doc.setFont('Helvetica', 'bold');
-      doc.text('Glosario de Partidos:', 14, currentY);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(8);
-
-      currentY += 4;
-      // Imprimir en dos columnas para ahorrar espacio
-      const mid = Math.ceil(matchesLegend.length / 2);
-      for (let i = 0; i < matchesLegend.length; i++) {
-        const xPos = i < mid ? 14 : 110;
-        const yPos = currentY + (i % mid) * 4;
-        doc.text(matchesLegend[i], xPos, yPos);
-      }
+      
 
       doc.save(`Quinielas_LaCarmelita_Quiniela_${activeMatchday.number}_Participantes.pdf`);
       showAlert('success', 'PDF de transparencia descargado con éxito.');
@@ -3604,6 +3885,13 @@ Mis pronósticos son:
                 >
                   <Users size={18} />
                   <span>Participantes</span>
+                </button>
+                <button 
+                  className={`sidebar-menu-item ${activeTab === 'admin-bots' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('admin-bots'); setIsSidebarOpen(false); }}
+                >
+                  <RotateCcw size={18} />
+                  <span>Generador Bots</span>
                 </button>
                 <button 
                   className={`sidebar-menu-item ${activeTab === 'admin-dashboard' ? 'active' : ''}`}
@@ -4646,10 +4934,10 @@ Mis pronósticos son:
                               </div>
 
                               {/* Botones de Acción */}
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '140px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%', marginTop: '8px' }}>
                                 <button 
                                   className="btn btn-primary" 
-                                  style={{ padding: '8px', fontSize: '0.85rem' }}
+                                  style={{ padding: '8px', fontSize: '0.85rem', flex: 1, display: 'flex', justifyContent: 'center' }}
                                   onClick={() => {
                                     if (code.startsWith('INDIVIDUAL_')) {
                                       const poolId = code.replace('INDIVIDUAL_', '');
@@ -4663,7 +4951,7 @@ Mis pronósticos son:
                                 </button>
                                 <button 
                                   className="btn btn-danger" 
-                                  style={{ padding: '8px', fontSize: '0.85rem', border: 'none' }}
+                                  style={{ padding: '8px', fontSize: '0.85rem', border: 'none', flex: 1, display: 'flex', justifyContent: 'center' }}
                                   onClick={() => {
                                     if (code.startsWith('INDIVIDUAL_')) {
                                       const poolId = code.replace('INDIVIDUAL_', '');
@@ -4681,7 +4969,7 @@ Mis pronósticos son:
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="btn btn-secondary"
-                                    style={{ padding: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', background: '#25D366', color: 'white', border: 'none' }}
+                                    style={{ padding: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', background: '#25D366', color: 'white', border: 'none', flex: 1 }}
                                     title="Contactar por WhatsApp"
                                   >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
@@ -4882,9 +5170,16 @@ Mis pronósticos son:
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
                                 <h4 style={{ color: 'white', margin: 0 }}>{name}</h4>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
                                   Alias: @{alias} | Tel: {phone}
                                 </span>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  onClick={() => setSelectedDetailsGroup(group)}
+                                  style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px', width: 'fit-content', border: '1px solid var(--border-color)', borderRadius: '6px' }}
+                                >
+                                  <FileText size={12} /> Pronósticos y Comprobante
+                                </button>
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                                 <span style={{ 
@@ -4948,17 +5243,6 @@ Mis pronósticos son:
                                   )}
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Botón para ver detalles (predicciones y comprobante) */}
-                            <div style={{ marginTop: '16px' }}>
-                              <button 
-                                className="btn btn-secondary" 
-                                onClick={() => setSelectedDetailsGroup(group)}
-                                style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '8px' }}
-                              >
-                                <FileText size={16} /> Ver Pronósticos y Comprobante
-                              </button>
                             </div>
                           </div>
                         );
@@ -5044,7 +5328,15 @@ Mis pronósticos son:
                             <div style={{ display: 'flex', alignItems: 'center', gap: '30px', flexWrap: 'wrap' }}>
                               <div style={{ textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Participantes</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Users size={16} style={{ color: 'var(--primary)' }}/> {matchdayApprovedParticipants[m.id] || 0}</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                  <Users size={16} style={{ color: 'var(--primary)' }}/> 
+                                  {matchdayApprovedParticipants[m.id] || 0}
+                                  {(matchdayApprovedBots[m.id] > 0) && (
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                      ({matchdayApprovedBots[m.id]} bots)
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div style={{ textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Vendidas</div>
@@ -6288,6 +6580,13 @@ Mis pronósticos son:
             p.alias.toLowerCase().includes(searchParticipant.toLowerCase()) ||
             p.phone.includes(searchParticipant)
           );
+          
+          const itemsPerPage = 10;
+          const totalPagesParticipants = Math.ceil(filteredParticipants.length / itemsPerPage) || 1;
+          const paginatedParticipants = filteredParticipants.slice(
+            (currentPageParticipants - 1) * itemsPerPage, 
+            currentPageParticipants * itemsPerPage
+          );
 
           return (
           <div>
@@ -6342,37 +6641,58 @@ Mis pronósticos son:
                       <th>Alias</th>
                       <th>WhatsApp</th>
                       <th style={{ textAlign: 'center' }}>Contacto</th>
+                      <th style={{ textAlign: 'center' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredParticipants.length === 0 ? (
-                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No se encontraron participantes.</td></tr>
+                    {paginatedParticipants.length === 0 ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No se encontraron participantes.</td></tr>
                     ) : (
-                      filteredParticipants.map(p => (
+                      paginatedParticipants.map(p => (
                         <tr key={p.id}>
                           <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
                           <td>@{p.alias}</td>
-                          <td>{p.phone}</td>
+                          <td>
+                            {p.phone === 'BOT-0000' ? (
+                              <span style={{ backgroundColor: 'var(--primary-dark)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' }}>BOT Generado</span>
+                            ) : p.phone}
+                          </td>
                           <td style={{ textAlign: 'center' }}>
-                            <a 
-                              href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="btn"
-                              style={{ 
-                                background: 'rgba(37, 211, 102, 0.1)', 
-                                color: '#25D366', 
-                                border: '1px solid #25D366', 
-                                padding: '6px 12px', 
-                                fontSize: '0.8rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                textDecoration: 'none'
+                            {p.phone !== 'BOT-0000' && (
+                              <a 
+                                href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn"
+                                style={{ 
+                                  background: 'rgba(37, 211, 102, 0.1)', 
+                                  color: '#25D366', 
+                                  border: '1px solid #25D366', 
+                                  padding: '6px 12px', 
+                                  fontSize: '0.8rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  textDecoration: 'none'
+                                }}
+                              >
+                                <MessageCircle size={14} /> Mensaje
+                              </a>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button 
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                              onClick={() => {
+                                setEditingParticipant(p);
+                                setEditParticipantName(p.name);
+                                setEditParticipantAlias(p.alias);
+                                setEditParticipantPhone(p.phone);
                               }}
                             >
-                              <MessageCircle size={14} /> Mensaje
-                            </a>
+                              <Edit size={14} /> Editar
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -6408,7 +6728,76 @@ Mis pronósticos son:
           );
         })()}
 
-        {/* 8. ADMIN: DASHBOARD FINANCIERO Y VENTAS (Pestaña "admin-dashboard") */}
+        {/* 8. ADMIN: GENERADOR DE BOTS (Pestaña "admin-bots") */}
+        {activeTab === 'admin-bots' && isAdmin && (() => {
+          const mainMatchesCount = matches.filter(m => !m.is_reserve).length;
+          const totalCombinations = Math.pow(3, mainMatchesCount);
+          const approvedPoolsCount = allPoolsForMatchday.filter(p => p.payment_status === 'approved').length;
+          const coverageProbability = totalCombinations > 0 ? (approvedPoolsCount / totalCombinations) * 100 : 0;
+          
+          return (
+            <div>
+              <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RotateCcw size={24} color="var(--primary)" /> Generador de Bots
+              </h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                <div className="card">
+                  <h3 style={{ marginBottom: '16px' }}>Calculadora de Probabilidades</h3>
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
+                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Partidos activos (sin reserva): <strong>{mainMatchesCount}</strong></p>
+                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Combinaciones posibles totales: <strong>{totalCombinations.toLocaleString()}</strong></p>
+                    <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>Quinielas Activas (Aprobadas): <strong>{approvedPoolsCount.toLocaleString()}</strong></p>
+                    
+                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '6px', borderLeft: '3px solid var(--primary)' }}>
+                      <p style={{ margin: 0, fontWeight: 'bold' }}>Cobertura Teórica: <span style={{ color: 'var(--primary)', fontSize: '1.2rem' }}>{coverageProbability.toFixed(2)}%</span></p>
+                    </div>
+
+                    <hr style={{ borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>
+                      <em>La cobertura teórica asume que las quinielas se distribuyen de forma uniforme sobre las {totalCombinations.toLocaleString()} combinaciones. Matemáticamente aumenta tu probabilidad de obtener la quiniela perfecta.</em>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <h3 style={{ marginBottom: '16px' }}>Generar Lote</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                    Ingresa el nombre del bot y la cantidad de quinielas, separados por coma. Un bot por línea.<br/>
+                    Ejemplo:<br/>
+                    <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px' }}>Juan Perez, 50</code><br/>
+                    <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px' }}>Maria Bot, 100</code>
+                  </p>
+                  <textarea 
+                    className="input-field" 
+                    rows={8}
+                    placeholder="Nombre Bot 1, 10&#10;Nombre Bot 2, 20"
+                    value={botInputText}
+                    onChange={(e) => setBotInputText(e.target.value)}
+                    style={{ fontFamily: 'monospace', minHeight: '150px' }}
+                  />
+                  
+                  <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleGenerateBots}
+                      disabled={isGeneratingBots}
+                      style={{ padding: '12px 24px', fontSize: '1rem', width: '100%', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                    >
+                      {isGeneratingBots ? (
+                        <>Generando...</>
+                      ) : (
+                        <><Play size={18} /> Generar Quinielas Aprobadas</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 9. ADMIN: DASHBOARD FINANCIERO Y VENTAS (Pestaña "admin-dashboard") */}
         {activeTab === 'admin-dashboard' && isAdmin && (() => {
           // Filtrar apuestas según la quiniela seleccionada
           const poolsToUse = selectedFinMatchdayId === 'all'
@@ -7147,6 +7536,58 @@ Mis pronósticos son:
           </div>
         )}
       </Modal>
+
+      {/* Modal para Editar Participante */}
+      {editingParticipant && (
+        <div className="modal-overlay" onClick={() => setEditingParticipant(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Editar Participante</h3>
+              <button className="icon-btn" onClick={() => setEditingParticipant(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Nombre</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={editParticipantName}
+                onChange={e => setEditParticipantName(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Alias</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={editParticipantAlias}
+                onChange={e => setEditParticipantAlias(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Teléfono (WhatsApp)</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={editParticipantPhone}
+                onChange={e => setEditParticipantPhone(e.target.value)}
+                placeholder="BOT-0000 o número real..."
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setEditingParticipant(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleUpdateParticipant}>
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>
