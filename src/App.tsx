@@ -372,16 +372,26 @@ export default function App() {
         !imageUrl.includes('wikimedia.org') && 
         !imageUrl.includes('githubusercontent.com')
       ) {
-        imageUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(imageUrl);
+        imageUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(imageUrl) + '&w=250&h=250&fit=contain';
       }
       img.setAttribute('crossOrigin', 'anonymous');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 500;
-        canvas.height = img.naturalHeight || img.height || 500;
+        const MAX_SIZE = 150;
+        let w = img.naturalWidth || img.width || 500;
+        let h = img.naturalHeight || img.height || 500;
+        
+        if (w > MAX_SIZE || h > MAX_SIZE) {
+          const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
+          w = w * ratio;
+          h = h * ratio;
+        }
+
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, w, h);
           try {
             const dataURL = canvas.toDataURL('image/png');
             resolve(dataURL);
@@ -4280,6 +4290,7 @@ Mis pronósticos son:
                   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     {/* Sección Principal de Partidos (70%) */}
                     <div style={{ flex: '1 1 600px' }}>
+                      {!activeMatchday?.is_closed && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
                         <button 
                           className="btn btn-secondary" 
@@ -4312,6 +4323,7 @@ Mis pronósticos son:
                           Llenado al AZAR
                         </button>
                       </div>
+                      )}
                       {/* Generar Partidos Agrupados por Liga */}
                       {(() => {
                         const getLeagueName = (leagueId?: string) => {
@@ -4433,6 +4445,7 @@ Mis pronósticos son:
                         );
                       })()}
 
+                      {!activeMatchday?.is_closed && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
                         <button 
                           className="btn btn-secondary" 
@@ -4465,15 +4478,18 @@ Mis pronósticos son:
                           Llenado al AZAR
                         </button>
                       </div>
+                      )}
                       
                     </div>
 
                     {/* Sección del Carrito (30%) */}
                     <div style={{ flex: '1 1 300px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', position: 'sticky', top: '100px', alignSelf: 'flex-start' }}>
-                      <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckSquare size={20} color="var(--primary)" /> 
-                        Tus Quinielas
-                      </h3>
+                      {!activeMatchday?.is_closed ? (
+                        <>
+                          <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <CheckSquare size={20} color="var(--primary)" /> 
+                            Tus Quinielas
+                          </h3>
                       
                       <div style={{ marginBottom: '24px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '24px' }}>
                         <button 
@@ -4571,6 +4587,56 @@ Mis pronósticos son:
                             </form>
                           </div>
                         </div>
+                      )}
+                      </>
+                      ) : (
+                        <>
+                          <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                            <Trophy size={20} color="var(--accent)" /> 
+                            Top 10 Aciertos
+                          </h3>
+                          {leaderboard.length === 0 ? (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>Sin resultados aún.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {leaderboard.slice(0, 10).map((l, idx) => (
+                                <div key={l.id} style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  background: idx === 0 ? 'rgba(255, 215, 0, 0.15)' : idx === 1 ? 'rgba(192, 192, 192, 0.15)' : idx === 2 ? 'rgba(205, 127, 50, 0.15)' : 'rgba(255,255,255,0.03)',
+                                  padding: '12px', 
+                                  borderRadius: '8px',
+                                  border: idx === 0 ? '1px solid rgba(255, 215, 0, 0.3)' : '1px solid transparent'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ 
+                                      fontWeight: 'bold', 
+                                      color: idx === 0 ? '#ffd700' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : 'var(--text-secondary)',
+                                      width: '20px'
+                                    }}>
+                                      #{idx + 1}
+                                    </span>
+                                    <div>
+                                      <div style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.95rem' }}>{l.name}</div>
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{l.alias}</div>
+                                    </div>
+                                  </div>
+                                  <div style={{ 
+                                    background: 'var(--accent)', 
+                                    color: '#000', 
+                                    fontWeight: 'bold', 
+                                    padding: '4px 10px', 
+                                    borderRadius: '12px',
+                                    fontSize: '0.9rem'
+                                  }}>
+                                    {l.score} pts
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
