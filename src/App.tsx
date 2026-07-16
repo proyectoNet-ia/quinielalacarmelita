@@ -295,6 +295,8 @@ export default function App() {
   // --- Estados de Cuentas Bancarias ---
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [newBankName, setNewBankName] = useState('');
+  const [selectedDetailsGroup, setSelectedDetailsGroup] = useState<any | null>(null);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all');
   const [newAccountHolder, setNewAccountHolder] = useState('');
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [newClabe, setNewClabe] = useState('');
@@ -1519,6 +1521,15 @@ export default function App() {
       ...prev,
       [matchId]: prev[matchId] === value ? '' : value // Toggle
     }));
+  };
+
+  const handleClearQuiniela = () => {
+    if (activeMatchday && new Date(activeMatchday.deadline) < new Date()) {
+      showAlert('error', 'Esta quiniela ya está cerrada.');
+      return;
+    }
+    setCurrentSelections({});
+    showAlert('info', 'Quiniela limpiada.');
   };
 
   const handleRandomFill = () => {
@@ -3981,7 +3992,22 @@ Mis pronósticos son:
                   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     {/* Sección Principal de Partidos (70%) */}
                     <div style={{ flex: '1 1 600px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
+                        <button 
+                          className="btn btn-secondary" 
+                          onClick={handleClearQuiniela}
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.1)', 
+                            color: '#fff', 
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <Trash2 size={18} />
+                          Limpiar Quiniela
+                        </button>
                         <button 
                           className="btn btn-secondary" 
                           onClick={handleRandomFill}
@@ -4118,6 +4144,39 @@ Mis pronósticos son:
                           </>
                         );
                       })()}
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
+                        <button 
+                          className="btn btn-secondary" 
+                          onClick={handleClearQuiniela}
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.1)', 
+                            color: '#fff', 
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <Trash2 size={18} />
+                          Limpiar Quiniela
+                        </button>
+                        <button 
+                          className="btn btn-secondary" 
+                          onClick={handleRandomFill}
+                          style={{ 
+                            background: 'var(--accent)', 
+                            color: '#000', 
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M8 8h.01"></path><path d="M16 8h.01"></path><path d="M8 16h.01"></path><path d="M16 16h.01"></path><path d="M12 12h.01"></path></svg>
+                          Llenado al AZAR
+                        </button>
+                      </div>
                       
                     </div>
 
@@ -4755,12 +4814,40 @@ Mis pronósticos son:
                   }
                 });
 
-                const groupedHistoryList = Object.values(groupedPoolsMap);
-                const totalPages = Math.ceil(groupedHistoryList.length / ITEMS_PER_PAGE);
-                const currentGroups = groupedHistoryList.slice((adminHistoryPage - 1) * ITEMS_PER_PAGE, adminHistoryPage * ITEMS_PER_PAGE);
+                let filteredHistoryList = Object.values(groupedPoolsMap);
+                if (historyStatusFilter !== 'all') {
+                  filteredHistoryList = filteredHistoryList.filter(g => g.paymentStatus === historyStatusFilter);
+                }
+
+                const totalPages = Math.ceil(filteredHistoryList.length / ITEMS_PER_PAGE);
+                const currentGroups = filteredHistoryList.slice((adminHistoryPage - 1) * ITEMS_PER_PAGE, adminHistoryPage * ITEMS_PER_PAGE);
 
                 return (
                   <div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button 
+                        className={`btn ${historyStatusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`} 
+                        onClick={() => { setHistoryStatusFilter('all'); setAdminHistoryPage(1); }}
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', width: 'auto' }}
+                      >
+                        Todos ({Object.values(groupedPoolsMap).length})
+                      </button>
+                      <button 
+                        className={`btn ${historyStatusFilter === 'approved' ? 'btn-primary' : 'btn-secondary'}`} 
+                        onClick={() => { setHistoryStatusFilter('approved'); setAdminHistoryPage(1); }}
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', width: 'auto' }}
+                      >
+                        Aprobados ({Object.values(groupedPoolsMap).filter(g => g.paymentStatus === 'approved').length})
+                      </button>
+                      <button 
+                        className={`btn ${historyStatusFilter === 'rejected' ? 'btn-primary' : 'btn-secondary'}`} 
+                        onClick={() => { setHistoryStatusFilter('rejected'); setAdminHistoryPage(1); }}
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', width: 'auto' }}
+                      >
+                        Rechazados ({Object.values(groupedPoolsMap).filter(g => g.paymentStatus === 'rejected').length})
+                      </button>
+                    </div>
+
                     <div className="payment-grid">
                       {currentGroups.map((group) => {
                         const name = group.participant?.name || 'Usuario';
@@ -4779,8 +4866,19 @@ Mis pronósticos son:
                           });
                         });
 
+                        const isRejected = group.paymentStatus === 'rejected';
+                        
                         return (
-                          <div className="payment-card" key={`${group.participantId}_${group.matchdayId}`} style={{ border: '1px solid var(--border-color)', background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+                          <div 
+                            className="payment-card" 
+                            key={`${group.participantId}_${group.matchdayId}`} 
+                            style={{ 
+                              border: isRejected ? '1px solid var(--danger)' : '1px solid var(--border-color)', 
+                              background: isRejected ? 'rgba(255, 107, 107, 0.08)' : 'var(--bg-card)', 
+                              padding: '16px', 
+                              borderRadius: 'var(--radius-md)' 
+                            }}
+                          >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
                                 <h4 style={{ color: 'white', margin: 0 }}>{name}</h4>
@@ -4852,46 +4950,16 @@ Mis pronósticos son:
                               </div>
                             </div>
 
-                            {/* Lista de predicciones de las quinielas del usuario */}
-                            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                              {group.pools.map((p, pIdx) => (
-                                <div key={p.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 'bold' }}>
-                                    Quiniela #{pIdx + 1} {p.reference_code ? `(Ref: ${p.reference_code})` : '(Sin folio)'}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '4px' }}>
-                                    {matches.map((m, mIdx) => (
-                                      <div 
-                                        key={m.id} 
-                                        style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '0.6rem', padding: '2px 0', borderRadius: '4px' }}
-                                        title={getTeamName(m, true) + ' vs ' + getTeamName(m, false)}
-                                      >
-                                        <span style={{ fontSize: '0.45rem', display: 'block', color: 'var(--text-muted)' }}>P{mIdx + 1}</span>
-                                        {predictionsByPool[p.id]?.[m.id] || '-'}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
+                            {/* Botón para ver detalles (predicciones y comprobante) */}
+                            <div style={{ marginTop: '16px' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                onClick={() => setSelectedDetailsGroup(group)}
+                                style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '8px' }}
+                              >
+                                <FileText size={16} /> Ver Pronósticos y Comprobante
+                              </button>
                             </div>
-
-                            {group.paymentReceiptUrl ? (
-                              <div style={{ marginTop: '12px' }}>
-                                <img 
-                                  src={group.paymentReceiptUrl} 
-                                  alt="Comprobante" 
-                                  className="receipt-img"
-                                  onClick={() => setViewReceiptUrl(group.paymentReceiptUrl!)}
-                                />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textAlign: 'center', marginTop: '4px' }}>
-                                  🔎 Clic para ampliar
-                                </span>
-                              </div>
-                            ) : (
-                              <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)', marginTop: '12px' }}>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>Sin comprobante</span>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -7019,6 +7087,65 @@ Mis pronósticos son:
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal de Detalles de Grupo (Historial de Pagos) */}
+      <Modal
+        isOpen={!!selectedDetailsGroup}
+        onClose={() => setSelectedDetailsGroup(null)}
+        title={`Detalles de ${selectedDetailsGroup?.participant?.name || 'Usuario'}`}
+      >
+        {selectedDetailsGroup && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Pronósticos */}
+            <div>
+              <h4 style={{ marginBottom: '10px', color: 'var(--primary)' }}>Pronósticos ({selectedDetailsGroup.pools.length})</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {selectedDetailsGroup.pools.map((p: any, pIdx: number) => (
+                  <div key={p.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 'bold' }}>
+                      Quiniela #{pIdx + 1} {p.reference_code ? `(Ref: ${p.reference_code})` : '(Sin folio)'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '8px' }}>
+                      {matches.map((m, mIdx) => (
+                        <div 
+                          key={m.id} 
+                          style={{ minWidth: '40px', flex: 1, background: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '1rem', padding: '6px 0', borderRadius: '4px' }}
+                          title={getTeamName(m, true) + ' vs ' + getTeamName(m, false)}
+                        >
+                          <span style={{ fontSize: '0.7rem', display: 'block', color: 'var(--text-muted)' }}>P{mIdx + 1}</span>
+                          {predictionsByPool[p.id]?.[m.id] || '-'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Comprobante */}
+            <div>
+              <h4 style={{ marginBottom: '10px', color: 'var(--primary)' }}>Comprobante de Pago</h4>
+              {selectedDetailsGroup.paymentReceiptUrl ? (
+                <div style={{ textAlign: 'center' }}>
+                  <img 
+                    src={selectedDetailsGroup.paymentReceiptUrl} 
+                    alt="Comprobante"
+                    style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                    onClick={() => setViewReceiptUrl(selectedDetailsGroup.paymentReceiptUrl!)}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginTop: '8px' }}>
+                    🔎 Clic para ampliar
+                  </span>
+                </div>
+              ) : (
+                <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: '600' }}>Sin comprobante adjunto</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
       </div>

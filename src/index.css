@@ -503,12 +503,6 @@ select.form-control {
   gap: 16px;
 }
 
-@media (min-width: 768px) {
-  .payment-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .payment-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
