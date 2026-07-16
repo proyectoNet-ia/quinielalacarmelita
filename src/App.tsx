@@ -2758,17 +2758,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -2942,17 +2942,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
           }
         },
         didParseCell: function(data) {
@@ -3110,17 +3110,17 @@ Mis pronósticos son:
             doc.setFont('Helvetica', 'bold');
 
             // Dibujar código Local vertical
-            doc.text(homeCode, centerX, cell.y + 10, { angle: 270, align: 'center' });
+            doc.text(homeCode, centerX, cell.y + 7, { angle: 90, align: 'center' });
 
             // Dibujar "vs"
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(6.5);
-            doc.text('vs', centerX, cell.y + 16, { angle: 270, align: 'center' });
+            doc.text('vs', centerX, cell.y + 15, { angle: 90, align: 'center' });
 
             // Dibujar código Visitante vertical
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(7);
-            doc.text(awayCode, centerX, cell.y + 22, { angle: 270, align: 'center' });
+            doc.text(awayCode, centerX, cell.y + 23, { angle: 90, align: 'center' });
           }
         },
         didParseCell: function(data) {
