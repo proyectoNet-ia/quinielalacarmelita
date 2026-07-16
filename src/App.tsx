@@ -4174,7 +4174,7 @@ Mis pronósticos son:
                               <div className="form-group" style={{ marginBottom: '12px' }}>
                                 <input 
                                   type="text" 
-                                  placeholder="Nombre" 
+                                  placeholder="Tu nombre (alias)" 
                                   required 
                                   value={cartParticipantName} 
                                   onChange={e => {
@@ -4211,7 +4211,7 @@ Mis pronósticos son:
                                   <option value="+52">+52 (MX)</option>
                                   <option value="+1">+1 (US)</option>
                                 </select>
-                                <input type="tel" placeholder="(XXX) XXX-XXXX" required value={cartParticipantPhone} onChange={handlePhoneChange} className="form-control" style={{ background: 'var(--bg-main)', flexGrow: 1 }} />
+                                <input type="tel" placeholder="Numero de Celular" required value={cartParticipantPhone} onChange={handlePhoneChange} className="form-control" style={{ background: 'var(--bg-main)', flexGrow: 1 }} />
                               </div>
                               {cart.length < 2 && (
                                 <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '4px', marginBottom: '16px', borderLeft: '3px solid var(--danger)' }}>
