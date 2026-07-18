@@ -2454,6 +2454,17 @@ Mis pronósticos son:
 
       if (error) throw error;
 
+      if (newStatus === 'closed') {
+        const { error: deleteError } = await supabase
+          .from('pools')
+          .delete()
+          .eq('matchday_id', activeMatchday.id)
+          .eq('payment_status', 'rejected');
+        if (deleteError) {
+          console.error("Error eliminando quinielas rechazadas:", deleteError);
+        }
+      }
+
       setActiveMatchday(prev => prev ? { ...prev, status: newStatus } : null);
       showAlert('success', `Quiniela marcada como ${newStatus.toUpperCase()}.`);
     } catch (err) {
@@ -2613,12 +2624,23 @@ Mis pronósticos son:
 
       if (poolsErr) throw poolsErr;
 
-      const { data: predsData, error: predsErr } = await supabase
-        .from('predictions')
-        .select('*')
-        .in('pool_id', poolsData.map(p => p.id));
+      // Obtener predicciones en lotes (chunks de 50) para evitar el límite de 1000 registros
+      let predsData: any[] = [];
+      const poolIds = poolsData.map(p => p.id);
+      const chunkSize = 50;
+      
+      for (let i = 0; i < poolIds.length; i += chunkSize) {
+        const chunk = poolIds.slice(i, i + chunkSize);
+        const { data: chunkPreds, error: predsErr } = await supabase
+          .from('predictions')
+          .select('*')
+          .in('pool_id', chunk);
 
-      if (predsErr) throw predsErr;
+        if (predsErr) throw predsErr;
+        if (chunkPreds) {
+          predsData = [...predsData, ...chunkPreds];
+        }
+      }
 
       // Calcular puntos para cada quiniela
       for (const pool of poolsData) {
