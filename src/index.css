@@ -293,13 +293,13 @@ select.form-control {
   grid-template-columns: 46px 1fr 46px 1fr 46px;
   align-items: center;
   justify-items: center;
-  gap: 8px;
-  padding: 16px 10px;
+  gap: 6px;
+  padding: 10px 8px;
   background: var(--bg-card-hover);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  margin-bottom: 12px;
-  margin-top: 20px;
+  margin-bottom: 8px;
+  margin-top: 14px;
   position: relative;
 }
 
@@ -315,8 +315,8 @@ select.form-control {
 }
 
 .team-logo {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   background: rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-full);
@@ -325,8 +325,8 @@ select.form-control {
 }
 
 .team-logo-fallback {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
   background: var(--border-color);
   display: flex;
@@ -1017,3 +1017,18 @@ select.form-control {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+/* Mobile Tabs for Predictions View */
+.mobile-tabs-container {
+  display: none;
+}
+@media (max-width: 900px) {
+  .mobile-tabs-container {
+    display: block;
+  }
+  .mobile-tab-content:not(.active-tab) {
+    display: none !important;
+  }
+}
+
+

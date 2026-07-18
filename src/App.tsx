@@ -246,6 +246,7 @@ export default function App() {
 
   // --- Navegación ---
   const [activeTab, setActiveTab] = useState<string>('predictions'); // coming-soon, predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants, verify-payment
+  const [closedMobileTab, setClosedMobileTab] = useState<'matches'|'ranking'>('matches');
   const [adminPendingPage, setAdminPendingPage] = useState(1);
   const [adminHistoryPage, setAdminHistoryPage] = useState(1);
   const [historyMatchdayFilter, setHistoryMatchdayFilter] = useState<string>('');
@@ -1444,12 +1445,15 @@ export default function App() {
 
       if (error) throw error;
 
-      const formatted = (data || []).map(p => ({
-        id: p.id,
-        score: p.score,
-        name: p.participants ? (p.participants as any).name : 'Anónimo',
-        alias: p.participants ? (p.participants as any).alias : 'anon'
-      }));
+      const formatted = (data || []).map(p => {
+        const participantData = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+        return {
+          id: p.id,
+          score: p.score,
+          name: participantData ? participantData.name : 'Anónimo',
+          alias: participantData ? participantData.alias : 'anon'
+        };
+      });
 
       setLeaderboard(formatted);
     } catch (err) {
@@ -2590,10 +2594,10 @@ Mis pronósticos son:
   const handleCalculatePoints = async () => {
     if (!activeMatchday) return;
     
-    // Verificar que todos los partidos tengan resultado
+    // Verificar si faltan resultados (para saber si es parcial o final)
     const incomplete = matches.some(m => !m.result);
-    if (incomplete || matches.length === 0) {
-      showAlert('error', 'Debes ingresar el resultado de todos los partidos antes de calcular.');
+    if (matches.length === 0) {
+      showAlert('error', 'No hay partidos registrados en esta quiniela.');
       return;
     }
 
@@ -2635,14 +2639,18 @@ Mis pronósticos son:
           .eq('id', pool.id);
       }
 
-      // Marcar quiniela como calificada
-      await supabase
-        .from('matchdays')
-        .update({ status: 'calculated' })
-        .eq('id', activeMatchday.id);
+      if (!incomplete) {
+        // Marcar quiniela como calificada SOLO si están todos los resultados
+        await supabase
+          .from('matchdays')
+          .update({ status: 'calculated' })
+          .eq('id', activeMatchday.id);
 
-      setActiveMatchday(prev => prev ? { ...prev, status: 'calculated' } : null);
-      showAlert('success', '¡Puntajes calculados y actualizados con éxito!');
+        setActiveMatchday(prev => prev ? { ...prev, status: 'calculated' } : null);
+        showAlert('success', '¡Puntajes calculados y quiniela finalizada con éxito!');
+      } else {
+        showAlert('success', '¡Puntajes parciales actualizados! Aún faltan partidos por terminar.');
+      }
       loadLeaderboard();
     } catch (err) {
       console.error(err);
@@ -3798,16 +3806,18 @@ Mis pronósticos son:
       {/* Sidebar Lateral */}
       {currentUser && activeTab !== 'coming-soon' && (
         <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-          <div className="sidebar-header">
-            <img 
-              src="/LOGO LA CARMELITA.png" 
-              alt="Logo La Carmelita" 
-              style={{ height: '36px', objectFit: 'contain', borderRadius: '4px' }} 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
-              <X size={20} />
-            </button>
+          <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <img src="/LOGO LA CARMELITA.png" alt="Logo" style={{ height: '32px', objectFit: 'contain' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {activeMatchday && !activeTab.startsWith('admin-') && (
+                <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
+                  ${activeMatchday.price_per_entry} MXN
+                </div>
+              )}
+              <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
+                <X size={24} />
+              </button>
+            </div>
           </div>
 
           <div className="sidebar-user">
@@ -3951,19 +3961,25 @@ Mis pronósticos son:
       <div className="app-content-wrapper">
         {/* Cabecera Móvil */}
         {currentUser && activeTab !== 'coming-soon' && (
-          <header className="mobile-header">
-            <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>
-              <Menu size={24} />
-            </button>
-            <img 
-              src="/LOGO LA CARMELITA.png" 
-              alt="Logo La Carmelita" 
-              style={{ height: '30px', objectFit: 'contain', borderRadius: '4px' }} 
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <div style={{ width: '24px' }}></div>
+          <header className="mobile-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(17, 41, 31, 0.95)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 99 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+                <Menu size={24} />
+              </button>
+              <img 
+                src="/LOGO LA CARMELITA.png" 
+                alt="Logo La Carmelita" 
+                style={{ height: '30px', objectFit: 'contain', borderRadius: '4px' }} 
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+            {activeMatchday && !activeTab.startsWith('admin-') && (
+              <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
+                ${activeMatchday.price_per_entry} MXN
+              </div>
+            )}
           </header>
         )}
 
@@ -4155,67 +4171,7 @@ Mis pronósticos son:
           <div>
             {activeMatchday && activeMatchday.status !== 'inactive' ? (
               <div>
-                {!showSuccessScreen && (
-                  <div className="card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(16, 185, 129, 0.05))' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: '700' }}>Temporada Activa</span>
-                      <h2>Quiniela N° {activeMatchday.number}</h2>
-                      {activeMatchday.prize_type === 'fixed' && activeMatchday.fixed_prize_1st ? (
-                        <div style={{ marginTop: '4px' }}>
-                          <span style={{ fontSize: '0.9rem', color: 'var(--accent)', fontWeight: '600' }}>
-                            🏆 Bolsa asegurada de ${Number(activeMatchday.fixed_prize_1st).toLocaleString('en-US')} MXN
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Costo de entrada</span>
-                      <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--accent)' }}>${activeMatchday.price_per_entry} MXN</span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginTop: '14px' }}>
-                    {new Date(activeMatchday.deadline) < now ? (
-                      <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: 'var(--danger)', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                          ⚠️ Quiniela cerrada para registro de apuestas.
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{ 
-                        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', 
-                        background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-color)',
-                        borderLeft: `6px solid ${
-                          (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 24 ? 'var(--danger)' :
-                          (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 72 ? 'var(--accent)' : 'var(--primary)'
-                        }`
-                      }}>
-                        <Clock size={28} color={
-                          (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 24 ? 'var(--danger)' :
-                          (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 72 ? 'var(--accent)' : 'var(--primary)'
-                        } />
-                        <span style={{ 
-                          fontSize: '1.25rem', fontWeight: '800', letterSpacing: '1px',
-                          color: (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 24 ? 'var(--danger)' :
-                                 (new Date(activeMatchday.deadline).getTime() - now.getTime()) / (1000 * 60 * 60) <= 72 ? 'var(--accent)' : 'var(--primary)'
-                        }}>
-                          Cierra en: {(() => {
-                            const diff = new Date(activeMatchday.deadline).getTime() - now.getTime();
-                            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                            const mins = Math.floor((diff / 1000 / 60) % 60);
-                            if (days > 0) return `${days}d ${hours}h ${mins}m`;
-                            if (hours > 0) return `${hours}h ${mins}m`;
-                            return `${mins}m`;
-                          })()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                )}
+
 
 
                 
@@ -4287,10 +4243,19 @@ Mis pronósticos son:
                     No hay partidos cargados para esta quiniela.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    {/* Sección Principal de Partidos (70%) */}
-                    <div style={{ flex: '1 1 600px' }}>
-                      {!activeMatchday?.is_closed && (
+                  <div style={{ width: '100%' }}>
+                    {activeMatchday?.status !== 'active' && (
+                      <div className="mobile-tabs-container" style={{ width: '100%', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button className={`btn ${closedMobileTab === 'matches' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setClosedMobileTab('matches')}>Partidos</button>
+                          <button className={`btn ${closedMobileTab === 'ranking' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setClosedMobileTab('ranking')}>Ranking de Aciertos</button>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      {/* Sección Principal de Partidos (70%) */}
+                      <div className={`mobile-tab-content ${closedMobileTab === 'matches' ? 'active-tab' : ''}`} style={{ flex: '1 1 600px' }}>
+                        {activeMatchday?.status === 'active' && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
                         <button 
                           className="btn btn-secondary" 
@@ -4354,7 +4319,7 @@ Mis pronósticos son:
                                       {/* Local */}
                                       {/* Local L */}
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'L' ? 'selected-l' : '') : (currentSelections[match.id] === 'L' ? 'selected-l' : '')}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
                                       </div>
                                       
                                       {/* Local Info */}
@@ -4369,7 +4334,7 @@ Mis pronósticos son:
               
                                       {/* Controles de Apuesta E */}
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'E' ? 'selected-e' : ''}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'E' ? 'selected-e' : '') : (currentSelections[match.id] === 'E' ? 'selected-e' : '')}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
                                       </div>
               
                                       {/* Visitante Info */}
@@ -4384,7 +4349,7 @@ Mis pronósticos son:
 
                                       {/* Visitante V */}
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'V' ? 'selected-v' : '') : (currentSelections[match.id] === 'V' ? 'selected-v' : '')}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
                                       </div>
                                     </div>
                                   )
@@ -4412,7 +4377,7 @@ Mis pronósticos son:
                                         </span>
                                       </div>
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'L' ? 'selected-l' : ''}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'L' ? 'selected-l' : '') : (currentSelections[match.id] === 'L' ? 'selected-l' : '')}`} onClick={() => handleSelectPrediction(match.id, 'L')}>L</button>
                                       </div>
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, true) ? (
@@ -4423,7 +4388,7 @@ Mis pronósticos son:
                                         <span className="team-name">{getTeamName(match, true)}</span>
                                       </div>
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'E' ? 'selected-e' : ''}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'E' ? 'selected-e' : '') : (currentSelections[match.id] === 'E' ? 'selected-e' : '')}`} onClick={() => handleSelectPrediction(match.id, 'E')}>E</button>
                                       </div>
                                       <div className="team-info" style={{ width: '100%' }}>
                                         {getTeamLogo(match, false) ? (
@@ -4434,7 +4399,7 @@ Mis pronósticos son:
                                         <span className="team-name">{getTeamName(match, false)}</span>
                                       </div>
                                       <div className="lev-group">
-                                        <button className={`lev-btn ${currentSelections[match.id] === 'V' ? 'selected-v' : ''}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
+                                        <button disabled={activeMatchday?.status !== 'active'} className={`lev-btn ${activeMatchday?.status !== 'active' ? (match.result === 'V' ? 'selected-v' : '') : (currentSelections[match.id] === 'V' ? 'selected-v' : '')}`} onClick={() => handleSelectPrediction(match.id, 'V')}>V</button>
                                       </div>
                                     </div>
                                   )
@@ -4445,7 +4410,7 @@ Mis pronósticos son:
                         );
                       })()}
 
-                      {!activeMatchday?.is_closed && (
+                      {activeMatchday?.status === 'active' && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
                         <button 
                           className="btn btn-secondary" 
@@ -4483,8 +4448,8 @@ Mis pronósticos son:
                     </div>
 
                     {/* Sección del Carrito (30%) */}
-                    <div style={{ flex: '1 1 300px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', position: 'sticky', top: '100px', alignSelf: 'flex-start' }}>
-                      {!activeMatchday?.is_closed ? (
+                    <div className={`mobile-tab-content ${closedMobileTab === 'ranking' || activeMatchday?.status === 'active' ? 'active-tab' : ''}`} style={{ flex: '1 1 300px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', position: 'sticky', top: '100px', alignSelf: 'flex-start' }}>
+                      {activeMatchday?.status === 'active' ? (
                         <>
                           <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <CheckSquare size={20} color="var(--primary)" /> 
@@ -4593,35 +4558,42 @@ Mis pronósticos son:
                         <>
                           <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
                             <Trophy size={20} color="var(--accent)" /> 
-                            Top 10 Aciertos
+                            Ranking de Aciertos
                           </h3>
                           {leaderboard.length === 0 ? (
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>Sin resultados aún.</p>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                              {leaderboard.slice(0, 10).map((l, idx) => (
-                                <div key={l.id} style={{ 
-                                  display: 'flex', 
-                                  justifyContent: 'space-between', 
-                                  alignItems: 'center',
-                                  background: idx === 0 ? 'rgba(255, 215, 0, 0.15)' : idx === 1 ? 'rgba(192, 192, 192, 0.15)' : idx === 2 ? 'rgba(205, 127, 50, 0.15)' : 'rgba(255,255,255,0.03)',
-                                  padding: '12px', 
-                                  borderRadius: '8px',
-                                  border: idx === 0 ? '1px solid rgba(255, 215, 0, 0.3)' : '1px solid transparent'
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <span style={{ 
-                                      fontWeight: 'bold', 
-                                      color: idx === 0 ? '#ffd700' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : 'var(--text-secondary)',
-                                      width: '20px'
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '440px', overflowY: 'auto', paddingRight: '4px' }}>
+                              {(() => {
+                                let currentRank = 1;
+                                let prevScore = leaderboard.length > 0 ? leaderboard[0].score : -1;
+                                return leaderboard.map((l, idx) => {
+                                  if (l.score < prevScore) {
+                                    currentRank++;
+                                    prevScore = l.score;
+                                  }
+                                  return (
+                                    <div key={l.id} style={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'center',
+                                      background: currentRank === 1 ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255,255,255,0.03)',
+                                      padding: '12px', 
+                                      borderRadius: '8px',
+                                      border: currentRank === 1 ? '1px solid rgba(255, 215, 0, 0.3)' : '1px solid transparent'
                                     }}>
-                                      #{idx + 1}
-                                    </span>
-                                    <div>
-                                      <div style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.95rem' }}>{l.name}</div>
-                                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{l.alias}</div>
-                                    </div>
-                                  </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <span style={{ 
+                                          fontWeight: 'bold', 
+                                          color: currentRank === 1 ? '#ffd700' : 'var(--text-secondary)',
+                                          width: '20px'
+                                        }}>
+                                          #{currentRank}
+                                        </span>
+                                        <div>
+                                          <div style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.8rem' }}>{l.name}</div>
+                                        </div>
+                                      </div>
                                   <div style={{ 
                                     background: 'var(--accent)', 
                                     color: '#000', 
@@ -4632,13 +4604,16 @@ Mis pronósticos son:
                                   }}>
                                     {l.score} pts
                                   </div>
-                                </div>
-                              ))}
+                                  </div>
+                                  );
+                                });
+                              })()}
                             </div>
                           )}
                         </>
                       )}
                     </div>
+                  </div>
                   </div>
                 )}
               </div>
@@ -4836,9 +4811,16 @@ Mis pronósticos son:
                       </tr>
                     </thead>
                     <tbody>
-                      {leaderboard.map((player, index) => {
-                        const pos = index + 1;
-                        let rankClass = 'rank-other';
+                      {(() => {
+                        let currentRank = 1;
+                        let prevScore = leaderboard.length > 0 ? leaderboard[0].score : -1;
+                        return leaderboard.map((player, index) => {
+                          if (player.score < prevScore) {
+                            currentRank++;
+                            prevScore = player.score;
+                          }
+                          const pos = currentRank;
+                          let rankClass = 'rank-other';
                         if (pos === 1) rankClass = 'rank-1';
                         else if (pos === 2) rankClass = 'rank-2';
                         else if (pos === 3) rankClass = 'rank-3';
@@ -4862,7 +4844,8 @@ Mis pronósticos son:
                             </td>
                           </tr>
                         );
-                      })}
+                        });
+                      })()}
                     </tbody>
                   </table>
                 );
@@ -5549,9 +5532,16 @@ Mis pronósticos son:
                           </tr>
                         </thead>
                         <tbody>
-                          {leaderboard.map((player, index) => {
-                            const pos = index + 1;
-                            let rankClass = 'rank-other';
+                          {(() => {
+                            let currentRank = 1;
+                            let prevScore = leaderboard.length > 0 ? leaderboard[0].score : -1;
+                            return leaderboard.map((player, index) => {
+                              if (player.score < prevScore) {
+                                currentRank++;
+                                prevScore = player.score;
+                              }
+                              const pos = currentRank;
+                              let rankClass = 'rank-other';
                             if (pos === 1) rankClass = 'rank-1';
                             else if (pos === 2) rankClass = 'rank-2';
                             else if (pos === 3) rankClass = 'rank-3';
@@ -5575,7 +5565,8 @@ Mis pronósticos son:
                                 </td>
                               </tr>
                             );
-                          })}
+                            });
+                          })()}
                         </tbody>
                       </table>
                     );
