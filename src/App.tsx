@@ -284,7 +284,12 @@ export default function App() {
   const [predictionsByPool, setPredictionsByPool] = useState<Record<string, Record<string, string>>>({}); // poolId -> matchId -> selection
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [winProbabilities, setWinProbabilities] = useState<Record<string, number>>({});
 
+  // --- Simulación de Ganadores ---
+  const [simulatedWinners, setSimulatedWinners] = useState<any[]>([]);
+  const [isSimulatedWinnersModalOpen, setIsSimulatedWinnersModalOpen] = useState(false);
+  const [simulatedMaxScore, setSimulatedMaxScore] = useState(0);
   // --- Estados de Dashboard Financiero ---
   const [financialPools, setFinancialPools] = useState<Pool[]>([]);
   const [financialMatchdays, setFinancialMatchdays] = useState<Matchday[]>([]);
@@ -2585,20 +2590,81 @@ Mis pronósticos son:
     });
   };
 
-  // Calificar Resultados y Calcular Puntajes
-  const handleSetMatchResult = async (matchId: string, result: 'L' | 'E' | 'V' | 'A') => {
+  // Calificar Resultados (Solo Local)
+  const handleSetMatchResult = (matchId: string, result: 'L' | 'E' | 'V' | 'A') => {
+    const match = matches.find(m => m.id === matchId);
+    const newResult = match?.result === result ? null : result;
+    setMatches(prev => prev.map(m => m.id === matchId ? { ...m, result: newResult } : m));
+  };
+
+  const handleSimulateWinners = async () => {
+    if (!activeMatchday) return;
+    
+    if (matches.length === 0) {
+      showAlert('error', 'No hay partidos registrados en esta quiniela.');
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('matches')
-        .update({ result })
-        .eq('id', matchId);
+      setLoading(true);
 
-      if (error) throw error;
+      const { data: poolsData, error: poolsErr } = await supabase
+        .from('pools')
+        .select(`*, participants(name, alias)`)
+        .eq('matchday_id', activeMatchday.id)
+        .eq('payment_status', 'approved');
 
-      setMatches(prev => prev.map(m => m.id === matchId ? { ...m, result } : m));
-      showAlert('success', 'Resultado del partido guardado.');
+      if (poolsErr) throw poolsErr;
+      if (!poolsData || poolsData.length === 0) {
+        showAlert('info', 'No hay quinielas aprobadas para simular.');
+        setLoading(false);
+        return;
+      }
+
+      let predsData: any[] = [];
+      const poolIds = poolsData.map(p => p.id);
+      const chunkSize = 50;
+      
+      for (let i = 0; i < poolIds.length; i += chunkSize) {
+        const chunk = poolIds.slice(i, i + chunkSize);
+        const { data: chunkPreds, error: predsErr } = await supabase
+          .from('predictions')
+          .select('*')
+          .in('pool_id', chunk);
+
+        if (predsErr) throw predsErr;
+        if (chunkPreds) {
+          predsData = [...predsData, ...chunkPreds];
+        }
+      }
+
+      let maxScore = -1;
+      const poolsWithScores = poolsData.map(pool => {
+        let score = 0;
+        const poolPreds = predsData.filter(pr => pr.pool_id === pool.id);
+
+        poolPreds.forEach(pred => {
+          const match = matches.find(m => m.id === pred.match_id);
+          if (match && match.result && pred.selection.includes(match.result)) {
+            score += 1; // 1 punto por acierto
+          }
+        });
+        
+        if (score > maxScore) maxScore = score;
+        return { ...pool, score };
+      });
+
+      const winners = poolsWithScores.filter(p => p.score === maxScore && p.score > 0);
+      
+      setSimulatedWinners(winners);
+      setSimulatedMaxScore(maxScore);
+      setIsSimulatedWinnersModalOpen(true);
+
     } catch (err) {
-      showAlert('error', 'Error al guardar resultado del partido.');
+      console.error(err);
+      showAlert('error', 'Error al simular ganadores.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2614,6 +2680,14 @@ Mis pronósticos son:
 
     try {
       setLoading(true);
+
+      // Guardar los resultados seleccionados en la BD
+      for (const match of matches) {
+        await supabase
+          .from('matches')
+          .update({ result: match.result || null })
+          .eq('id', match.id);
+      }
 
       // Cargar todas las quinielas y predicciones de esta quiniela
       const { data: poolsData, error: poolsErr } = await supabase
@@ -2677,6 +2751,120 @@ Mis pronósticos son:
     } catch (err) {
       console.error(err);
       showAlert('error', 'Error durante el cálculo de puntajes.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCalculateProbabilities = async () => {
+    if (!selectedAdminMatchday) return;
+    
+    // Identificar partidos pendientes de esta jornada
+    const currentMatches = matches.filter(m => m.matchday_id === selectedAdminMatchday.id);
+    const pendingMatches = currentMatches.filter(m => !m.result);
+    
+    if (pendingMatches.length === 0) {
+      showAlert('info', 'No hay partidos pendientes. Las probabilidades son 100% para los ganadores actuales.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await new Promise(r => setTimeout(r, 100)); // Dejar que la UI renderice el spinner
+      
+      // Cargar quinielas de la jornada actual
+      const { data: poolsData, error: poolsErr } = await supabase
+        .from('pools')
+        .select('id, score')
+        .eq('matchday_id', selectedAdminMatchday.id)
+        .eq('payment_status', 'approved');
+
+      if (poolsErr) throw poolsErr;
+      
+      if (!poolsData || poolsData.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // Cargar predicciones en lotes
+      let predsData: any[] = [];
+      const poolIds = poolsData.map(p => p.id);
+      const chunkSize = 50;
+      for (let i = 0; i < poolIds.length; i += chunkSize) {
+        const chunk = poolIds.slice(i, i + chunkSize);
+        const { data: chunkPreds, error: predsErr } = await supabase
+          .from('predictions')
+          .select('pool_id, match_id, selection')
+          .in('pool_id', chunk);
+
+        if (predsErr) throw predsErr;
+        if (chunkPreds) predsData = [...predsData, ...chunkPreds];
+      }
+      
+      // Simulación de Monte Carlo
+      const ITERATIONS = 5000;
+      const outcomes = ['L', 'E', 'V'];
+      const winCounts: Record<string, number> = {};
+      
+      poolIds.forEach(id => winCounts[id] = 0);
+      
+      // Preagrupar predicciones por pool
+      const predsByPool: Record<string, any[]> = {};
+      poolsData.forEach(p => predsByPool[p.id] = []);
+      predsData.forEach(pr => {
+        if (predsByPool[pr.pool_id]) {
+          predsByPool[pr.pool_id].push(pr);
+        }
+      });
+
+      for (let i = 0; i < ITERATIONS; i++) {
+        // Generar resultados aleatorios para los pendientes
+        const simulatedResults: Record<string, string> = {};
+        pendingMatches.forEach(m => {
+          simulatedResults[m.id] = outcomes[Math.floor(Math.random() * outcomes.length)];
+        });
+        
+        let maxScore = -1;
+        let iterationWinners: string[] = [];
+        
+        // Calcular score de cada quiniela
+        for (const pool of poolsData) {
+          let currentScore = pool.score || 0;
+          const preds = predsByPool[pool.id] || [];
+          
+          for (let j = 0; j < preds.length; j++) {
+            const pr = preds[j];
+            const simResult = simulatedResults[pr.match_id];
+            if (simResult && pr.selection && pr.selection.includes(simResult)) {
+              currentScore++;
+            }
+          }
+          
+          if (currentScore > maxScore) {
+            maxScore = currentScore;
+            iterationWinners = [pool.id];
+          } else if (currentScore === maxScore) {
+            iterationWinners.push(pool.id);
+          }
+        }
+        
+        // Sumar victoria
+        for (let w = 0; w < iterationWinners.length; w++) {
+          winCounts[iterationWinners[w]]++;
+        }
+      }
+      
+      const newProbs: Record<string, number> = {};
+      poolIds.forEach(id => {
+        newProbs[id] = (winCounts[id] / ITERATIONS) * 100;
+      });
+      
+      setWinProbabilities(newProbs);
+      showAlert('success', 'Probabilidades calculadas exitosamente.');
+      
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error calculando probabilidades.');
     } finally {
       setLoading(false);
     }
@@ -5533,11 +5721,16 @@ Mis pronósticos son:
               </div>
             ) : adminDetailView === 'ranking' ? (
               <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ margin: 0 }}>Ranking - Quiniela N° {selectedAdminMatchday.number}</h3>
-                  <button className="btn btn-secondary" onClick={() => { setSelectedAdminMatchday(null); loadInitialData(); }}>
-                    <ArrowLeft size={16} /> Volver a la Lista
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary" onClick={handleCalculateProbabilities}>
+                      Simular Probabilidades
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => { setSelectedAdminMatchday(null); loadInitialData(); setWinProbabilities({}); }}>
+                      <ArrowLeft size={16} /> Volver a la Lista
+                    </button>
+                  </div>
                 </div>
                   {leaderboard.length === 0 ? (
                     <p style={{ color: 'var(--text-secondary)' }}>Aún no hay quinielas pagadas y calculadas en esta quiniela.</p>
@@ -5551,6 +5744,7 @@ Mis pronósticos son:
                             <th>Participante</th>
                             <th style={{ textAlign: 'right' }}>Aciertos</th>
                             <th style={{ textAlign: 'right' }}>Premio Estimado</th>
+                            <th style={{ textAlign: 'right' }}>Prob. Ganar</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -5584,6 +5778,9 @@ Mis pronósticos son:
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: '800', color: prizeMoney > 0 ? '#25D366' : 'var(--text-muted)' }}>
                                   {prizeMoney > 0 ? `$${formatMoney(prizeMoney)}` : '-'}
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                  {winProbabilities[player.id] !== undefined ? `${winProbabilities[player.id].toFixed(1)}%` : '-'}
                                 </td>
                               </tr>
                             );
@@ -5895,12 +6092,22 @@ Mis pronósticos son:
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <h3>{activeMatchday.status === 'inactive' ? 'Partidos de la Quiniela' : 'Calificar Partidos'}</h3>
                   {(activeMatchday.status === 'closed' || activeMatchday.status === 'calculated') && (
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleCalculatePoints}
-                    >
-                      <CheckCircle size={15} /> Calcular Aciertos e Histórico
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={handleSimulateWinners}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title="Ver ganadores potenciales sin guardar"
+                      >
+                        <Play size={15} /> Simular Ganadores
+                      </button>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={handleCalculatePoints}
+                      >
+                        <Save size={15} /> Guardar
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -7667,6 +7874,53 @@ Mis pronósticos son:
           </div>
         </div>
       )}
+      {/* Modal para Simular Ganadores */}
+      <Modal
+        isOpen={isSimulatedWinnersModalOpen}
+        onClose={() => setIsSimulatedWinnersModalOpen(false)}
+        title="Simulación de Ganadores"
+      >
+        <div style={{ padding: '20px' }}>
+          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+            Basado en los resultados actuales, con una puntuación máxima de <strong>{simulatedMaxScore} aciertos</strong>, los posibles ganadores serían:
+          </p>
+          
+          {simulatedWinners.length > 0 ? (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {simulatedWinners.map((winner, idx) => (
+                <li key={idx} style={{ 
+                  padding: '12px', 
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'var(--bg-main)',
+                  marginBottom: '8px',
+                  borderRadius: '6px'
+                }}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '1.05rem' }}>{winner.participants?.name || 'Desconocido'}</strong>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>@{winner.participants?.alias || 'sin-alias'}</span>
+                  </div>
+                  <div style={{ background: 'var(--primary)', color: 'white', padding: '4px 10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    {winner.score} aciertos
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Nadie tiene aciertos aún con esta configuración.
+            </div>
+          )}
+          
+          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" onClick={() => setIsSimulatedWinnersModalOpen(false)}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       </div>
     </div>
