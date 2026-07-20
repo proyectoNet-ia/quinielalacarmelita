@@ -4314,6 +4314,21 @@ Mis pronósticos son:
                 }}
               />
             </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {activeMatchday && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>N° {activeMatchday.number}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
+                      <Clock size={12} /> {getRemainingTime(activeMatchday.deadline)}
+                    </span>
+                  </div>
+                  <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
+                    Costo: ${activeMatchday.price_per_entry} MXN
+                  </div>
+                </div>
+              )}
             <button 
               className="btn btn-primary animate-pulse-scale"
               onClick={() => {
@@ -4344,6 +4359,7 @@ Mis pronósticos son:
               <FileText size={18} />
               {localStorage.getItem('lastReferenceCode') ? `Subir Comprobante (${localStorage.getItem('lastReferenceCode')})` : 'Enviar Recibos de Pago'}
             </button>
+            </div>
           </header>
         )}
 
