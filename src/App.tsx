@@ -4735,13 +4735,14 @@ Mis pronósticos son:
                                     <div className={`match-card ${getSpecialTitle(match) ? 'special-match' : ''}`} key={match.id}>
                                       <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap' }}>
                                         <span style={{ 
-                                          background: getSpecialTitle(match) ? '#1E5032' : 'rgba(239, 68, 68, 0.2)', 
-                                          color: getSpecialTitle(match) ? 'white' : 'var(--danger)',
-                                          border: getSpecialTitle(match) ? 'none' : '1px solid rgba(239, 68, 68, 0.5)',
+                                          background: getSpecialTitle(match) ? '#1E5032' : 'var(--danger)', 
+                                          color: 'white',
+                                          border: 'none',
                                           padding: '2px 8px', 
                                           borderRadius: 'var(--radius-sm)', 
                                           fontSize: '0.65rem', 
-                                          fontWeight: '800' 
+                                          fontWeight: '800',
+                                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                         }}>
                                           P{globalIdx} (Reserva) {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}
                                         </span>
