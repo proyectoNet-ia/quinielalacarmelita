@@ -311,6 +311,13 @@ select.form-control {
   background: rgba(0, 0, 0, 0.3);
 }
 
+.match-card.special-match .lev-btn.selected-l,
+.match-card.special-match .lev-btn.selected-e,
+.match-card.special-match .lev-btn.selected-v {
+  background: var(--primary);
+  color: #052e16;
+}
+
 .team-info {
   display: flex;
   flex-direction: column;
