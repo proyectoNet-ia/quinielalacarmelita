@@ -4260,9 +4260,9 @@ Mis pronósticos son:
       <div className="app-content-wrapper">
         {/* Cabecera Móvil */}
         {currentUser && activeTab !== 'coming-soon' && (
-          <header className="mobile-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(17, 41, 31, 0.95)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 99 }}>
+          <header className="mobile-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+              <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>
                 <Menu size={24} />
               </button>
               <img 
