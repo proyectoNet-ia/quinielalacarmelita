@@ -4275,8 +4275,16 @@ Mis pronósticos son:
               />
             </div>
             {activeMatchday && !activeTab.startsWith('admin-') && (
-              <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
-                ${activeMatchday.price_per_entry} MXN
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Quiniela N° {activeMatchday.number}</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
+                    <Clock size={12} /> {getRemainingTime(activeMatchday.deadline)}
+                  </span>
+                </div>
+                <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
+                  ${activeMatchday.price_per_entry} MXN
+                </div>
               </div>
             )}
           </header>
