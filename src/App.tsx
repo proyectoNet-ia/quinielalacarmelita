@@ -580,6 +580,8 @@ export default function App() {
   const [showEditDeadline, setShowEditDeadline] = useState(false);
   const [editFirstMatchDate, setEditFirstMatchDate] = useState('');
   const [showEditFirstMatch, setShowEditFirstMatch] = useState(false);
+  const [editingSpecialTitleMatch, setEditingSpecialTitleMatch] = useState<Match | null>(null);
+  const [editSpecialTitleInput, setEditSpecialTitleInput] = useState('');
 
   // --- Formulario Suscripción (Próximamente) ---
   const [subName, setSubName] = useState('');
@@ -6412,23 +6414,9 @@ Mis pronósticos son:
                         className="lev-btn"
                         style={{ background: 'var(--bg-main)', color: 'var(--primary)', borderColor: 'var(--primary)', padding: '4px 8px', width: 'auto', flex: '0 0 auto' }}
                         title="Editar Título Especial"
-                        onClick={async () => {
-                          const currentTitle = getSpecialTitle(match) || '';
-                          const newTitle = window.prompt('Ingresa el nuevo título especial (o déjalo en blanco para quitarlo):', currentTitle);
-                          if (newTitle !== null) {
-                            const cleanTitle = newTitle.trim();
-                            const baseTeam = getBaseHomeTeam(match);
-                            const newHomeTeam = cleanTitle ? `${baseTeam}||special::${cleanTitle}` : baseTeam;
-                            try {
-                              setLoading(true);
-                              const { error } = await supabase.from('matches').update({ home_team: newHomeTeam }).eq('id', match.id);
-                              if (error) throw error;
-                              loadMatches(activeMatchday.id);
-                            } catch (e) {
-                              alert('Error al actualizar: ' + (e as Error).message);
-                              setLoading(false);
-                            }
-                          }
+                        onClick={() => {
+                          setEditSpecialTitleInput(getSpecialTitle(match) || '');
+                          setEditingSpecialTitleMatch(match);
                         }}
                       >
                         <Edit2 size={14} style={{ marginRight: '4px' }} /> Título Especial
@@ -8175,6 +8163,61 @@ Mis pronósticos son:
           </div>
         </div>
       )}
+
+      {/* Modal para Editar Título Especial */}
+      <Modal
+        isOpen={!!editingSpecialTitleMatch}
+        onClose={() => setEditingSpecialTitleMatch(null)}
+        title="Editar Título Especial"
+      >
+        <div style={{ padding: '10px 0' }}>
+          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+            Ingresa el nuevo título especial para el partido (o déjalo en blanco para quitarlo):
+          </p>
+          <div className="form-group" style={{ marginBottom: '24px' }}>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={editSpecialTitleInput}
+              onChange={e => setEditSpecialTitleInput(e.target.value)}
+              placeholder="Ej. Campeón de Campeones"
+              autoFocus
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button className="btn" onClick={() => setEditingSpecialTitleMatch(null)} disabled={loading}>
+              Cancelar
+            </button>
+            <button 
+              className="btn btn-primary" 
+              disabled={loading}
+              onClick={async () => {
+                if (!editingSpecialTitleMatch) return;
+                const cleanTitle = editSpecialTitleInput.trim();
+                const baseTeam = getBaseHomeTeam(editingSpecialTitleMatch);
+                const newHomeTeam = cleanTitle ? `${baseTeam}||special::${cleanTitle}` : baseTeam;
+                try {
+                  setLoading(true);
+                  const { error } = await supabase.from('matches').update({ home_team: newHomeTeam }).eq('id', editingSpecialTitleMatch.id);
+                  if (error) throw error;
+                  setEditingSpecialTitleMatch(null);
+                  showAlert('success', 'Título especial actualizado correctamente.');
+                  if (activeMatchday) {
+                    loadMatches(activeMatchday.id);
+                  }
+                } catch (e) {
+                  showAlert('error', 'Error al actualizar: ' + (e as Error).message);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal para Simular Ganadores */}
       <Modal
         isOpen={isSimulatedWinnersModalOpen}
