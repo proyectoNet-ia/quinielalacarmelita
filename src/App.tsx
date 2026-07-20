@@ -4675,6 +4675,7 @@ Mis pronósticos son:
                                         <span style={{ 
                                           background: getSpecialTitle(match) ? '#1E5032' : 'var(--border-color)', 
                                           color: getSpecialTitle(match) ? 'white' : 'var(--text-primary)',
+                                          border: getSpecialTitle(match) ? '1px solid var(--accent)' : 'none',
                                           padding: '2px 8px', 
                                           borderRadius: 'var(--radius-sm)', 
                                           fontSize: '0.65rem', 
