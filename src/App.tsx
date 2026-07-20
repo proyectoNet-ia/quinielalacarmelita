@@ -4107,10 +4107,18 @@ Mis pronósticos son:
         <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <img src="/LOGO LA CARMELITA.png" alt="Logo" style={{ height: '32px', objectFit: 'contain' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {activeMatchday && !activeTab.startsWith('admin-') && (
-                <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
-                  ${activeMatchday.price_per_entry} MXN
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>N° {activeMatchday.number}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                      <Clock size={10} /> {getRemainingTime(activeMatchday.deadline)}
+                    </span>
+                  </div>
+                  <div style={{ background: 'var(--accent)', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: '900', fontSize: '0.8rem' }}>
+                    Costo: ${activeMatchday.price_per_entry} MXN
+                  </div>
                 </div>
               )}
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
@@ -4275,8 +4283,16 @@ Mis pronósticos son:
               />
             </div>
             {activeMatchday && !activeTab.startsWith('admin-') && (
-              <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
-                ${activeMatchday.price_per_entry} MXN
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>N° {activeMatchday.number}</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
+                    <Clock size={12} /> {getRemainingTime(activeMatchday.deadline)}
+                  </span>
+                </div>
+                <div style={{ background: 'var(--accent)', color: '#000', padding: '4px 8px', borderRadius: '6px', fontWeight: '900', fontSize: '0.85rem' }}>
+                  Costo: ${activeMatchday.price_per_entry} MXN
+                </div>
               </div>
             )}
           </header>
@@ -4554,24 +4570,7 @@ Mis pronósticos son:
                     <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                       {/* Sección Principal de Partidos (70%) */}
                       <div className={`mobile-tab-content ${closedMobileTab === 'matches' ? 'active-tab' : ''}`} style={{ flex: '1 1 600px' }}>
-                        {/* Información de la Quiniela (Frontend) */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(17, 41, 31, 0.6)', padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '16px', border: '1px solid var(--border-color)', gap: '12px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Quiniela Activa</span>
-                            <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fff' }}>N° {activeMatchday?.number}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cierre programado</span>
-                              <span style={{ fontWeight: 'bold', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '1rem' }}>
-                                <Clock size={16} /> {activeMatchday ? getRemainingTime(activeMatchday.deadline) : ''}
-                              </span>
-                            </div>
-                            <div style={{ background: 'var(--primary)', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
-                              Costo: ${activeMatchday?.price_per_entry} MXN
-                            </div>
-                          </div>
-                        </div>
+
                         {activeMatchday?.status === 'active' && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
                         <button 
