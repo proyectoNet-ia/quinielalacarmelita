@@ -4610,7 +4610,8 @@ Mis pronósticos son:
                           Llenado al AZAR
                         </button>
                       </div>
-                      )}
+                          </>
+                        )}
                       {/* Generar Partidos Agrupados por Liga */}
                       {(() => {
                         const getLeagueName = (leagueId?: string) => {
