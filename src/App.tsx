@@ -2379,11 +2379,11 @@ Mis pronósticos son:
       return;
     }
 
-    // Regla de cierre: La fecha límite debe ser al menos 5 horas antes del primer partido
+    // Regla de cierre: La fecha límite debe ser al menos 10 minutos antes del primer partido
     const firstMatchTime = new Date(firstMatchDate).getTime();
-    const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
-    if (firstMatchTime - deadlineTime < FIVE_HOURS_MS) {
-      showAlert('error', 'La fecha límite de cierre debe ser al menos 5 horas antes del primer juego.');
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    if (firstMatchTime - deadlineTime < TEN_MINUTES_MS) {
+      showAlert('error', 'La fecha límite de cierre debe ser al menos 10 minutos antes del primer juego.');
       return;
     }
 
@@ -5916,7 +5916,7 @@ Mis pronósticos son:
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc3545', fontWeight: 'bold' }}>
                           <AlertCircle size={16} /> Fecha y Hora Límite de Cierre
                         </label>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 8px 0' }}>Debe ser al menos 5 horas antes del primer partido.</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 8px 0' }}>Debe ser al menos 10 minutos antes del primer partido.</p>
                         <input 
                           type="datetime-local" 
                           className="form-control" 
