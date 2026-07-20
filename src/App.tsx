@@ -563,6 +563,8 @@ export default function App() {
   const [firstMatchDate, setFirstMatchDate] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
   const [showEditDeadline, setShowEditDeadline] = useState(false);
+  const [editFirstMatchDate, setEditFirstMatchDate] = useState('');
+  const [showEditFirstMatch, setShowEditFirstMatch] = useState(false);
 
   // --- Formulario Suscripción (Próximamente) ---
   const [subName, setSubName] = useState('');
@@ -2474,6 +2476,93 @@ Mis pronósticos son:
       showAlert('success', `Quiniela marcada como ${newStatus.toUpperCase()}.`);
     } catch (err) {
       showAlert('error', 'Error al cambiar estado de la quiniela.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateFirstMatch = async () => {
+    if (!activeMatchday || !editFirstMatchDate) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('matchdays')
+        .update({ first_match_date: new Date(editFirstMatchDate).toISOString() })
+        .eq('id', activeMatchday.id);
+      if (error) throw error;
+      setActiveMatchday(prev => prev ? { ...prev, first_match_date: new Date(editFirstMatchDate).toISOString() } : null);
+      setAllMatchdays(prev => prev.map(m => m.id === activeMatchday.id ? { ...m, first_match_date: new Date(editFirstMatchDate).toISOString() } : m));
+      setShowEditFirstMatch(false);
+      setEditFirstMatchDate('');
+      showAlert('success', 'Hora del primer juego actualizada correctamente.');
+    } catch (err) {
+      showAlert('error', 'Error al actualizar la hora del primer juego.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMoveMatchUp = async (index: number) => {
+    if (index === 0) return;
+    const currentMatch = matches[index];
+    const prevMatch = matches[index - 1];
+
+    try {
+      setLoading(true);
+      const tempTime = currentMatch.created_at;
+      
+      const { error: err1 } = await supabase
+        .from('matches')
+        .update({ created_at: prevMatch.created_at })
+        .eq('id', currentMatch.id);
+      if (err1) throw err1;
+
+      const { error: err2 } = await supabase
+        .from('matches')
+        .update({ created_at: tempTime })
+        .eq('id', prevMatch.id);
+      if (err2) throw err2;
+
+      const newMatches = [...matches];
+      newMatches[index] = { ...currentMatch, created_at: prevMatch.created_at };
+      newMatches[index - 1] = { ...prevMatch, created_at: tempTime };
+      setMatches(newMatches);
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error al cambiar orden de partidos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMoveMatchDown = async (index: number) => {
+    if (index === matches.length - 1) return;
+    const currentMatch = matches[index];
+    const nextMatch = matches[index + 1];
+
+    try {
+      setLoading(true);
+      const tempTime = currentMatch.created_at;
+      
+      const { error: err1 } = await supabase
+        .from('matches')
+        .update({ created_at: nextMatch.created_at })
+        .eq('id', currentMatch.id);
+      if (err1) throw err1;
+
+      const { error: err2 } = await supabase
+        .from('matches')
+        .update({ created_at: tempTime })
+        .eq('id', nextMatch.id);
+      if (err2) throw err2;
+
+      const newMatches = [...matches];
+      newMatches[index] = { ...currentMatch, created_at: nextMatch.created_at };
+      newMatches[index + 1] = { ...nextMatch, created_at: tempTime };
+      setMatches(newMatches);
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error al cambiar orden de partidos.');
     } finally {
       setLoading(false);
     }
@@ -5067,7 +5156,30 @@ Mis pronósticos son:
         {/* 5. ADMIN: VALIDACIÓN DE PAGOS (Pestaña "admin-payments") */}
         {activeTab === 'admin-payments' && isAdmin && (
           <div>
-            <h2 style={{ marginBottom: '16px' }}>Validar Comprobantes de Pago (Quiniela N° {activeMatchday?.number})</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0 }}>Validar Comprobantes de Pago (Quiniela N° {activeMatchday?.number})</h2>
+              {activeMatchday && (
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={async () => {
+                    const newNum = window.prompt('Ingresa el nuevo número para esta quiniela:', '5');
+                    if (newNum && !isNaN(Number(newNum))) {
+                      const num = Number(newNum);
+                      const { error } = await supabase.from('matchdays').update({ number: num }).eq('id', activeMatchday.id);
+                      if (!error) {
+                        alert('Número actualizado a ' + num + ' con éxito.');
+                        window.location.reload();
+                      } else {
+                        alert('Error al actualizar: ' + error.message);
+                      }
+                    }
+                  }}
+                  style={{ padding: '4px 8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                >
+                  ✏️ Cambiar N°
+                </button>
+              )}
+            </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
               Revisa los comprobantes de transferencia bancaria subidos por los participantes. La aprobación habilita la quiniela para la tabla y exportación PDF.
             </p>
@@ -5884,7 +5996,28 @@ Mis pronósticos son:
             {/* Selector de estado de Quiniela */}
             {activeMatchday && (
               <div className="card">
-                <h3>Estado de la Quiniela N° {activeMatchday.number}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0 }}>Estado de la Quiniela N° {activeMatchday.number}</h3>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={async () => {
+                      const newNum = window.prompt('Ingresa el nuevo número para esta quiniela:', '5');
+                      if (newNum && !isNaN(Number(newNum))) {
+                        const num = Number(newNum);
+                        const { error } = await supabase.from('matchdays').update({ number: num }).eq('id', activeMatchday.id);
+                        if (!error) {
+                          alert('Número actualizado a ' + num + ' con éxito.');
+                          window.location.reload();
+                        } else {
+                          alert('Error al actualizar: ' + error.message);
+                        }
+                      }
+                    }}
+                    style={{ padding: '4px 8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                  >
+                    ✏️ Cambiar N°
+                  </button>
+                </div>
                 {activeMatchday.status === 'active' && (
                   <div style={{ padding: '12px 16px', background: 'rgba(255, 193, 7, 0.1)', color: 'var(--primary)', borderRadius: '8px', marginTop: '16px', borderLeft: '4px solid var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                     <Clock size={18} /> Cierre programado en: {getRemainingTime(activeMatchday.deadline)}
@@ -6019,6 +6152,42 @@ Mis pronósticos son:
                         </button>
                       </div>
                     )}
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: showEditFirstMatch ? '10px' : 0, marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto', whiteSpace: 'nowrap' }}>
+                        <Play size={14} /> Primer juego: <strong style={{ color: 'var(--primary)' }}>{activeMatchday.first_match_date ? new Date(activeMatchday.first_match_date).toLocaleString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'No definido'}</strong>
+                      </span>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
+                        onClick={() => {
+                          setShowEditFirstMatch(v => !v);
+                          setEditFirstMatchDate('');
+                        }}
+                      >
+                        <Edit2 size={12} /> {showEditFirstMatch ? 'Cancelar' : 'Ajustar inicio'}
+                      </button>
+                    </div>
+                    {showEditFirstMatch && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="datetime-local"
+                          className="form-control"
+                          style={{ flex: 1, minWidth: '200px' }}
+                          value={editFirstMatchDate}
+                          onChange={e => setEditFirstMatchDate(e.target.value)}
+                          onFocus={e => { try { e.target.showPicker(); } catch(err) {} }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: '8px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                          onClick={handleUpdateFirstMatch}
+                          disabled={loading || !editFirstMatchDate}
+                        >
+                          <Save size={14} /> Guardar
+                        </button>
+                      </div>
+                    )}
                   </div>
                   </>
                 )}
@@ -6133,6 +6302,26 @@ Mis pronósticos son:
                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getTeamName(match, false)}</span>
                       </div>
                     </div>
+
+                    {/* Botones de orden */}
+                    {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginLeft: 'auto', paddingRight: '8px' }}>
+                        <button 
+                          onClick={() => handleMoveMatchUp(idx)}
+                          disabled={idx === 0 || loading}
+                          style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}
+                        >
+                          ▲
+                        </button>
+                        <button 
+                          onClick={() => handleMoveMatchDown(idx)}
+                          disabled={idx === sortedMatches.length - 1 || loading}
+                          style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === sortedMatches.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === sortedMatches.length - 1 ? 'not-allowed' : 'pointer' }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    )}
 
                     {/* Botones: solo eliminar si inactiva, calificar si cerrada/calculada */}
                     {activeMatchday?.status === 'inactive' && (
