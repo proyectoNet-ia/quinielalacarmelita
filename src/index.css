@@ -303,6 +303,14 @@ select.form-control {
   position: relative;
 }
 
+.match-card.special-match {
+  background: rgba(30, 80, 50, 0.4);
+  border: 1px solid #1E5032;
+}
+.match-card.special-match .lev-btn {
+  background: rgba(0, 0, 0, 0.3);
+}
+
 .team-info {
   display: flex;
   flex-direction: column;

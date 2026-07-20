@@ -122,6 +122,20 @@ interface Match {
   result: 'L' | 'E' | 'V' | 'A' | null;
 }
 
+const getSpecialTitle = (match: Match): string | null => {
+  if (match.home_team && match.home_team.includes('||special::')) {
+    return match.home_team.split('||special::')[1];
+  }
+  return null;
+};
+
+const getBaseHomeTeam = (match: Match): string => {
+  if (match.home_team && match.home_team.includes('||special::')) {
+    return match.home_team.split('||special::')[0];
+  }
+  return match.home_team;
+};
+
 interface Team {
   id: string;
   name: string;
@@ -328,7 +342,7 @@ export default function App() {
 
   const getTeamName = (match: Match, isHome: boolean) => {
     const teamId = isHome ? match.home_team_id : match.away_team_id;
-    const teamNameLegacy = isHome ? match.home_team : match.away_team;
+    const teamNameLegacy = isHome ? getBaseHomeTeam(match) : match.away_team;
     if (teamId) {
       const t = teams.find(t => t.id === teamId);
       if (t) return t.name;
@@ -339,7 +353,7 @@ export default function App() {
 
   const getTeamCode = (match: Match, isHome: boolean) => {
     const teamId = isHome ? match.home_team_id : match.away_team_id;
-    const teamNameLegacy = isHome ? match.home_team : match.away_team;
+    const teamNameLegacy = isHome ? getBaseHomeTeam(match) : match.away_team;
     if (teamId) {
       const t = teams.find(t => t.id === teamId);
       if (t && t.code) return t.code.toUpperCase();
@@ -559,6 +573,7 @@ export default function App() {
   const [newHomeTeam, setNewHomeTeam] = useState('');
   const [newAwayTeam, setNewAwayTeam] = useState('');
   const [isReserveMatch, setIsReserveMatch] = useState(false);
+  const [newSpecialTitle, setNewSpecialTitle] = useState('');
   const [activationDate, setActivationDate] = useState('');
   const [firstMatchDate, setFirstMatchDate] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
@@ -2339,10 +2354,10 @@ Mis pronósticos son:
     // Criterio 3: Sin auto-partidos (local === visitante)
     const selfMatch = matches.find(m =>
       (m.home_team_id && m.home_team_id === m.away_team_id) ||
-      m.home_team.toLowerCase() === m.away_team.toLowerCase()
+      getBaseHomeTeam(m).toLowerCase() === m.away_team.toLowerCase()
     );
     if (selfMatch) {
-      showAlert('error', `Criterio 3: El partido "${selfMatch.home_team} vs ${selfMatch.away_team}" tiene el mismo equipo como local y visitante.`);
+      showAlert('error', `Criterio 3: El partido "${getBaseHomeTeam(selfMatch)} vs ${selfMatch.away_team}" tiene el mismo equipo como local y visitante.`);
       return;
     }
 
@@ -2350,10 +2365,10 @@ Mis pronósticos son:
     const allTeamIds: string[] = [];
     const allTeamNames: string[] = [];
     for (const m of matches) {
-      const homeKey = m.home_team_id || m.home_team.toLowerCase();
+      const homeKey = m.home_team_id || getBaseHomeTeam(m).toLowerCase();
       const awayKey = m.away_team_id || m.away_team.toLowerCase();
       if (allTeamIds.includes(homeKey)) {
-        showAlert('error', `Criterio 4: El equipo "${m.home_team}" aparece más de una vez en la quiniela.`);
+        showAlert('error', `Criterio 4: El equipo "${getBaseHomeTeam(m)}" aparece más de una vez en la quiniela.`);
         return;
       }
       if (allTeamIds.includes(awayKey)) {
@@ -2612,15 +2627,19 @@ Mis pronósticos son:
     }
 
     // Regla 1: Cero Duplicados
-    const duplicateMatch = matches.find(m => 
-      m.home_team.toLowerCase() === homeTrimmed.toLowerCase() || 
-      m.away_team.toLowerCase() === homeTrimmed.toLowerCase() ||
-      m.home_team.toLowerCase() === awayTrimmed.toLowerCase() ||
-      m.away_team.toLowerCase() === awayTrimmed.toLowerCase()
-    );
+    const duplicateMatch = matches.find(m => {
+      const mHome = getBaseHomeTeam(m).toLowerCase();
+      const mAway = m.away_team.toLowerCase();
+      return mHome === homeTrimmed.toLowerCase() || 
+             mAway === homeTrimmed.toLowerCase() ||
+             mHome === awayTrimmed.toLowerCase() ||
+             mAway === awayTrimmed.toLowerCase();
+    });
 
     if (duplicateMatch) {
-      const isHomeDup = duplicateMatch.home_team.toLowerCase() === homeTrimmed.toLowerCase() || duplicateMatch.away_team.toLowerCase() === homeTrimmed.toLowerCase();
+      const mHome = getBaseHomeTeam(duplicateMatch).toLowerCase();
+      const mAway = duplicateMatch.away_team.toLowerCase();
+      const isHomeDup = mHome === homeTrimmed.toLowerCase() || mAway === homeTrimmed.toLowerCase();
       const duplicateTeamName = isHomeDup ? homeTrimmed : awayTrimmed;
       showAlert('error', `Error: El equipo ${duplicateTeamName} ya está programado en esta quiniela (Partido P${matches.indexOf(duplicateMatch) + 1}).`);
       return;
@@ -2635,7 +2654,7 @@ Mis pronósticos son:
         .from('matches')
         .insert([{
           matchday_id: activeMatchday.id,
-          home_team: homeTrimmed,
+          home_team: newSpecialTitle.trim() ? `${homeTrimmed}||special::${newSpecialTitle.trim()}` : homeTrimmed,
           away_team: awayTrimmed,
           home_team_id: hTeam ? hTeam.id : null,
           away_team_id: aTeam ? aTeam.id : null,
@@ -2647,6 +2666,7 @@ Mis pronósticos son:
       setNewHomeTeam('');
       setNewAwayTeam('');
       setIsReserveMatch(false);
+      setNewSpecialTitle('');
       loadMatches(activeMatchday.id);
     } catch (err: any) {
       console.error('Error insertando partido:', err);
@@ -3431,7 +3451,7 @@ Mis pronósticos son:
 
       // Cargar logos de los equipos
       const matchLogos: Record<string, { home: string, away: string }> = {};
-      for (const m of mData) {
+      for (const m of matchesData || []) {
         const hl = getTeamLogo(m, true);
         const al = getTeamLogo(m, false);
         let hb = '';
@@ -3517,9 +3537,9 @@ Mis pronósticos son:
               } catch (e) {}
             }
           }
-          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
             const matchIdx = data.column.index - 2;
-            const match = mData[matchIdx];
+            const match = currentMatches[matchIdx];
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             const shiftX = 2; // Desplazamiento a la derecha para centrar visualmente
@@ -3599,7 +3619,7 @@ Mis pronósticos son:
     try {
       // Cargar logos de los equipos
       const matchLogos: Record<string, { home: string, away: string }> = {};
-      for (const m of mData) {
+      for (const m of matches) {
         const hl = getTeamLogo(m, true);
         const al = getTeamLogo(m, false);
         let hb = '';
@@ -3708,9 +3728,9 @@ Mis pronósticos son:
               } catch (e) {}
             }
           }
-          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + mData.length) {
+          if (data.section === 'head' && data.column.index >= 2 && data.column.index < 2 + matches.length) {
             const matchIdx = data.column.index - 2;
-            const match = mData[matchIdx];
+            const match = matches[matchIdx];
             const cell = data.cell;
             const centerX = cell.x + cell.width / 2;
             const shiftX = 2; // Desplazamiento a la derecha para centrar visualmente
@@ -3799,7 +3819,7 @@ Mis pronósticos son:
       // 2. Pre-cargar imágenes asíncronas para el Canvas
       const getTeamLogoUrl = (match: Match, isHome: boolean) => {
         const teamId = isHome ? match.home_team_id : match.away_team_id;
-        const teamNameLegacy = isHome ? match.home_team : match.away_team;
+        const teamNameLegacy = isHome ? getBaseHomeTeam(match) : match.away_team;
         if (teamId) {
           const t = teams.find(t => t.id === teamId);
           if (t) return t.logo_url;
@@ -4037,7 +4057,7 @@ Mis pronósticos son:
   };
 
   // Equipos disponibles para agregar a la quiniela
-  const unusedTeams = teams.filter(t => !matches.some(m => m.home_team_id === t.id || m.away_team_id === t.id || m.home_team === t.name || m.away_team === t.name));
+  const unusedTeams = teams.filter(t => !matches.some(m => m.home_team_id === t.id || m.away_team_id === t.id || getBaseHomeTeam(m) === t.name || m.away_team === t.name));
   const availableHomeTeams = unusedTeams.filter(t => t.name !== newAwayTeam);
   const availableAwayTeams = unusedTeams.filter(t => t.name !== newHomeTeam);
 
@@ -4647,11 +4667,18 @@ Mis pronósticos son:
                                 globalIdx++;
                                 const idx = globalIdx - 1;
                                 return (
-                                    <div className="match-card" key={match.id}>
+                                    <div className={`match-card ${getSpecialTitle(match) ? 'special-match' : ''}`} key={match.id}>
                                       {/* Indicador de partido */}
-                                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10 }}>
-                                        <span style={{ background: 'var(--border-color)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem', fontWeight: '800' }}>
-                                          P{idx + 1}
+                                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap' }}>
+                                        <span style={{ 
+                                          background: getSpecialTitle(match) ? '#1E5032' : 'var(--border-color)', 
+                                          color: getSpecialTitle(match) ? 'white' : 'var(--text-primary)',
+                                          padding: '2px 8px', 
+                                          borderRadius: 'var(--radius-sm)', 
+                                          fontSize: '0.65rem', 
+                                          fontWeight: '800' 
+                                        }}>
+                                          P{idx + 1} {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}
                                         </span>
                                       </div>
               
@@ -4704,15 +4731,19 @@ Mis pronósticos son:
                                 </div>
                                 {reserveMatches.map(match => {
                                   globalIdx++;
-                                  const idx = globalIdx - 1;
                                   return (
-                                    <div className="match-card" key={match.id}>
-                                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10 }}>
-                                        <span style={{ background: 'var(--border-color)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem', fontWeight: '800' }}>
-                                          P{idx + 1}
-                                        </span>
-                                        <span style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem', fontWeight: '800', boxShadow: '0 0 10px rgba(255,193,7,0.3)' }} title="Aplica solo como desempate si se anula algún partido">
-                                          EXTRA
+                                    <div className={`match-card ${getSpecialTitle(match) ? 'special-match' : ''}`} key={match.id}>
+                                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap' }}>
+                                        <span style={{ 
+                                          background: getSpecialTitle(match) ? '#1E5032' : 'rgba(239, 68, 68, 0.2)', 
+                                          color: getSpecialTitle(match) ? 'white' : 'var(--danger)',
+                                          border: getSpecialTitle(match) ? 'none' : '1px solid rgba(239, 68, 68, 0.5)',
+                                          padding: '2px 8px', 
+                                          borderRadius: 'var(--radius-sm)', 
+                                          fontSize: '0.65rem', 
+                                          fontWeight: '800' 
+                                        }}>
+                                          P{globalIdx} (Reserva) {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}
                                         </span>
                                       </div>
                                       <div className="lev-group">
@@ -6287,6 +6318,17 @@ Mis pronósticos son:
                     <label htmlFor="reserveMatch" style={{ margin: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                       Marcar como Partido Extra de Reserva (Desempate)
                     </label>
+                  </div>
+                  <div className="form-group" style={{ marginTop: '16px' }}>
+                    <label>Título Especial (Opcional)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ej. Campeón de Campeones"
+                      value={newSpecialTitle}
+                      onChange={e => setNewSpecialTitle(e.target.value)}
+                    />
+                    <small style={{ color: 'var(--text-muted)' }}>Esto le dará un color especial al partido (Ej. P6 - Campeón de Campeones).</small>
                   </div>
                   <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }}>
                     Agregar Partido
