@@ -305,7 +305,7 @@ select.form-control {
 
 .match-card.special-match {
   background: rgba(30, 80, 50, 0.4);
-  border: 1px solid #1E5032;
+  border: 1px solid var(--accent);
 }
 .match-card.special-match .lev-btn {
   background: rgba(0, 0, 0, 0.3);
