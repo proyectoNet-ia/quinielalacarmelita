@@ -4572,7 +4572,13 @@ Mis pronósticos son:
                       <div className={`mobile-tab-content ${closedMobileTab === 'matches' ? 'active-tab' : ''}`} style={{ flex: '1 1 600px' }}>
 
                         {activeMatchday?.status === 'active' && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
+                          <>
+                            <div style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '12px', borderRadius: 'var(--radius-md)', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                              <Clock size={18} color="var(--accent)" />
+                              <span style={{ color: '#fff', fontSize: '1rem' }}>Cierre programado en:</span>
+                              <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.1rem' }}>{getRemainingTime(activeMatchday.deadline)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
                         <button 
                           className="btn btn-secondary" 
                           onClick={handleClearQuiniela}
