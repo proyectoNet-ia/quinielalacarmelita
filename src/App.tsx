@@ -6406,6 +6406,35 @@ Mis pronósticos son:
                       </div>
                     )}
 
+                    {/* Botón para Editar Título Especial (solo inactiva o activa) */}
+                    {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
+                      <button
+                        className="lev-btn"
+                        style={{ background: 'var(--bg-main)', color: 'var(--primary)', borderColor: 'var(--primary)', padding: '4px 8px', width: 'auto', flex: '0 0 auto' }}
+                        title="Editar Título Especial"
+                        onClick={async () => {
+                          const currentTitle = getSpecialTitle(match) || '';
+                          const newTitle = window.prompt('Ingresa el nuevo título especial (o déjalo en blanco para quitarlo):', currentTitle);
+                          if (newTitle !== null) {
+                            const cleanTitle = newTitle.trim();
+                            const baseTeam = getBaseHomeTeam(match);
+                            const newHomeTeam = cleanTitle ? `${baseTeam}||special::${cleanTitle}` : baseTeam;
+                            try {
+                              setLoading(true);
+                              const { error } = await supabase.from('matches').update({ home_team: newHomeTeam }).eq('id', match.id);
+                              if (error) throw error;
+                              loadMatches(activeMatchday.id);
+                            } catch (e) {
+                              alert('Error al actualizar: ' + (e as Error).message);
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                      >
+                        <Edit2 size={14} style={{ marginRight: '4px' }} /> Título Especial
+                      </button>
+                    )}
+
                     {/* Botones: solo eliminar si inactiva, calificar si cerrada/calculada */}
                     {activeMatchday?.status === 'inactive' && (
                       <button
