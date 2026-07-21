@@ -4882,8 +4882,8 @@ Mis pronósticos son:
                                   onChange={e => {
                                     const val = e.target.value;
                                     setCartParticipantName(val);
-                                    // Solo permite letras (incluyendo acentos y ñ), espacios, guiones, apóstrofes y puntos
-                                    const validName = /^[a-zA-Zà-ÿÀ-ÿñÑ\s\-\.'´]*$/.test(val);
+                                    // Solo permite letras (incluyendo acentos y ñ), números, espacios, guiones, apóstrofes y puntos
+                                    const validName = /^[a-zA-Z0-9à-ÿÀ-ÿñÑ\s\-\.'´]*$/.test(val);
                                     setNameInvalidError(!validName && val.length > 0);
                                   }} 
                                   className="form-control" 
@@ -4892,7 +4892,7 @@ Mis pronósticos son:
                                 {nameInvalidError && (
                                   <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '6px', marginBottom: '0', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                                     <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-                                    <span>El nombre solo puede contener letras, espacios, guiones ( - ) y puntos ( . ). No se permiten símbolos especiales.</span>
+                                    <span>El nombre solo puede contener letras, números, espacios, guiones ( - ) y puntos ( . ). No se permiten símbolos especiales.</span>
                                   </p>
                                 )}
                                 {nameExistsWarning && !nameInvalidError && (
