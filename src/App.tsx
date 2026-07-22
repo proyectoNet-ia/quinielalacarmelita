@@ -1754,6 +1754,8 @@ export default function App() {
       if (predErr) throw predErr;
       
       let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.
+Código de Referencia: ${refId}
+
 Mis pronósticos son:
 `;
       cart.forEach((selections, idx) => {
@@ -4600,6 +4602,28 @@ Mis pronósticos son:
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
                       Solicita la información para realizar tu pago al siguiente número:
                     </p>
+
+                    {/* Vista Previa del Mensaje de WhatsApp */}
+                    <div style={{ margin: '16px auto 20px', padding: '14px', background: 'rgba(37, 211, 102, 0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(37, 211, 102, 0.3)', width: '100%', maxWidth: '400px', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#25D366', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <MessageCircle size={14} /> Mensaje para WhatsApp:
+                        </span>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(successMessageText);
+                            showAlert('success', 'Mensaje de WhatsApp copiado al portapapeles');
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: '#25D366', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}
+                          title="Copiar mensaje"
+                        >
+                          <Copy size={12} /> Copiar
+                        </button>
+                      </div>
+                      <pre style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontFamily: 'inherit', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        {successMessageText}
+                      </pre>
+                    </div>
 
                     <button 
                       onClick={() => {
