@@ -23,6 +23,7 @@ import {
   DollarSign, 
   Users, 
   Calendar, 
+  Eye,
   RefreshCw,
   ArrowLeft,
   Image as ImageIcon,
@@ -723,7 +724,7 @@ export default function App() {
         loadParticipants();
       }
     }
-    if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history')) {
+    if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history' || activeTab === 'admin-participants')) {
       loadFinancialData();
     }
     if (isAdmin && (activeTab === 'admin-matchdays' || activeTab === 'admin-teams' || activeTab === 'admin-leagues')) {
@@ -2171,6 +2172,34 @@ Mis pronósticos son:
       showAlert('error', 'Error al validar el pago.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openGroupDetailsModal = async (pools: Pool[], participant: any, paymentReceiptUrl?: string) => {
+    try {
+      const poolIds = pools.map(p => p.id);
+      const missingPoolIds = poolIds.filter(id => !predictionsByPool[id]);
+      if (missingPoolIds.length > 0) {
+        const { data: predData } = await supabase
+          .from('predictions')
+          .select('*')
+          .in('pool_id', missingPoolIds);
+        if (predData && predData.length > 0) {
+          const map: Record<string, Record<string, string>> = {};
+          predData.forEach(p => {
+            if (!map[p.pool_id]) map[p.pool_id] = {};
+            map[p.pool_id][p.match_id] = p.selection;
+          });
+          setPredictionsByPool(prev => ({ ...prev, ...map }));
+        }
+      }
+      setSelectedDetailsGroup({
+        participant,
+        pools,
+        paymentReceiptUrl: paymentReceiptUrl || pools[0]?.payment_receipt_url
+      });
+    } catch (err) {
+      console.error('Error al abrir modal de detalles:', err);
     }
   };
 
@@ -5392,10 +5421,18 @@ Mis pronósticos son:
                               </div>
 
                               {/* Botones de Acción */}
-                              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%', marginTop: '8px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%', marginTop: '8px', flexWrap: 'wrap' }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '8px 12px', fontSize: '0.85rem', flex: '1 1 120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid var(--border-color)' }}
+                                  onClick={() => openGroupDetailsModal(batch, primaryParticipant, batch[0]?.payment_receipt_url)}
+                                  title="Ver Pronósticos en Modal"
+                                >
+                                  <Eye size={14} /> Ver Pronósticos
+                                </button>
                                 <button 
                                   className="btn btn-primary" 
-                                  style={{ padding: '8px', fontSize: '0.85rem', flex: 1, display: 'flex', justifyContent: 'center' }}
+                                  style={{ padding: '8px', fontSize: '0.85rem', flex: '1 1 120px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                   onClick={() => {
                                     if (code.startsWith('INDIVIDUAL_')) {
                                       const poolId = code.replace('INDIVIDUAL_', '');
@@ -5409,7 +5446,7 @@ Mis pronósticos son:
                                 </button>
                                 <button 
                                   className="btn btn-danger" 
-                                  style={{ padding: '8px', fontSize: '0.85rem', border: 'none', flex: 1, display: 'flex', justifyContent: 'center' }}
+                                  style={{ padding: '8px', fontSize: '0.85rem', border: 'none', flex: '1 1 120px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                   onClick={() => {
                                     if (code.startsWith('INDIVIDUAL_')) {
                                       const poolId = code.replace('INDIVIDUAL_', '');
@@ -5427,7 +5464,7 @@ Mis pronósticos son:
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="btn btn-secondary"
-                                    style={{ padding: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', background: '#25D366', color: 'white', border: 'none', flex: 1 }}
+                                    style={{ padding: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', background: '#25D366', color: 'white', border: 'none', flex: '1 1 120px' }}
                                     title="Contactar por WhatsApp"
                                   >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
@@ -7222,68 +7259,148 @@ Mis pronósticos son:
               </div>
               
               <div style={{ overflowX: 'auto' }}>
-                <table className="leaderboard-table" style={{ marginTop: '10px', minWidth: '600px' }}>
+                <table className="leaderboard-table" style={{ marginTop: '10px', minWidth: '750px' }}>
                   <thead>
                     <tr>
-                      <th>Nombre</th>
-                      <th>Alias</th>
-                      <th>WhatsApp</th>
-                      <th style={{ textAlign: 'center' }}>Contacto</th>
+                      <th>Participante</th>
+                      <th>Alias / WhatsApp</th>
+                      <th>Quinielas (A/P)</th>
+                      <th>Total Aprobado</th>
+                      <th>Total Pendiente</th>
                       <th style={{ textAlign: 'center' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedParticipants.length === 0 ? (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No se encontraron participantes.</td></tr>
+                      <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No se encontraron participantes.</td></tr>
                     ) : (
-                      paginatedParticipants.map(p => (
-                        <tr key={p.id}>
-                          <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
-                          <td>@{p.alias}</td>
-                          <td>
-                            {p.phone === 'BOT-0000' ? (
-                              <span style={{ backgroundColor: 'var(--primary-dark)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' }}>BOT Generado</span>
-                            ) : p.phone}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {p.phone !== 'BOT-0000' && (
-                              <a 
-                                href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn"
-                                style={{ 
-                                  background: 'rgba(37, 211, 102, 0.1)', 
-                                  color: '#25D366', 
-                                  border: '1px solid #25D366', 
-                                  padding: '6px 12px', 
-                                  fontSize: '0.8rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  textDecoration: 'none'
-                                }}
-                              >
-                                <MessageCircle size={14} /> Mensaje
-                              </a>
+                      paginatedParticipants.map(p => {
+                        const userPools = financialPools.filter(pool => pool.participant_id === p.id);
+                        const userApp = userPools.filter(pool => pool.payment_status === 'approved');
+                        const userPen = userPools.filter(pool => pool.payment_status === 'pending');
+                        const totalSpent = userApp.reduce((acc, curr) => acc + Number(curr.cost), 0);
+                        const totalPending = userPen.reduce((acc, curr) => acc + Number(curr.cost), 0);
+                        const isExpanded = expandedParticipantId === p.id;
+
+                        return (
+                          <React.Fragment key={p.id}>
+                            <tr>
+                              <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
+                              <td>
+                                <div>@{p.alias}</div>
+                                {p.phone === 'BOT-0000' ? (
+                                  <span style={{ backgroundColor: 'var(--primary-dark)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>BOT Generado</span>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    <span>{p.phone}</span>
+                                    <a 
+                                      href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center' }}
+                                      title="Enviar WhatsApp"
+                                    >
+                                      <MessageCircle size={14} />
+                                    </a>
+                                  </div>
+                                )}
+                              </td>
+                              <td>{userApp.length} / {userPen.length}</td>
+                              <td style={{ color: 'var(--primary)', fontWeight: '600' }}>${totalSpent.toFixed(2)}</td>
+                              <td style={{ color: '#ffb300' }}>${totalPending.toFixed(2)}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <button 
+                                    className="btn btn-primary" 
+                                    style={{ width: 'auto', padding: '6px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    onClick={() => handleExportParticipantStatementPDF(p, userPools)}
+                                    title="Exportar Estado de Cuenta PDF"
+                                  >
+                                    <FileText size={12} /> PDF
+                                  </button>
+                                  <button 
+                                    className="btn" 
+                                    style={{ 
+                                      width: 'auto', 
+                                      padding: '6px 10px', 
+                                      fontSize: '0.75rem', 
+                                      background: 'rgba(255,255,255,0.08)', 
+                                      color: 'white', 
+                                      border: '1px solid var(--border-color)',
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={() => setExpandedParticipantId(isExpanded ? null : p.id)}
+                                  >
+                                    {isExpanded ? 'Ocultar' : 'Ver Detalle'}
+                                  </button>
+                                  <button 
+                                    className="btn btn-secondary"
+                                    style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    onClick={() => {
+                                      setEditingParticipant(p);
+                                      setEditParticipantName(p.name);
+                                      setEditParticipantAlias(p.alias);
+                                      setEditParticipantPhone(p.phone);
+                                    }}
+                                  >
+                                    <Edit size={12} /> Editar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Fila desplegable con detalle de quinielas */}
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={6} style={{ padding: '0px', background: 'rgba(0,0,0,0.15)' }}>
+                                  <div style={{ padding: '12px 16px', borderLeft: '3px solid var(--primary)' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px', color: 'var(--primary)' }}>
+                                      Historial de Compras de {p.name}
+                                    </h4>
+                                    {userPools.length === 0 ? (
+                                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No registra apuestas registradas.</p>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {userPools.map((pool, index) => {
+                                          const matchdayNum = financialMatchdays.find(m => m.id === pool.matchday_id)?.number || 'N/A';
+                                          return (
+                                            <div 
+                                              key={pool.id} 
+                                              style={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                alignItems: 'center', 
+                                                padding: '6px 12px', 
+                                                background: 'rgba(255,255,255,0.03)', 
+                                                border: '1px solid rgba(255,255,255,0.05)',
+                                                borderRadius: '4px',
+                                                fontSize: '0.75rem',
+                                                flexWrap: 'wrap',
+                                                gap: '8px'
+                                              }}
+                                            >
+                                              <span><strong>Apuesta #{index + 1}</strong> (Quiniela {matchdayNum})</span>
+                                              <span>Registrada: {new Date(pool.created_at).toLocaleDateString()}</span>
+                                              <span>Monto: ${Number(pool.cost).toFixed(2)} MXN</span>
+                                              <span>Puntos: {pool.score} pts</span>
+                                              <span style={{ 
+                                                fontWeight: '700', 
+                                                color: pool.payment_status === 'approved' ? 'var(--primary)' : pool.payment_status === 'pending' ? '#ffb300' : 'var(--danger)'
+                                              }}>
+                                                {pool.payment_status === 'approved' ? 'APROBADO' : pool.payment_status === 'pending' ? (pool.payment_receipt_url ? 'EN REVISIÓN' : 'PENDIENTE') : 'RECHAZADO'}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              className="btn btn-secondary"
-                              style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                              onClick={() => {
-                                setEditingParticipant(p);
-                                setEditParticipantName(p.name);
-                                setEditParticipantAlias(p.alias);
-                                setEditParticipantPhone(p.phone);
-                              }}
-                            >
-                              <Edit size={14} /> Editar
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                          </React.Fragment>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -7697,130 +7814,89 @@ Mis pronósticos son:
                 </div>
               )}
 
-              {/* Listado de Clientes y Estados de Cuenta */}
+              {/* Tabla de Rentabilidad de las Últimas 5 Quinielas */}
               <div className="card" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                  <h3>Detalle por Participante</h3>
-                  <input 
-                    type="text" 
-                    placeholder="Buscar participante..." 
-                    className="form-control" 
-                    style={{ width: '220px', padding: '6px 12px', fontSize: '0.85rem' }}
-                    value={finSearchQuery}
-                    onChange={e => setFinSearchQuery(e.target.value)}
-                  />
+                  <h3>Rentabilidad de las Últimas 5 Quinielas</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Resumen financiero acumulado reciente</span>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                  <table className="leaderboard-table" style={{ minWidth: '600px' }}>
+                  <table className="leaderboard-table" style={{ minWidth: '700px' }}>
                     <thead>
                       <tr>
-                        <th>Participante</th>
-                        <th>Alias</th>
-                        <th>Quinielas (A/P)</th>
-                        <th>Total Aprobado</th>
-                        <th>Total Pendiente</th>
-                        <th>Acciones</th>
+                        <th>Quiniela</th>
+                        <th>Estado</th>
+                        <th>Vendidas (Aprobadas / Pendientes)</th>
+                        <th>Ingreso Aprobado</th>
+                        <th>Bolsa de Premios</th>
+                        <th>Utilidad Casa</th>
+                        <th>Margen %</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredParticipants.map(p => {
-                        const userPools = selectedFinMatchdayId === 'all'
-                          ? financialPools.filter(pool => pool.participant_id === p.id)
-                          : financialPools.filter(pool => pool.participant_id === p.id && pool.matchday_id === selectedFinMatchdayId);
-                        
-                        const userApp = userPools.filter(pool => pool.payment_status === 'approved');
-                        const userPen = userPools.filter(pool => pool.payment_status === 'pending');
-                        const totalSpent = userApp.reduce((acc, curr) => acc + Number(curr.cost), 0);
-                        const totalPending = userPen.reduce((acc, curr) => acc + Number(curr.cost), 0);
-                        const isExpanded = expandedParticipantId === p.id;
+                      {financialMatchdays.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                            No hay quinielas disponibles.
+                          </td>
+                        </tr>
+                      ) : (
+                        [...financialMatchdays].slice(-5).reverse().map(m => {
+                          const mPools = financialPools.filter(p => p.matchday_id === m.id);
+                          const appPools = mPools.filter(p => p.payment_status === 'approved');
+                          const penPools = mPools.filter(p => p.payment_status === 'pending');
+                          const approvedIncome = appPools.reduce((acc, curr) => acc + Number(curr.cost), 0);
+                          
+                          const prizePool = m.prize_type === 'fixed'
+                            ? (Number(m.fixed_prize_1st) || 0) + (Number(m.fixed_prize_2nd) || 0)
+                            : approvedIncome * (prizePercentage / 100);
+                          
+                          const houseProfit = approvedIncome - prizePool;
+                          const marginPct = approvedIncome > 0 ? ((houseProfit / approvedIncome) * 100).toFixed(1) : '0.0';
 
-                        return (
-                          <React.Fragment key={p.id}>
-                            <tr>
-                              <td style={{ color: 'white', fontWeight: '600' }}>{p.name}</td>
-                              <td>@{p.alias}</td>
-                              <td>{userApp.length} / {userPen.length}</td>
-                              <td style={{ color: 'var(--primary)', fontWeight: '600' }}>${totalSpent.toFixed(2)}</td>
-                              <td style={{ color: '#ffb300' }}>${totalPending.toFixed(2)}</td>
+                          return (
+                            <tr key={m.id}>
+                              <td style={{ color: 'white', fontWeight: '700' }}>Quiniela N° {m.number}</td>
                               <td>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <button 
-                                    className="btn btn-primary" 
-                                    style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                    onClick={() => handleExportParticipantStatementPDF(p, userPools)}
-                                  >
-                                    <FileText size={12} /> PDF
-                                  </button>
-                                  <button 
-                                    className="btn" 
-                                    style={{ 
-                                      width: 'auto', 
-                                      padding: '8px 12px', 
-                                      fontSize: '0.75rem', 
-                                      background: 'rgba(255,255,255,0.08)', 
-                                      color: 'white', 
-                                      border: '1px solid var(--border-color)',
-                                      cursor: 'pointer'
-                                    }}
-                                    onClick={() => setExpandedParticipantId(isExpanded ? null : p.id)}
-                                  >
-                                    {isExpanded ? 'Ocultar' : 'Ver Detalle'}
-                                  </button>
-                                </div>
+                                <span style={{ 
+                                  padding: '2px 8px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '0.75rem',
+                                  fontWeight: '700',
+                                  background: m.status === 'active' ? 'rgba(38, 115, 71, 0.4)' : m.status === 'closed' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.08)',
+                                  color: m.status === 'active' ? 'var(--primary)' : m.status === 'closed' ? '#F59E0B' : 'var(--text-muted)'
+                                }}>
+                                  {m.status.toUpperCase()}
+                                </span>
+                              </td>
+                              <td>
+                                <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{appPools.length} Aprobadas</span>
+                                {penPools.length > 0 && (
+                                  <span style={{ color: '#ffb300', marginLeft: '6px' }}>/ {penPools.length} Pendientes</span>
+                                )}
+                              </td>
+                              <td style={{ color: 'var(--primary)', fontWeight: '700' }}>
+                                ${approvedIncome.toFixed(2)} MXN
+                              </td>
+                              <td style={{ color: '#E0B828', fontWeight: '600' }}>
+                                ${prizePool.toFixed(2)} MXN
+                              </td>
+                              <td style={{ fontWeight: '800', color: houseProfit >= 0 ? 'var(--primary)' : 'var(--danger)' }}>
+                                {houseProfit >= 0 ? `+$${houseProfit.toFixed(2)}` : `-$${Math.abs(houseProfit).toFixed(2)}`} MXN
+                              </td>
+                              <td>
+                                <span style={{ 
+                                  fontWeight: '700', 
+                                  color: Number(marginPct) >= 0 ? 'var(--primary)' : 'var(--danger)' 
+                                }}>
+                                  {marginPct}%
+                                </span>
                               </td>
                             </tr>
-
-                            {/* Fila desplegable con detalle de apuestas */}
-                            {isExpanded && (
-                              <tr>
-                                <td colSpan={6} style={{ padding: '0px', background: 'rgba(0,0,0,0.15)' }}>
-                                  <div style={{ padding: '12px 16px', borderLeft: '3px solid var(--primary)' }}>
-                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px', color: 'var(--primary)' }}>
-                                      Historial de Compras de {p.name}
-                                    </h4>
-                                    {userPools.length === 0 ? (
-                                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No registra apuestas en esta selección.</p>
-                                    ) : (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        {userPools.map((pool, index) => {
-                                          const matchdayNum = financialMatchdays.find(m => m.id === pool.matchday_id)?.number || 'N/A';
-                                          return (
-                                            <div 
-                                              key={pool.id} 
-                                              style={{ 
-                                                display: 'flex', 
-                                                justifyContent: 'space-between', 
-                                                alignItems: 'center', 
-                                                padding: '6px 12px', 
-                                                background: 'rgba(255,255,255,0.03)', 
-                                                border: '1px solid rgba(255,255,255,0.05)',
-                                                borderRadius: '4px',
-                                                fontSize: '0.75rem' 
-                                              }}
-                                            >
-                                              <span><strong>Apuesta #{index + 1}</strong> (Quiniela {matchdayNum})</span>
-                                              <span>Registrada: {new Date(pool.created_at).toLocaleDateString()}</span>
-                                              <span>Monto: ${Number(pool.cost).toFixed(2)} MXN</span>
-                                              <span>Puntos: {pool.score} pts</span>
-                                              <span style={{ 
-                                                fontWeight: '700', 
-                                                color: pool.payment_status === 'approved' ? 'var(--primary)' : pool.payment_status === 'pending' ? '#ffb300' : 'var(--danger)'
-                                              }}>
-                                                {pool.payment_status === 'approved' ? 'APROBADO' : pool.payment_status === 'pending' ? (pool.payment_receipt_url ? 'EN REVISIÓN' : 'PENDIENTE') : 'RECHAZADO'}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
