@@ -4985,7 +4985,12 @@ Mis pronósticos son:
                                   <p style={{ fontSize: '0.85rem', color: 'var(--danger)', margin: 0, fontWeight: '500' }}>* Debes añadir mínimo 2 quinielas para participar.</p>
                                 </div>
                               )}
-                              <button type="submit" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} disabled={cart.length < 2 || loading || nameExistsWarning || nameInvalidError}>
+                              <button 
+                                type="submit" 
+                                className={`btn btn-primary ${cart.length >= 2 && !nameExistsWarning && !nameInvalidError && !loading ? 'btn-attention-glow' : ''}`} 
+                                style={{ width: '100%', background: 'var(--accent)', color: 'var(--bg-main)' }} 
+                                disabled={cart.length < 2 || loading || nameExistsWarning || nameInvalidError}
+                              >
                                 {loading ? 'Enviando...' : 'Enviar Mis Quinielas'}
                               </button>
                             </form>
