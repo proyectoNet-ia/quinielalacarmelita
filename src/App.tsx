@@ -307,7 +307,7 @@ export default function App() {
   // --- Estados de Dashboard Financiero ---
   const [financialPools, setFinancialPools] = useState<Pool[]>([]);
   const [financialMatchdays, setFinancialMatchdays] = useState<Matchday[]>([]);
-  const [selectedFinMatchdayId, setSelectedFinMatchdayId] = useState<string>('all');
+  const [selectedFinMatchdayId, setSelectedFinMatchdayId] = useState<string>('');
   const [prizePercentage, setPrizePercentage] = useState<number>(80);
   const [matchdayPrice, setMatchdayPrice] = useState<number>(25);
   const [matchdayPrizeType, setMatchdayPrizeType] = useState<'percentage' | 'fixed'>('percentage');
@@ -1053,6 +1053,18 @@ export default function App() {
       setFinancialMatchdays(mData || []);
 
       if (mData && mData.length > 0) {
+        // Seleccionar por defecto la quiniela activa más próxima a jugarse (active -> closed -> última)
+        const activeOrUpcoming = mData.find(m => m.status === 'active') || 
+                                 mData.find(m => m.status === 'closed') || 
+                                 mData[mData.length - 1];
+
+        setSelectedFinMatchdayId(prev => {
+          if (!prev || (prev !== 'all' && !mData.some(m => m.id === prev))) {
+            return activeOrUpcoming ? activeOrUpcoming.id : 'all';
+          }
+          return prev;
+        });
+
         // 2. Cargar todas las quinielas de estas quinielas
         const matchdayIds = mData.map(m => m.id);
         const { data: pData, error: pErr } = await supabase
