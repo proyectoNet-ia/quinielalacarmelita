@@ -755,7 +755,6 @@ select.form-control {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
 }
 
 .sidebar-menu-item {
