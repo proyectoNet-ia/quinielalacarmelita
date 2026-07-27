@@ -5412,23 +5412,40 @@ Mis pronósticos son:
                             </div>
                           ))}
                           <div style={{ borderTop: '1px solid var(--border-color)', margin: '16px 0', paddingTop: '16px' }}>
-                            {/* Bloque de Código Promocional */}
-                            <div style={{ marginBottom: '16px', background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                                <Tag size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                                Código de Promoción
-                              </label>
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                            {/* Bloque de Código Promocional Destacado */}
+                            <div className="promo-box-glow" style={{ marginBottom: '16px', padding: '14px', borderRadius: 'var(--radius-md)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent)', margin: 0 }}>
+                                  <Tag size={16} className="promo-tag-icon-bounce" />
+                                  <span>¿Tienes un Código Promo?</span>
+                                </label>
+                                {appliedPromoCode && (
+                                  <span style={{ fontSize: '0.7rem', fontWeight: '800', background: 'var(--accent)', color: '#000', padding: '2px 8px', borderRadius: '10px' }}>
+                                    ¡APLICADO! 🎉
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px', position: 'relative', zIndex: 2 }}>
                                 <input 
                                   type="text" 
-                                  placeholder="Ej. PROMO2026" 
+                                  placeholder="EJ. PROMO2026" 
                                   value={promoInputCode} 
                                   onChange={e => {
                                     setPromoInputCode(e.target.value.toUpperCase());
                                     if (promoFeedback) setPromoFeedback(null);
                                   }}
                                   className="form-control"
-                                  style={{ background: 'var(--bg-main)', textTransform: 'uppercase', flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
+                                  style={{ 
+                                    background: 'rgba(0,0,0,0.6)', 
+                                    color: '#fff', 
+                                    borderColor: 'rgba(234, 179, 8, 0.4)', 
+                                    textTransform: 'uppercase', 
+                                    flex: 1, 
+                                    padding: '9px 12px', 
+                                    fontSize: '0.85rem',
+                                    fontWeight: 'bold',
+                                    letterSpacing: '1px'
+                                  }}
                                 />
                                 {appliedPromoCode ? (
                                   <button 
@@ -5439,16 +5456,16 @@ Mis pronósticos son:
                                       setPromoInputCode('');
                                       setPromoFeedback(null);
                                     }}
-                                    style={{ width: 'auto', padding: '6px 12px', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '0.8rem' }}
+                                    style={{ width: 'auto', padding: '6px 12px', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '0.8rem', fontWeight: 'bold' }}
                                   >
                                     Quitar
                                   </button>
                                 ) : (
                                   <button 
                                     type="button" 
-                                    className="btn btn-primary" 
+                                    className="btn btn-primary btn-attention-glow" 
                                     onClick={handleApplyPromoCode}
-                                    style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
+                                    style={{ width: 'auto', padding: '6px 16px', fontSize: '0.85rem', background: 'var(--accent)', color: '#000', fontWeight: 'bold' }}
                                   >
                                     Aplicar
                                   </button>
@@ -5456,14 +5473,15 @@ Mis pronósticos son:
                               </div>
                               {promoFeedback && (
                                 <p style={{ 
-                                  color: promoFeedback.type === 'success' ? 'var(--primary)' : 'var(--danger)', 
-                                  fontSize: '0.78rem', 
-                                  marginTop: '6px', 
+                                  color: promoFeedback.type === 'success' ? '#25D366' : 'var(--danger)', 
+                                  fontSize: '0.8rem', 
+                                  marginTop: '8px', 
                                   marginBottom: '0', 
                                   display: 'flex', 
                                   alignItems: 'center', 
                                   gap: '4px',
                                   fontWeight: 'bold'
+                                }}>
                                 }}>
                                   {promoFeedback.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
                                   <span>{promoFeedback.message}</span>

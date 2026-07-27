@@ -835,6 +835,60 @@ select.form-control {
   }
 }
 
+/* --- EFECTO DESTACADO PARA CÓDIGO PROMOCIONAL --- */
+@keyframes promoBoxGlowPulse {
+  0% {
+    border-color: rgba(234, 179, 8, 0.5);
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.3), inset 0 0 8px rgba(234, 179, 8, 0.15);
+  }
+  50% {
+    border-color: rgba(234, 179, 8, 1);
+    box-shadow: 0 0 22px 6px rgba(234, 179, 8, 0.65), inset 0 0 15px rgba(234, 179, 8, 0.3);
+  }
+  100% {
+    border-color: rgba(234, 179, 8, 0.5);
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.3), inset 0 0 8px rgba(234, 179, 8, 0.15);
+  }
+}
+
+@keyframes promoTagBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-10deg); color: #ffd700; }
+}
+
+.promo-box-glow {
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(234, 179, 8, 0.7) !important;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.14) 0%, rgba(15, 35, 20, 0.9) 100%) !important;
+  animation: promoBoxGlowPulse 2.4s infinite ease-in-out !important;
+  transition: all 0.3s ease;
+}
+
+.promo-box-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 215, 0, 0.45),
+    transparent
+  );
+  transform: rotate(25deg);
+  animation: buttonShineSweep 3.2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+.promo-tag-icon-bounce {
+  display: inline-block;
+  animation: promoTagBounce 2s infinite ease-in-out;
+  color: var(--accent);
+}
+
 .btn-attention-glow {
   position: relative !important;
   overflow: hidden !important;
