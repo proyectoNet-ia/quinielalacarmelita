@@ -5482,7 +5482,6 @@ Mis pronósticos son:
                                   gap: '4px',
                                   fontWeight: 'bold'
                                 }}>
-                                }}>
                                   {promoFeedback.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
                                   <span>{promoFeedback.message}</span>
                                 </p>
