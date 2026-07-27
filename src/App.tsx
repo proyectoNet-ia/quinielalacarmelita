@@ -1172,7 +1172,7 @@ export default function App() {
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Error cargando códigos de promoción:', error);
-        if (error.code === '42P01' || error.message?.includes('404') || error.message?.includes('does not exist') || (error as any).status === 404) {
+        if (error.code === '42P01' || error.code === '42501' || error.message?.includes('404') || error.message?.includes('403') || error.message?.includes('does not exist') || (error as any).status === 404 || (error as any).status === 403) {
           setIsPromoTableMissing(true);
         }
       } else {
@@ -1219,13 +1219,13 @@ export default function App() {
       loadPromoCodes();
     } catch (err: any) {
       console.error('Error creando código promo:', err);
-      if (err?.code === '42P01' || err?.message?.includes('does not exist') || err?.status === 404) {
+      if (err?.code === '42P01' || err?.code === '42501' || err?.message?.includes('does not exist') || err?.status === 404 || err?.status === 403 || err?.message?.includes('403')) {
         setIsPromoTableMissing(true);
-        showAlert('error', 'La tabla "promo_codes" no existe aún en Supabase. Ejecuta la migración SQL.');
+        showAlert('error', 'Permiso denegado o tabla faltante en Supabase (Error 403/404). Ejecuta el script SQL en Supabase.');
       } else if (err?.code === '23505' || err?.message?.includes('duplicate key')) {
         showAlert('error', 'Ya existe un código promocional con ese nombre.');
       } else {
-        showAlert('error', 'Error al crear código promocional. Revisa los datos ingresados.');
+        showAlert('error', 'Error al crear código promocional. Revisa la consola o permisos.');
       }
     } finally {
       setLoading(false);
@@ -7896,6 +7896,10 @@ Mis pronósticos son:
 
 ALTER TABLE public.promo_codes DISABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "public_all_promo_codes" ON public.promo_codes;
+CREATE POLICY "public_all_promo_codes" ON public.promo_codes
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
 ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`}
                   </pre>
                 </div>
@@ -7919,6 +7923,10 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`}
 );
 
 ALTER TABLE public.promo_codes DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "public_all_promo_codes" ON public.promo_codes;
+CREATE POLICY "public_all_promo_codes" ON public.promo_codes
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
 ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
                       navigator.clipboard.writeText(sqlText);
