@@ -351,6 +351,11 @@ export default function App() {
   const [editBankActive, setEditBankActive] = useState(true);
   const [editAccountType, setEditAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
 
+  // --- Estado de Banner Promocional ---
+  const [bannerUrl, setBannerUrl] = useState<string>('');
+  const [isBannerActive, setIsBannerActive] = useState<boolean>(true);
+  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
+
   // --- Estados de Códigos Promo ---
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [isPromoTableMissing, setIsPromoTableMissing] = useState<boolean>(false);
@@ -1142,7 +1147,7 @@ export default function App() {
     }
   };
 
-  // --- CUENTAS BANCARIAS CRUD ---
+  // --- CUENTAS BANCARIAS CRUD Y CONFIGURACIONES ---
   const loadBankAccounts = async () => {
     try {
       const { data, error } = await supabase
@@ -1152,14 +1157,87 @@ export default function App() {
       if (error) throw error;
       
       const whatsapp = data?.find(b => b.bank_name === 'WHATSAPP_CONFIG');
+      const bannerItem = data?.find(b => b.bank_name === 'BANNER_CONFIG');
+
+      if (bannerItem) {
+        setBannerUrl(bannerItem.account_number || '');
+        setIsBannerActive(bannerItem.clabe !== 'false');
+      }
+
+      const filteredAccounts = (data || []).filter(b => b.bank_name !== 'WHATSAPP_CONFIG' && b.bank_name !== 'BANNER_CONFIG');
       if (whatsapp) {
         setWhatsappConfig(whatsapp.account_number || '');
-        setBankAccounts(data.filter(b => b.bank_name !== 'WHATSAPP_CONFIG'));
-      } else {
-        setBankAccounts(data || []);
       }
+      setBankAccounts(filteredAccounts);
     } catch (err) {
       console.error('Error cargando cuentas bancarias:', err);
+    }
+  };
+
+  // --- BANNER PROMOCIONAL CRUD ---
+  const handleSaveBannerConfig = async (url: string, active: boolean) => {
+    try {
+      setLoading(true);
+      const { data: existing } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('bank_name', 'BANNER_CONFIG')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('bank_accounts')
+          .update({
+            account_number: url,
+            clabe: active ? 'true' : 'false',
+            is_active: active
+          })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('bank_accounts')
+          .insert([{
+            bank_name: 'BANNER_CONFIG',
+            account_holder: 'BANNER',
+            account_number: url,
+            clabe: active ? 'true' : 'false',
+            is_active: active
+          }]);
+        if (error) throw error;
+      }
+
+      setBannerUrl(url);
+      setIsBannerActive(active);
+      showAlert('success', 'Banner promocional guardado correctamente.');
+    } catch (err: any) {
+      console.error('Error guardando banner:', err);
+      showAlert('error', 'Error al guardar el banner.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadBannerFile = async (file: File) => {
+    try {
+      setIsUploadingBanner(true);
+      const options = {
+        maxSizeMB: 0.6,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true
+      };
+      const compressedFile = await imageCompression(file, options);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        await handleSaveBannerConfig(base64data, true);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (err) {
+      console.error('Error procesando imagen del banner:', err);
+      showAlert('error', 'Error al procesar la imagen del banner.');
+    } finally {
+      setIsUploadingBanner(false);
     }
   };
 
@@ -4930,6 +5008,29 @@ Mis pronósticos son:
                       {/* Sección Principal de Partidos (70%) */}
                       <div className={`mobile-tab-content ${closedMobileTab === 'matches' ? 'active-tab' : ''}`} style={{ flex: '1 1 600px' }}>
 
+                        {/* Banner Promocional Superior */}
+                        {bannerUrl && isBannerActive && (
+                          <div style={{ 
+                            width: '100%', 
+                            marginBottom: '16px', 
+                            borderRadius: 'var(--radius-md)', 
+                            overflow: 'hidden', 
+                            border: '1px solid var(--border-color)', 
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
+                          }}>
+                            <img 
+                              src={bannerUrl} 
+                              alt="Banner Promocional" 
+                              style={{ 
+                                width: '100%', 
+                                maxHeight: '240px', 
+                                objectFit: 'cover', 
+                                display: 'block' 
+                              }} 
+                            />
+                          </div>
+                        )}
+
                         {activeMatchday?.status === 'active' && (
                           <>
                             <div style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '12px', borderRadius: 'var(--radius-md)', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
@@ -6154,6 +6255,87 @@ Mis pronósticos son:
         {activeTab === 'admin-matchdays' && isAdmin && (
           <div>
             <h2 style={{ marginBottom: '16px' }}>Gestión de Quinielas y Partidos</h2>
+
+            {/* GESTIÓN DE BANNER PROMOCIONAL SUPERIOR */}
+            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                  <ImageIcon size={20} /> Banner Promocional Superior
+                </h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+                  <input 
+                    type="checkbox"
+                    checked={isBannerActive}
+                    onChange={(e) => handleSaveBannerConfig(bannerUrl, e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span>{isBannerActive ? '🟢 Banner Visible' : '⚪ Banner Oculto'}</span>
+                </label>
+              </div>
+
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                Carga una imagen o ingresa una URL de tu banner publicitario. Aparecerá en la parte superior sobre el reloj de cuenta regresiva en la vista de partidos para todos los usuarios.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Vista previa del Banner actual */}
+                {bannerUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
+                    <img src={bannerUrl} alt="Vista previa del Banner" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }} />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveBannerConfig('', false)}
+                      className="btn btn-danger"
+                      style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}
+                    >
+                      <Trash2 size={14} /> Eliminar Banner
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner cargado actualmente.</div>
+                  </div>
+                )}
+
+                {/* Opciones de carga */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Upload size={16} /> {isUploadingBanner ? 'Subiendo...' : 'Subir Imagen de Banner'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      disabled={isUploadingBanner}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleUploadBannerFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
+
+                  <input
+                    type="url"
+                    className="form-control"
+                    placeholder="https://ejemplo.com/mi-banner.jpg"
+                    value={bannerUrl}
+                    onChange={(e) => setBannerUrl(e.target.value)}
+                    style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleSaveBannerConfig(bannerUrl, true)}
+                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}
+                  >
+                    Guardar URL
+                  </button>
+                </div>
+              </div>
+            </div>
 
             {selectedAdminMatchday === null ? (
               <div className="card">
