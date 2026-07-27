@@ -5137,14 +5137,20 @@ Mis pronósticos son:
 
                         {/* Banner Promocional Superior */}
                         {bannerUrl && isBannerActive && (
-                          <div style={{ 
-                            width: '100%', 
-                            marginBottom: '16px', 
-                            borderRadius: 'var(--radius-md)', 
-                            overflow: 'hidden', 
-                            border: '1px solid var(--border-color)', 
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
-                          }}>
+                          <div 
+                            onClick={() => setIsPromoPopupOpen(true)}
+                            title="Haz clic para ver más detalles de la promoción"
+                            style={{ 
+                              width: '100%', 
+                              marginBottom: '16px', 
+                              borderRadius: 'var(--radius-md)', 
+                              overflow: 'hidden', 
+                              border: '1px solid var(--border-color)', 
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+                              cursor: 'pointer',
+                              position: 'relative'
+                            }}
+                          >
                             <img 
                               src={bannerUrl} 
                               alt="Banner Promocional" 
@@ -5155,6 +5161,24 @@ Mis pronósticos son:
                                 display: 'block' 
                               }} 
                             />
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '10px',
+                              right: '10px',
+                              background: 'rgba(0,0,0,0.75)',
+                              color: 'var(--accent)',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backdropFilter: 'blur(4px)',
+                              border: '1px solid var(--accent)'
+                            }}>
+                              <Eye size={12} /> Clic para ver detalle
+                            </div>
                           </div>
                         )}
 
@@ -9509,10 +9533,10 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
         title="Promoción Especial"
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '10px 0' }}>
-          {popupBannerUrl && (
+          {(popupBannerUrl || bannerUrl) && (
             <div style={{ width: '100%', maxWidth: '440px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', background: 'transparent' }}>
               <img 
-                src={popupBannerUrl} 
+                src={popupBannerUrl || bannerUrl} 
                 alt="Promoción Especial" 
                 style={{ width: '100%', height: 'auto', maxHeight: '68vh', objectFit: 'contain', display: 'block', margin: '0 auto' }} 
               />
