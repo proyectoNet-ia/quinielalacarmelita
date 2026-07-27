@@ -351,10 +351,16 @@ export default function App() {
   const [editBankActive, setEditBankActive] = useState(true);
   const [editAccountType, setEditAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
 
-  // --- Estado de Banner Promocional ---
-  const [bannerUrl, setBannerUrl] = useState<string>('');
+  // --- Estado de Banners Promocionales ---
+  const [bannerUrl, setBannerUrl] = useState<string>(''); // Rectangular Superior
   const [isBannerActive, setIsBannerActive] = useState<boolean>(true);
   const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
+
+  const [popupBannerUrl, setPopupBannerUrl] = useState<string>(''); // Cuadrado Emergente
+  const [isPopupBannerActive, setIsPopupBannerActive] = useState<boolean>(false);
+  const [popupFrequency, setPopupFrequency] = useState<'once_per_session' | 'once_per_day' | 'always'>('once_per_session');
+  const [isUploadingPopupBanner, setIsUploadingPopupBanner] = useState<boolean>(false);
+  const [isPromoPopupOpen, setIsPromoPopupOpen] = useState<boolean>(false);
 
   // --- Estados de Códigos Promo ---
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -1158,13 +1164,25 @@ export default function App() {
       
       const whatsapp = data?.find(b => b.bank_name === 'WHATSAPP_CONFIG');
       const bannerItem = data?.find(b => b.bank_name === 'BANNER_CONFIG');
+      const popupItem = data?.find(b => b.bank_name === 'POPUP_BANNER_CONFIG');
 
       if (bannerItem) {
         setBannerUrl(bannerItem.account_number || '');
         setIsBannerActive(bannerItem.clabe !== 'false');
       }
 
-      const filteredAccounts = (data || []).filter(b => b.bank_name !== 'WHATSAPP_CONFIG' && b.bank_name !== 'BANNER_CONFIG');
+      if (popupItem) {
+        setPopupBannerUrl(popupItem.account_number || '');
+        try {
+          const cfg = JSON.parse(popupItem.clabe || '{}');
+          setIsPopupBannerActive(cfg.active ?? (popupItem.is_active ?? false));
+          setPopupFrequency(cfg.frequency || 'once_per_session');
+        } catch {
+          setIsPopupBannerActive(popupItem.is_active ?? false);
+        }
+      }
+
+      const filteredAccounts = (data || []).filter(b => b.bank_name !== 'WHATSAPP_CONFIG' && b.bank_name !== 'BANNER_CONFIG' && b.bank_name !== 'POPUP_BANNER_CONFIG');
       if (whatsapp) {
         setWhatsappConfig(whatsapp.account_number || '');
       }
@@ -1174,7 +1192,39 @@ export default function App() {
     }
   };
 
-  // --- BANNER PROMOCIONAL CRUD ---
+  // --- LÓGICA INTELIGENTE DE DISPARO DEL POPUP PROMOCIONAL ---
+  useEffect(() => {
+    if (popupBannerUrl && isPopupBannerActive) {
+      const popupKey = `seen_popup_${popupBannerUrl.slice(-20)}`;
+      const now = Date.now();
+
+      if (popupFrequency === 'always') {
+        setTimeout(() => setIsPromoPopupOpen(true), 1200);
+      } else if (popupFrequency === 'once_per_day') {
+        const lastSeen = localStorage.getItem(popupKey);
+        if (!lastSeen || (now - parseInt(lastSeen, 10)) > 24 * 60 * 60 * 1000) {
+          setTimeout(() => setIsPromoPopupOpen(true), 1200);
+        }
+      } else {
+        // Default: once_per_session (1 vez por sesión)
+        const seenInSession = sessionStorage.getItem(popupKey);
+        if (!seenInSession) {
+          setTimeout(() => setIsPromoPopupOpen(true), 1200);
+        }
+      }
+    }
+  }, [popupBannerUrl, isPopupBannerActive, popupFrequency]);
+
+  const handleClosePromoPopup = () => {
+    setIsPromoPopupOpen(false);
+    if (popupBannerUrl) {
+      const popupKey = `seen_popup_${popupBannerUrl.slice(-20)}`;
+      sessionStorage.setItem(popupKey, 'true');
+      localStorage.setItem(popupKey, Date.now().toString());
+    }
+  };
+
+  // --- BANNER PROMOCIONAL SUPERIOR (RECTANGULAR) CRUD ---
   const handleSaveBannerConfig = async (url: string, active: boolean) => {
     try {
       setLoading(true);
@@ -1209,10 +1259,10 @@ export default function App() {
 
       setBannerUrl(url);
       setIsBannerActive(active);
-      showAlert('success', 'Banner promocional guardado correctamente.');
+      showAlert('success', 'Banner superior guardado correctamente.');
     } catch (err: any) {
       console.error('Error guardando banner:', err);
-      showAlert('error', 'Error al guardar el banner.');
+      showAlert('error', 'Error al guardar el banner superior.');
     } finally {
       setLoading(false);
     }
@@ -1238,6 +1288,83 @@ export default function App() {
       showAlert('error', 'Error al procesar la imagen del banner.');
     } finally {
       setIsUploadingBanner(false);
+    }
+  };
+
+  // --- BANNER EMERGENTE CUADRADO (POPUP INTELIGENTE) CRUD ---
+  const handleSavePopupBannerConfig = async (
+    url: string, 
+    active: boolean, 
+    freq: 'once_per_session' | 'once_per_day' | 'always' = popupFrequency
+  ) => {
+    try {
+      setLoading(true);
+      const payload = {
+        active,
+        frequency: freq
+      };
+
+      const { data: existing } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('bank_name', 'POPUP_BANNER_CONFIG')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('bank_accounts')
+          .update({
+            account_number: url,
+            clabe: JSON.stringify(payload),
+            is_active: active
+          })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('bank_accounts')
+          .insert([{
+            bank_name: 'POPUP_BANNER_CONFIG',
+            account_holder: 'POPUP_BANNER',
+            account_number: url,
+            clabe: JSON.stringify(payload),
+            is_active: active
+          }]);
+        if (error) throw error;
+      }
+
+      setPopupBannerUrl(url);
+      setIsPopupBannerActive(active);
+      setPopupFrequency(freq);
+      showAlert('success', 'Banner emergente cuadrado guardado correctamente.');
+    } catch (err: any) {
+      console.error('Error guardando banner emergente:', err);
+      showAlert('error', 'Error al guardar el banner emergente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadPopupBannerFile = async (file: File) => {
+    try {
+      setIsUploadingPopupBanner(true);
+      const options = {
+        maxSizeMB: 0.6,
+        maxWidthOrHeight: 800,
+        useWebWorker: true
+      };
+      const compressedFile = await imageCompression(file, options);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        await handleSavePopupBannerConfig(base64data, true);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (err) {
+      console.error('Error procesando imagen de banner emergente:', err);
+      showAlert('error', 'Error al procesar la imagen del banner emergente.');
+    } finally {
+      setIsUploadingPopupBanner(false);
     }
   };
 
@@ -6337,6 +6464,132 @@ Mis pronósticos son:
               </div>
             </div>
 
+            {/* GESTIÓN DE BANNER EMERGENTE CUADRADO (POPUP INTELIGENTE) */}
+            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                  <ImageIcon size={20} /> Banner Emergente Cuadrado (Popup Inteligente)
+                </h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+                  <input 
+                    type="checkbox"
+                    checked={isPopupBannerActive}
+                    onChange={(e) => handleSavePopupBannerConfig(popupBannerUrl, e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span>{isPopupBannerActive ? '🟢 Popup Activo' : '⚪ Popup Inactivo'}</span>
+                </label>
+              </div>
+
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                Carga una imagen cuadrada (1:1). Se mostrará de forma <strong>inteligente y no invasiva</strong> en una ventana emergente cuando los usuarios ingresen.
+              </p>
+
+              {/* Ajuste de Frecuencia Inteligente */}
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'block', marginBottom: '8px' }}>
+                  Frecuencia de despliegue inteligente:
+                </label>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      type="radio" 
+                      name="popupFreq" 
+                      checked={popupFrequency === 'once_per_session'} 
+                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_session')} 
+                    />
+                    <span>1 vez por sesión (Recomendado)</span>
+                  </label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      type="radio" 
+                      name="popupFreq" 
+                      checked={popupFrequency === 'once_per_day'} 
+                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_day')} 
+                    />
+                    <span>1 vez al día</span>
+                  </label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      type="radio" 
+                      name="popupFreq" 
+                      checked={popupFrequency === 'always'} 
+                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'always')} 
+                    />
+                    <span>Siempre al ingresar</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Vista previa del Banner Emergente Cuadrado */}
+                {popupBannerUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000', maxWidth: '280px', margin: '0 auto', width: '100%' }}>
+                    <img src={popupBannerUrl} alt="Vista previa Banner Cuadrado" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', display: 'block' }} />
+                    <button
+                      type="button"
+                      onClick={() => handleSavePopupBannerConfig('', false)}
+                      className="btn btn-danger"
+                      style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}
+                    >
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner emergente cuadrado cargado.</div>
+                  </div>
+                )}
+
+                {/* Opciones de carga */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Upload size={16} /> {isUploadingPopupBanner ? 'Subiendo...' : 'Subir Banner Cuadrado'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      disabled={isUploadingPopupBanner}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleUploadPopupBannerFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
+
+                  <input
+                    type="url"
+                    className="form-control"
+                    placeholder="https://ejemplo.com/banner-cuadrado.jpg"
+                    value={popupBannerUrl}
+                    onChange={(e) => setPopupBannerUrl(e.target.value)}
+                    style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleSavePopupBannerConfig(popupBannerUrl, true)}
+                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}
+                  >
+                    Guardar URL
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsPromoPopupOpen(true)}
+                    disabled={!popupBannerUrl}
+                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', background: 'rgba(255,255,255,0.1)' }}
+                  >
+                    <Eye size={16} /> Probar Popup
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {selectedAdminMatchday === null ? (
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
@@ -9223,6 +9476,34 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
               Cerrar
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal Emergente Promocional (Banner Cuadrado Inteligente) */}
+      <Modal
+        isOpen={isPromoPopupOpen}
+        onClose={handleClosePromoPopup}
+        title="Promoción Especial"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '10px 0' }}>
+          {popupBannerUrl && (
+            <div style={{ width: '100%', maxWidth: '380px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', background: '#000' }}>
+              <img 
+                src={popupBannerUrl} 
+                alt="Promoción Especial" 
+                style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', display: 'block' }} 
+              />
+            </div>
+          )}
+
+          <button 
+            type="button" 
+            className="btn btn-primary" 
+            onClick={handleClosePromoPopup}
+            style={{ width: '100%', maxWidth: '280px', marginTop: '8px', padding: '10px 18px', fontSize: '0.85rem' }}
+          >
+            ¡Entendido!
+          </button>
         </div>
       </Modal>
 
