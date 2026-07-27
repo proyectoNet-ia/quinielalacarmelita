@@ -353,6 +353,7 @@ export default function App() {
 
   // --- Estados de Códigos Promo ---
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [isPromoTableMissing, setIsPromoTableMissing] = useState<boolean>(false);
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoDiscountType, setNewPromoDiscountType] = useState<'fixed_price' | 'fixed_discount' | 'percentage'>('fixed_price');
   const [newPromoDiscountValue, setNewPromoDiscountValue] = useState<number>(15);
@@ -1171,11 +1172,16 @@ export default function App() {
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Error cargando códigos de promoción:', error);
+        if (error.code === '42P01' || error.message?.includes('404') || error.message?.includes('does not exist') || (error as any).status === 404) {
+          setIsPromoTableMissing(true);
+        }
       } else {
+        setIsPromoTableMissing(false);
         setPromoCodes(data || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error cargando códigos de promoción:', err);
+      setIsPromoTableMissing(true);
     }
   };
 
@@ -1202,6 +1208,7 @@ export default function App() {
       const { error } = await supabase.from('promo_codes').insert([payload]);
       if (error) throw error;
 
+      setIsPromoTableMissing(false);
       showAlert('success', `Código promocional '${codeUpper}' creado correctamente.`);
       setNewPromoCode('');
       setNewPromoDiscountValue(15);
@@ -1212,7 +1219,10 @@ export default function App() {
       loadPromoCodes();
     } catch (err: any) {
       console.error('Error creando código promo:', err);
-      if (err?.code === '23505' || err?.message?.includes('duplicate key')) {
+      if (err?.code === '42P01' || err?.message?.includes('does not exist') || err?.status === 404) {
+        setIsPromoTableMissing(true);
+        showAlert('error', 'La tabla "promo_codes" no existe aún en Supabase. Ejecuta la migración SQL.');
+      } else if (err?.code === '23505' || err?.message?.includes('duplicate key')) {
         showAlert('error', 'Ya existe un código promocional con ese nombre.');
       } else {
         showAlert('error', 'Error al crear código promocional. Revisa los datos ingresados.');
@@ -7855,6 +7865,81 @@ Mis pronósticos son:
             <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Tag size={24} color="var(--primary)" /> Gestión de Códigos de Promoción
             </h2>
+
+            {isPromoTableMissing && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <AlertTriangle size={24} color="var(--danger)" />
+                  <h4 style={{ margin: 0, color: 'var(--danger)', fontSize: '1.1rem' }}>
+                    La tabla 'promo_codes' no se encuentra en Supabase
+                  </h4>
+                </div>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                  Para habilitar la creación de promociones, copia y ejecuta el siguiente script SQL por única vez en el <strong>SQL Editor</strong> de tu panel de Supabase:
+                </p>
+                
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '6px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <pre style={{ margin: 0, fontSize: '0.8rem', color: 'var(--primary)', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+{`CREATE TABLE IF NOT EXISTS public.promo_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('fixed_price', 'fixed_discount', 'percentage')),
+    discount_value NUMERIC NOT NULL,
+    min_entries INTEGER DEFAULT 2 NOT NULL,
+    max_uses INTEGER,
+    times_used INTEGER DEFAULT 0 NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    matchday_id UUID REFERENCES public.matchdays(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.promo_codes DISABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`}
+                  </pre>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const sqlText = `CREATE TABLE IF NOT EXISTS public.promo_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('fixed_price', 'fixed_discount', 'percentage')),
+    discount_value NUMERIC NOT NULL,
+    min_entries INTEGER DEFAULT 2 NOT NULL,
+    max_uses INTEGER,
+    times_used INTEGER DEFAULT 0 NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    matchday_id UUID REFERENCES public.matchdays(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.promo_codes DISABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
+                      navigator.clipboard.writeText(sqlText);
+                      showAlert('success', 'Script SQL copiado al portapapeles. Pégalo en SQL Editor de Supabase.');
+                    }}
+                    className="btn btn-primary"
+                    style={{ width: 'auto', padding: '10px 18px', fontSize: '0.85rem' }}
+                  >
+                    <Copy size={16} /> Copiar SQL para Supabase
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={loadPromoCodes}
+                    className="btn btn-secondary"
+                    style={{ width: 'auto', padding: '10px 18px', fontSize: '0.85rem' }}
+                  >
+                    <RefreshCw size={16} /> Verificar de Nuevo
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {/* Formulario Crear Código */}
