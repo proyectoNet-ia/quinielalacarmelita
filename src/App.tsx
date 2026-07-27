@@ -6502,7 +6502,7 @@ Mis pronósticos son:
               </div>
 
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
-                Carga una imagen cuadrada (1:1). Se mostrará de forma <strong>inteligente y no invasiva</strong> en una ventana emergente cuando los usuarios ingresen.
+                Carga una imagen promocional (formato vertical u horizontal). Se mostrará a lo largo de forma <strong>inteligente y no invasiva</strong> en una ventana emergente cuando los usuarios ingresen.
               </p>
 
               {/* Ajuste de Frecuencia Inteligente */}
@@ -6542,10 +6542,10 @@ Mis pronósticos son:
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Vista previa del Banner Emergente Cuadrado */}
+                {/* Vista previa del Banner Emergente */}
                 {popupBannerUrl ? (
-                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000', maxWidth: '280px', margin: '0 auto', width: '100%' }}>
-                    <img src={popupBannerUrl} alt="Vista previa Banner Cuadrado" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', display: 'block' }} />
+                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'transparent', maxWidth: '320px', margin: '0 auto', width: '100%' }}>
+                    <img src={popupBannerUrl} alt="Vista previa Banner Emergente" style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                     <button
                       type="button"
                       onClick={() => handleSavePopupBannerConfig('', false)}
@@ -9502,7 +9502,7 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
         </div>
       </Modal>
 
-      {/* Modal Emergente Promocional (Banner Cuadrado Inteligente) */}
+      {/* Modal Emergente Promocional (Popup Inteligente) */}
       <Modal
         isOpen={isPromoPopupOpen}
         onClose={handleClosePromoPopup}
@@ -9510,11 +9510,11 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center', padding: '10px 0' }}>
           {popupBannerUrl && (
-            <div style={{ width: '100%', maxWidth: '380px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', background: '#000' }}>
+            <div style={{ width: '100%', maxWidth: '440px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', background: 'transparent' }}>
               <img 
                 src={popupBannerUrl} 
                 alt="Promoción Especial" 
-                style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', display: 'block' }} 
+                style={{ width: '100%', height: 'auto', maxHeight: '68vh', objectFit: 'contain', display: 'block', margin: '0 auto' }} 
               />
             </div>
           )}
