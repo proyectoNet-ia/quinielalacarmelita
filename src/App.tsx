@@ -5430,6 +5430,9 @@ Mis pronósticos son:
                                   type="text" 
                                   placeholder="EJ. PROMO2026" 
                                   value={promoInputCode} 
+                                  autoCapitalize="characters"
+                                  autoCorrect="off"
+                                  spellCheck="false"
                                   onChange={e => {
                                     setPromoInputCode(e.target.value.toUpperCase());
                                     if (promoFeedback) setPromoFeedback(null);
@@ -8436,6 +8439,9 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
                     <input 
                       type="text" 
                       required 
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck="false"
                       className="form-control" 
                       placeholder="Ej: PROMO15, CARMELITA20" 
                       value={newPromoCode} 
