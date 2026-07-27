@@ -3428,6 +3428,7 @@ Mis pronósticos son:
         `Quiniela ${matchdayNum}`,
         `$${Number(p.cost).toFixed(2)} MXN`,
         p.payment_status.toUpperCase(),
+        p.promo_code || '-',
         p.score.toString(),
         new Date(p.created_at).toLocaleDateString()
       ];
@@ -3438,7 +3439,7 @@ Mis pronósticos son:
 
     doc.autoTable({
       startY: (doc as any).lastAutoTable.finalY + 16,
-      head: [['Quiniela', 'Costo', 'Estado Pago', 'Puntuacion', 'Fecha de Registro']],
+      head: [['Quiniela', 'Costo', 'Estado Pago', 'Cod Promo', 'Puntuacion', 'Fecha de Registro']],
       body: transactionRows,
       theme: 'grid',
       headStyles: { fillColor: [30, 94, 58], textColor: [255, 255, 255] },
@@ -5728,6 +5729,8 @@ Mis pronósticos son:
                           const riskColor = riskLevel === 'safe' ? 'var(--success)' : riskLevel === 'warning' ? 'var(--warning)' : 'var(--danger)';
                           const riskText = riskLevel === 'safe' ? 'Seguro 🟢' : riskLevel === 'warning' ? 'Precaución 🟡' : 'Alto Riesgo 🔴';
                           
+                          const usedPromoInBatch = batch.find((p: any) => p.promo_code)?.promo_code;
+
                           return (
                             <div key={`pending-${code}`} style={{ display: 'flex', alignItems: 'center', gap: '16px', border: `1px solid ${riskColor}`, background: `rgba(${riskLevel === 'safe' ? '34, 197, 94' : riskLevel === 'warning' ? '234, 179, 8' : '239, 68, 68'}, 0.05)`, padding: '16px', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
                               
@@ -5755,11 +5758,21 @@ Mis pronósticos son:
                                       {paymentType === 'TRANSFERENCIA' ? '🏦 TRANSFERENCIA' : '💵 DEPÓSITO'}
                                     </div>
                                   )}
+                                  {usedPromoInBatch && (
+                                    <div style={{ fontSize: '0.75rem', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', background: 'rgba(234, 179, 8, 0.25)', color: 'var(--accent)', border: '1px solid var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <Tag size={12} /> Promo: {usedPromoInBatch}
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                                   Enviado por: <strong>{primaryParticipant?.name || 'Usuario'}</strong> (@{primaryParticipant?.alias})<br/>
                                   <span style={{ color: 'var(--text-muted)' }}>{batch.length} {batch.length === 1 ? 'Quiniela' : 'Quinielas'} • Total: ${totalCost}</span>
+                                  {usedPromoInBatch && (
+                                    <span style={{ marginLeft: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                                      • (Código Aplicado: {usedPromoInBatch})
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Observaciones OCR */}
@@ -6051,6 +6064,11 @@ Mis pronósticos son:
                                   {paymentType && (
                                     <span style={{ fontSize: '0.65rem', fontWeight: '800', padding: '2px 6px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
                                       {paymentType === 'TRANSFERENCIA' ? '🏦 TRANSFERENCIA' : '💵 DEPÓSITO'}
+                                    </span>
+                                  )}
+                                  {group.pools.find((p: any) => p.promo_code)?.promo_code && (
+                                    <span style={{ fontSize: '0.65rem', fontWeight: '800', padding: '2px 6px', borderRadius: '12px', background: 'rgba(234, 179, 8, 0.25)', color: 'var(--accent)', border: '1px solid var(--accent)' }}>
+                                      🏷️ PROMO: {group.pools.find((p: any) => p.promo_code).promo_code}
                                     </span>
                                   )}
                                 </div>
@@ -7737,6 +7755,11 @@ Mis pronósticos son:
                                               }}
                                             >
                                               <span><strong>Apuesta #{index + 1}</strong> (Quiniela {matchdayNum})</span>
+                                              {pool.promo_code && (
+                                                <span style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent)', border: '1px solid var(--accent)', padding: '1px 6px', borderRadius: '8px', fontWeight: 'bold' }}>
+                                                  🏷️ Promo: {pool.promo_code}
+                                                </span>
+                                              )}
                                               <span>Registrada: {new Date(pool.created_at).toLocaleDateString()}</span>
                                               <span>Monto: ${Number(pool.cost).toFixed(2)} MXN</span>
                                               <span>Puntos: {pool.score} pts</span>
@@ -8803,14 +8826,27 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
       >
         {selectedDetailsGroup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Banner de Código Promo en Modal si aplica */}
+            {selectedDetailsGroup.pools.some((p: any) => p.promo_code) && (
+              <div style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid var(--accent)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                <Tag size={18} />
+                <span>Código Promocional Aplicado: {selectedDetailsGroup.pools.find((p: any) => p.promo_code).promo_code}</span>
+              </div>
+            )}
+
             {/* Pronósticos */}
             <div>
               <h4 style={{ marginBottom: '10px', color: 'var(--primary)' }}>Pronósticos ({selectedDetailsGroup.pools.length})</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {selectedDetailsGroup.pools.map((p: any, pIdx: number) => (
                   <div key={p.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 'bold' }}>
-                      Quiniela #{pIdx + 1} {p.reference_code ? `(Ref: ${p.reference_code})` : '(Sin folio)'}
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span>Quiniela #{pIdx + 1} {p.reference_code ? `(Ref: ${p.reference_code})` : '(Sin folio)'}</span>
+                      {p.promo_code && (
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent)', border: '1px solid var(--accent)', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Tag size={12} /> Promo: {p.promo_code} (${p.cost} MXN)
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '8px' }}>
                       {matches.map((m, mIdx) => (
