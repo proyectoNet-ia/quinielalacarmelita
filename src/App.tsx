@@ -5135,20 +5135,17 @@ Mis pronósticos son:
                       {/* Sección Principal de Partidos (70%) */}
                       <div className={`mobile-tab-content ${closedMobileTab === 'matches' ? 'active-tab' : ''}`} style={{ flex: '1 1 600px' }}>
 
-                        {/* Banner Promocional Superior */}
+                        {/* Banner Promocional Superior con Efecto Brillo Dorado */}
                         {bannerUrl && isBannerActive && (
                           <div 
+                            className="promo-box-glow"
                             onClick={() => setIsPromoPopupOpen(true)}
                             title="Haz clic para ver más detalles de la promoción"
                             style={{ 
                               width: '100%', 
                               marginBottom: '16px', 
                               borderRadius: 'var(--radius-md)', 
-                              overflow: 'hidden', 
-                              border: '1px solid var(--border-color)', 
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
-                              cursor: 'pointer',
-                              position: 'relative'
+                              cursor: 'pointer'
                             }}
                           >
                             <img 
@@ -5161,24 +5158,6 @@ Mis pronósticos son:
                                 display: 'block' 
                               }} 
                             />
-                            <div style={{
-                              position: 'absolute',
-                              bottom: '10px',
-                              right: '10px',
-                              background: 'rgba(0,0,0,0.75)',
-                              color: 'var(--accent)',
-                              padding: '4px 10px',
-                              borderRadius: '20px',
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              backdropFilter: 'blur(4px)',
-                              border: '1px solid var(--accent)'
-                            }}>
-                              <Eye size={12} /> Clic para ver detalle
-                            </div>
                           </div>
                         )}
 
