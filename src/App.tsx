@@ -46,7 +46,9 @@ import {
   Landmark,
   Settings,
   Save,
-  Edit
+  Edit,
+  Tag,
+  Percent
 } from 'lucide-react';
 
 // Declaración de tipo para jsPDF autoTable para evitar errores de compilación con TS
@@ -165,6 +167,20 @@ interface BankAccount {
   account_type?: 'transferencia' | 'deposito';
 }
 
+interface PromoCode {
+  id: string;
+  code: string;
+  discount_type: 'fixed_price' | 'fixed_discount' | 'percentage';
+  discount_value: number;
+  min_entries: number;
+  max_uses?: number | null;
+  times_used: number;
+  is_active: boolean;
+  expires_at?: string | null;
+  matchday_id?: string | null;
+  created_at: string;
+}
+
 interface Pool {
   id: string;
   participant_id: string;
@@ -175,6 +191,7 @@ interface Pool {
   validation_flags?: string[];
   cost: number;
   score: number;
+  promo_code?: string;
   created_at: string;
   participant?: {
     name: string;
@@ -333,6 +350,21 @@ export default function App() {
   const [editClabe, setEditClabe] = useState('');
   const [editBankActive, setEditBankActive] = useState(true);
   const [editAccountType, setEditAccountType] = useState<'transferencia' | 'deposito'>('transferencia');
+
+  // --- Estados de Códigos Promo ---
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [newPromoCode, setNewPromoCode] = useState('');
+  const [newPromoDiscountType, setNewPromoDiscountType] = useState<'fixed_price' | 'fixed_discount' | 'percentage'>('fixed_price');
+  const [newPromoDiscountValue, setNewPromoDiscountValue] = useState<number>(15);
+  const [newPromoMinEntries, setNewPromoMinEntries] = useState<number>(2);
+  const [newPromoMaxUses, setNewPromoMaxUses] = useState<string>('');
+  const [newPromoExpiresAt, setNewPromoExpiresAt] = useState<string>('');
+  const [newPromoMatchdayId, setNewPromoMatchdayId] = useState<string>('all');
+
+  // Checkout / Carrito Promo State
+  const [promoInputCode, setPromoInputCode] = useState('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<PromoCode | null>(null);
+  const [promoFeedback, setPromoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // --- Estados Generador Bots ---
   const [botInputText, setBotInputText] = useState('');
@@ -731,6 +763,9 @@ export default function App() {
       loadTeams();
       loadLeagues();
     }
+    if ((isAdmin && activeTab === 'admin-promos') || activeTab === 'predictions') {
+      loadPromoCodes();
+    }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
 
   // Auto-actualizar datos cada 30 segundos si el usuario es administrador
@@ -1125,6 +1160,186 @@ export default function App() {
     } catch (err) {
       console.error('Error cargando cuentas bancarias:', err);
     }
+  };
+
+  // --- CÓDIGOS PROMO CRUD Y LÓGICA DE APLICACIÓN ---
+  const loadPromoCodes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error cargando códigos de promoción:', error);
+      } else {
+        setPromoCodes(data || []);
+      }
+    } catch (err) {
+      console.error('Error cargando códigos de promoción:', err);
+    }
+  };
+
+  const handleCreatePromoCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPromoCode.trim() || newPromoDiscountValue <= 0) {
+      showAlert('error', 'Por favor ingresa un código válido y un valor de descuento mayor a 0.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const codeUpper = newPromoCode.trim().toUpperCase();
+      const payload: any = {
+        code: codeUpper,
+        discount_type: newPromoDiscountType,
+        discount_value: Number(newPromoDiscountValue),
+        min_entries: Number(newPromoMinEntries) || 2,
+        max_uses: newPromoMaxUses.trim() !== '' ? Number(newPromoMaxUses) : null,
+        is_active: true,
+        expires_at: newPromoExpiresAt ? new Date(newPromoExpiresAt).toISOString() : null,
+        matchday_id: newPromoMatchdayId !== 'all' ? newPromoMatchdayId : null
+      };
+
+      const { error } = await supabase.from('promo_codes').insert([payload]);
+      if (error) throw error;
+
+      showAlert('success', `Código promocional '${codeUpper}' creado correctamente.`);
+      setNewPromoCode('');
+      setNewPromoDiscountValue(15);
+      setNewPromoMinEntries(2);
+      setNewPromoMaxUses('');
+      setNewPromoExpiresAt('');
+      setNewPromoMatchdayId('all');
+      loadPromoCodes();
+    } catch (err: any) {
+      console.error('Error creando código promo:', err);
+      if (err?.code === '23505' || err?.message?.includes('duplicate key')) {
+        showAlert('error', 'Ya existe un código promocional con ese nombre.');
+      } else {
+        showAlert('error', 'Error al crear código promocional. Revisa los datos ingresados.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTogglePromoCodeActive = async (id: string, currentActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('promo_codes')
+        .update({ is_active: !currentActive })
+        .eq('id', id);
+      if (error) throw error;
+      loadPromoCodes();
+      showAlert('success', `Código ${!currentActive ? 'activado' : 'desactivado'}.`);
+    } catch (err) {
+      showAlert('error', 'Error al actualizar estado del código.');
+    }
+  };
+
+  const handleDeletePromoCode = async (id: string, codeName: string) => {
+    setConfirmConfig({
+      title: 'Eliminar Código Promocional',
+      message: `¿Estás seguro de eliminar el código promocional '${codeName}'?`,
+      confirmText: 'Eliminar',
+      confirmColor: 'var(--danger)',
+      onConfirm: async () => {
+        setConfirmConfig(null);
+        try {
+          const { error } = await supabase.from('promo_codes').delete().eq('id', id);
+          if (error) throw error;
+          loadPromoCodes();
+          showAlert('success', 'Código promocional eliminado.');
+        } catch (err) {
+          showAlert('error', 'Error al eliminar el código.');
+        }
+      }
+    });
+  };
+
+  const handleApplyPromoCode = async () => {
+    setPromoFeedback(null);
+    if (!promoInputCode.trim()) {
+      setPromoFeedback({ type: 'error', message: 'Ingresa un código promocional.' });
+      return;
+    }
+
+    const cleanCode = promoInputCode.trim().toUpperCase();
+
+    try {
+      setLoading(true);
+      const { data: codeData, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', cleanCode)
+        .maybeSingle();
+
+      if (error || !codeData) {
+        setPromoFeedback({ type: 'error', message: 'Código promocional no válido.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      if (!codeData.is_active) {
+        setPromoFeedback({ type: 'error', message: 'Este código promocional está inactivo.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) {
+        setPromoFeedback({ type: 'error', message: 'Este código promocional ha expirado.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      if (codeData.max_uses !== null && codeData.max_uses !== undefined && codeData.times_used >= codeData.max_uses) {
+        setPromoFeedback({ type: 'error', message: 'Este código promocional ha alcanzado su límite de usos.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      if (codeData.matchday_id && activeMatchday && codeData.matchday_id !== activeMatchday.id) {
+        setPromoFeedback({ type: 'error', message: 'Este código no aplica para la jornada activa.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      if (cart.length < codeData.min_entries) {
+        setPromoFeedback({ 
+          type: 'error', 
+          message: `Este código requiere un mínimo de ${codeData.min_entries} quinielas en tu compra.` 
+        });
+        setAppliedPromoCode(null);
+        return;
+      }
+
+      // Código Válido
+      setAppliedPromoCode(codeData);
+      setPromoFeedback({
+        type: 'success',
+        message: `¡Código '${codeData.code}' aplicado correctamente!`
+      });
+    } catch (err) {
+      console.error('Error aplicando código promo:', err);
+      setPromoFeedback({ type: 'error', message: 'Error al verificar el código promocional.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDiscountedEntryPrice = () => {
+    const standardPrice = activeMatchday?.price_per_entry || 25;
+    if (!appliedPromoCode || cart.length < appliedPromoCode.min_entries) {
+      return standardPrice;
+    }
+    const val = Number(appliedPromoCode.discount_value) || 0;
+    if (appliedPromoCode.discount_type === 'fixed_price') {
+      return val;
+    } else if (appliedPromoCode.discount_type === 'fixed_discount') {
+      return Math.max(0, standardPrice - val);
+    } else if (appliedPromoCode.discount_type === 'percentage') {
+      return Math.max(0, standardPrice * (1 - val / 100));
+    }
+    return standardPrice;
   };
 
   const handleAddBankAccount = async (e: React.FormEvent) => {
@@ -1728,16 +1943,33 @@ export default function App() {
         participantId = newPart.id;
       }
 
+      const finalEntryPrice = getDiscountedEntryPrice();
+      const isPromoApplied = appliedPromoCode && cart.length >= appliedPromoCode.min_entries;
+      const totalAmount = cart.length * finalEntryPrice;
+
       const poolsToInsert = cart.map(() => ({
           participant_id: participantId,
           matchday_id: activeMatchday!.id,
           payment_status: 'pending',
-          cost: activeMatchday!.price_per_entry,
+          cost: finalEntryPrice,
           score: 0,
-          reference_code: refId
+          reference_code: refId,
+          promo_code: isPromoApplied ? appliedPromoCode.code : null
       }));
       const { data: poolsData, error: poolsErr } = await supabase.from('pools').insert(poolsToInsert).select();
       if (poolsErr) throw poolsErr;
+
+      // Incrementar uso del código promocional en Supabase si se aplicó
+      if (isPromoApplied && appliedPromoCode) {
+        try {
+          await supabase
+            .from('promo_codes')
+            .update({ times_used: (appliedPromoCode.times_used || 0) + 1 })
+            .eq('id', appliedPromoCode.id);
+        } catch (pErr) {
+          console.error('Error al incrementar uso del código promo:', pErr);
+        }
+      }
 
       const predictionsToInsert: any[] = [];
       cart.forEach((selections, idx) => {
@@ -1755,6 +1987,7 @@ export default function App() {
       
       let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.
 Código de Referencia: ${refId}
+${isPromoApplied ? `Código Promocional: ${appliedPromoCode.code}\n` : ''}Total a Pagar: $${totalAmount.toFixed(2)} MXN
 
 Mis pronósticos son:
 `;
@@ -1771,13 +2004,18 @@ Mis pronósticos son:
       });
       msgText += `\nNuestro agente te compartirá la información para realizar tu pago.`;
 
-      
       setCartReferenceId(refId);
       localStorage.setItem('lastReferenceCode', refId);
       setSuccessName(cartParticipantName);
       setSuccessAlias(cartParticipantName);
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
+      
+      // Reset promo state
+      setAppliedPromoCode(null);
+      setPromoInputCode('');
+      setPromoFeedback(null);
+      
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
@@ -4272,6 +4510,13 @@ Mis pronósticos son:
                   <span>Cuentas Bancarias</span>
                 </button>
                 <button 
+                  className={`sidebar-menu-item ${activeTab === 'admin-promos' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('admin-promos'); setIsSidebarOpen(false); }}
+                >
+                  <Tag size={18} />
+                  <span>Códigos Promo</span>
+                </button>
+                <button 
                   className={`sidebar-menu-item ${activeTab === 'admin-participants' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('admin-participants'); setIsSidebarOpen(false); }}
                 >
@@ -4928,13 +5173,86 @@ Mis pronósticos son:
                             </div>
                           ))}
                           <div style={{ borderTop: '1px solid var(--border-color)', margin: '16px 0', paddingTop: '16px' }}>
+                            {/* Bloque de Código Promocional */}
+                            <div style={{ marginBottom: '16px', background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                <Tag size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
+                                Código de Promoción
+                              </label>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <input 
+                                  type="text" 
+                                  placeholder="Ej. PROMO2026" 
+                                  value={promoInputCode} 
+                                  onChange={e => {
+                                    setPromoInputCode(e.target.value.toUpperCase());
+                                    if (promoFeedback) setPromoFeedback(null);
+                                  }}
+                                  className="form-control"
+                                  style={{ background: 'var(--bg-main)', textTransform: 'uppercase', flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
+                                />
+                                {appliedPromoCode ? (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-secondary" 
+                                    onClick={() => {
+                                      setAppliedPromoCode(null);
+                                      setPromoInputCode('');
+                                      setPromoFeedback(null);
+                                    }}
+                                    style={{ width: 'auto', padding: '6px 12px', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '0.8rem' }}
+                                  >
+                                    Quitar
+                                  </button>
+                                ) : (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-primary" 
+                                    onClick={handleApplyPromoCode}
+                                    style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
+                                  >
+                                    Aplicar
+                                  </button>
+                                )}
+                              </div>
+                              {promoFeedback && (
+                                <p style={{ 
+                                  color: promoFeedback.type === 'success' ? 'var(--primary)' : 'var(--danger)', 
+                                  fontSize: '0.78rem', 
+                                  marginTop: '6px', 
+                                  marginBottom: '0', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '4px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  {promoFeedback.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                                  <span>{promoFeedback.message}</span>
+                                </p>
+                              )}
+                              {appliedPromoCode && (cart.length * (activeMatchday?.price_per_entry || 25) - cart.length * getDiscountedEntryPrice()) > 0 && (
+                                <div style={{ marginTop: '8px', background: 'rgba(38, 115, 71, 0.25)', border: '1px solid var(--primary)', padding: '8px 12px', borderRadius: '4px', fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 'bold' }}>
+                                  🎉 ¡Precio especial! ${getDiscountedEntryPrice().toFixed(2)} MXN c/u. (Ahorras ${(cart.length * (activeMatchday?.price_per_entry || 25) - cart.length * getDiscountedEntryPrice()).toFixed(2)} MXN)
+                                </div>
+                              )}
+                            </div>
+
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Total Quinielas:</span>
                               <span style={{ fontWeight: 'bold' }}>{cart.length}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'baseline' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>A Pagar:</span>
-                              <span style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--accent)' }}>${cart.length * activeMatchday.price_per_entry} MXN</span>
+                              <div>
+                                {(cart.length * (activeMatchday?.price_per_entry || 25) - cart.length * getDiscountedEntryPrice()) > 0 && (
+                                  <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '8px' }}>
+                                    ${(cart.length * (activeMatchday?.price_per_entry || 25)).toFixed(2)} MXN
+                                  </span>
+                                )}
+                                <span style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--accent)' }}>
+                                  ${(cart.length * getDiscountedEntryPrice()).toFixed(2)} MXN
+                                </span>
+                              </div>
                             </div>
 
                             <form onSubmit={handleSubmitCart}>
@@ -7530,6 +7848,219 @@ Mis pronósticos son:
             </div>
           );
         })()}
+
+        {/* ADMIN: CÓDIGOS DE PROMOCIÓN (Pestaña "admin-promos") */}
+        {activeTab === 'admin-promos' && isAdmin && (
+          <div>
+            <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Tag size={24} color="var(--primary)" /> Gestión de Códigos de Promoción
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+              {/* Formulario Crear Código */}
+              <div className="card">
+                <h3 style={{ marginBottom: '16px' }}>Crear Nuevo Código</h3>
+                <form onSubmit={handleCreatePromoCode}>
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      Código de Promoción
+                    </label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="form-control" 
+                      placeholder="Ej: PROMO15, CARMELITA20" 
+                      value={newPromoCode} 
+                      onChange={e => setNewPromoCode(e.target.value.toUpperCase())}
+                      style={{ textTransform: 'uppercase', background: 'var(--bg-main)' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      Tipo de Descuento
+                    </label>
+                    <select 
+                      className="form-control" 
+                      value={newPromoDiscountType} 
+                      onChange={e => setNewPromoDiscountType(e.target.value as any)}
+                      style={{ background: 'var(--bg-main)' }}
+                    >
+                      <option value="fixed_price">Precio Fijo por Quiniela ($)</option>
+                      <option value="fixed_discount">Descuento Fijo por Quiniela ($)</option>
+                      <option value="percentage">Porcentaje de Descuento (%)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      {newPromoDiscountType === 'fixed_price' && 'Precio Fijo ($ MXN por quiniela)'}
+                      {newPromoDiscountType === 'fixed_discount' && 'Monto a Descontar ($ MXN por quiniela)'}
+                      {newPromoDiscountType === 'percentage' && 'Porcentaje de Descuento (%)'}
+                    </label>
+                    <input 
+                      type="number" 
+                      required 
+                      min="0.1"
+                      step="0.1"
+                      className="form-control" 
+                      value={newPromoDiscountValue} 
+                      onChange={e => setNewPromoDiscountValue(Number(e.target.value))}
+                      style={{ background: 'var(--bg-main)' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                        Mínimo Quinielas
+                      </label>
+                      <input 
+                        type="number" 
+                        required 
+                        min="1" 
+                        className="form-control" 
+                        value={newPromoMinEntries} 
+                        onChange={e => setNewPromoMinEntries(Number(e.target.value))}
+                        style={{ background: 'var(--bg-main)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                        Límite de Usos (Vacío = ∞)
+                      </label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        placeholder="Sin límite" 
+                        className="form-control" 
+                        value={newPromoMaxUses} 
+                        onChange={e => setNewPromoMaxUses(e.target.value)}
+                        style={{ background: 'var(--bg-main)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      Restringir a Jornada
+                    </label>
+                    <select 
+                      className="form-control" 
+                      value={newPromoMatchdayId} 
+                      onChange={e => setNewPromoMatchdayId(e.target.value)}
+                      style={{ background: 'var(--bg-main)' }}
+                    >
+                      <option value="all">Todas las Jornadas</option>
+                      {allMatchdays.map(m => (
+                        <option key={m.id} value={m.id}>Jornada N° {m.number} ({m.status.toUpperCase()})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      Fecha de Expiración (Opcional)
+                    </label>
+                    <input 
+                      type="datetime-local" 
+                      className="form-control" 
+                      value={newPromoExpiresAt} 
+                      onChange={e => setNewPromoExpiresAt(e.target.value)}
+                      style={{ background: 'var(--bg-main)' }}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', gap: '8px' }}>
+                    <PlusCircle size={18} /> Crear Código Promocional
+                  </button>
+                </form>
+              </div>
+
+              {/* Lista de Códigos */}
+              <div className="card">
+                <h3 style={{ marginBottom: '16px' }}>Códigos Registrados ({promoCodes.length})</h3>
+                {promoCodes.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>
+                    No se han creado códigos promocionales todavía.
+                  </p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="leaderboard-table" style={{ minWidth: '600px', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Código</th>
+                          <th>Descuento</th>
+                          <th>Usos</th>
+                          <th>Jornada</th>
+                          <th>Estado</th>
+                          <th style={{ textAlign: 'center' }}>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {promoCodes.map(pc => {
+                          const targetMatchday = allMatchdays.find(m => m.id === pc.matchday_id);
+                          const isExpired = pc.expires_at && new Date(pc.expires_at) < new Date();
+                          return (
+                            <tr key={pc.id}>
+                              <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
+                                {pc.code}
+                              </td>
+                              <td>
+                                {pc.discount_type === 'fixed_price' && `$${Number(pc.discount_value).toFixed(2)} por quiniela`}
+                                {pc.discount_type === 'fixed_discount' && `-$${Number(pc.discount_value).toFixed(2)} por quiniela`}
+                                {pc.discount_type === 'percentage' && `${pc.discount_value}% de desc.`}
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  Mín. {pc.min_entries} quinielas
+                                </div>
+                              </td>
+                              <td>
+                                {pc.times_used} / {pc.max_uses ? pc.max_uses : '∞'}
+                              </td>
+                              <td>
+                                {targetMatchday ? `Jornada ${targetMatchday.number}` : 'Todas'}
+                              </td>
+                              <td>
+                                {isExpired ? (
+                                  <span style={{ color: 'var(--danger)', fontWeight: 'bold', fontSize: '0.75rem' }}>EXPIRADO</span>
+                                ) : (
+                                  <button 
+                                    onClick={() => handleTogglePromoCodeActive(pc.id, pc.is_active)}
+                                    style={{
+                                      background: pc.is_active ? 'rgba(38, 115, 71, 0.3)' : 'rgba(239, 68, 68, 0.2)',
+                                      color: pc.is_active ? 'var(--primary)' : 'var(--danger)',
+                                      border: `1px solid ${pc.is_active ? 'var(--primary)' : 'var(--danger)'}`,
+                                      borderRadius: '4px',
+                                      padding: '2px 8px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {pc.is_active ? 'ACTIVO' : 'INACTIVO'}
+                                  </button>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button 
+                                  className="btn btn-danger" 
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', width: 'auto' }}
+                                  onClick={() => handleDeletePromoCode(pc.id, pc.code)}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 9. ADMIN: DASHBOARD FINANCIERO Y VENTAS (Pestaña "admin-dashboard") */}
         {activeTab === 'admin-dashboard' && isAdmin && (() => {
