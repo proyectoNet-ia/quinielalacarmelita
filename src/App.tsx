@@ -378,6 +378,10 @@ export default function App() {
   const [appliedPromoCode, setAppliedPromoCode] = useState<PromoCode | null>(null);
   const [promoFeedback, setPromoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Admin Manual Promo Application State
+  const [selectedBatchForPromo, setSelectedBatchForPromo] = useState<{ batch: Pool[]; participant: any } | null>(null);
+  const [adminSelectedPromoCode, setAdminSelectedPromoCode] = useState<string>('');
+
   // --- Estados Generador Bots ---
   const [botInputText, setBotInputText] = useState('');
   const [isGeneratingBots, setIsGeneratingBots] = useState(false);
@@ -1536,6 +1540,69 @@ export default function App() {
     } catch (err) {
       console.error('Error aplicando código promo:', err);
       setPromoFeedback({ type: 'error', message: 'Error al verificar el código promocional.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- APLICACIÓN MANUAL DE CÓDIGOS PROMO POR ADMINISTRADOR ---
+  const handleAdminApplyPromoToBatch = async (batch: Pool[], codeToApply: string) => {
+    try {
+      setLoading(true);
+      const poolIds = batch.map(p => p.id);
+      const standardPrice = activeMatchday?.price_per_entry || 25;
+      const cleanCode = codeToApply.trim().toUpperCase();
+
+      if (!cleanCode) {
+        // Quitar la promoción y restaurar al precio estándar
+        const { error } = await supabase
+          .from('pools')
+          .update({ promo_code: null, cost: standardPrice })
+          .in('id', poolIds);
+        if (error) throw error;
+
+        showAlert('success', 'Promoción eliminada del bloque. Se restauró el precio estándar ($25 MXN c/u).');
+      } else {
+        // Buscar si existe el código en promoCodes para calcular precio especial
+        const promoObj = promoCodes.find(p => p.code.toUpperCase() === cleanCode);
+        let entryPrice = standardPrice;
+        
+        if (promoObj) {
+          const val = Number(promoObj.discount_value) || 0;
+          if (promoObj.discount_type === 'fixed_price') {
+            entryPrice = val;
+          } else if (promoObj.discount_type === 'fixed_discount') {
+            entryPrice = Math.max(0, standardPrice - val);
+          } else if (promoObj.discount_type === 'percentage') {
+            entryPrice = Math.max(0, standardPrice * (1 - val / 100));
+          }
+
+          // Incrementar contador de uso del código
+          await supabase
+            .from('promo_codes')
+            .update({ times_used: (promoObj.times_used || 0) + 1 })
+            .eq('id', promoObj.id);
+        } else {
+          showAlert('warning', `Código "${cleanCode}" no encontrado en catálogo; registrado manualmente.`);
+        }
+
+        // Actualizar quinielas con el nuevo código y costo con descuento
+        const { error } = await supabase
+          .from('pools')
+          .update({ promo_code: cleanCode, cost: entryPrice })
+          .in('id', poolIds);
+        if (error) throw error;
+
+        const newTotal = entryPrice * batch.length;
+        showAlert('success', `¡Código ${cleanCode} aplicado con éxito a ${batch.length} quinielas! Nuevo total: $${newTotal} MXN.`);
+      }
+
+      setSelectedBatchForPromo(null);
+      await loadFinancialData();
+      await loadAllPoolsForMatchday();
+    } catch (err: any) {
+      console.error('Error al aplicar promoción manualmente:', err);
+      showAlert('error', err.message || 'Error al aplicar código promocional.');
     } finally {
       setLoading(false);
     }
@@ -6052,6 +6119,29 @@ Mis pronósticos son:
                                   <Eye size={14} /> Ver Pronósticos
                                 </button>
                                 <button 
+                                  className="btn btn-secondary" 
+                                  style={{ 
+                                    padding: '8px 12px', 
+                                    fontSize: '0.85rem', 
+                                    flex: '1 1 120px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: '6px', 
+                                    background: usedPromoInBatch ? 'rgba(234, 179, 8, 0.25)' : 'rgba(234, 179, 8, 0.15)', 
+                                    color: 'var(--accent)', 
+                                    border: '1px solid var(--accent)',
+                                    fontWeight: 'bold'
+                                  }}
+                                  onClick={() => {
+                                    setSelectedBatchForPromo({ batch, participant: primaryParticipant });
+                                    setAdminSelectedPromoCode(usedPromoInBatch || '');
+                                  }}
+                                  title="Aplicar o modificar código promocional para este usuario"
+                                >
+                                  <Tag size={14} /> {usedPromoInBatch ? `Promo: ${usedPromoInBatch}` : 'Aplicar Promo'}
+                                </button>
+                                <button 
                                   className="btn btn-primary" 
                                   style={{ padding: '8px', fontSize: '0.85rem', flex: '1 1 120px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
                                   onClick={() => {
@@ -9289,9 +9379,38 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Banner de Código Promo en Modal si aplica */}
             {selectedDetailsGroup.pools.some((p: any) => p.promo_code) && (
-              <div style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid var(--accent)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                <Tag size={18} />
-                <span>Código Promocional Aplicado: {selectedDetailsGroup.pools.find((p: any) => p.promo_code).promo_code}</span>
+              <div style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid var(--accent)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Tag size={18} />
+                  <span>Código Promocional Aplicado: {selectedDetailsGroup.pools.find((p: any) => p.promo_code).promo_code}</span>
+                </div>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button"
+                  className="btn btn-secondary" 
+                  style={{ 
+                    padding: '8px 14px', 
+                    fontSize: '0.85rem', 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    background: 'rgba(234, 179, 8, 0.2)', 
+                    color: 'var(--accent)', 
+                    border: '1px solid var(--accent)',
+                    fontWeight: 'bold' 
+                  }}
+                  onClick={() => {
+                    const currentPromo = selectedDetailsGroup.pools.find((p: any) => p.promo_code)?.promo_code || '';
+                    setSelectedBatchForPromo({ batch: selectedDetailsGroup.pools, participant: selectedDetailsGroup.participant });
+                    setAdminSelectedPromoCode(currentPromo);
+                  }}
+                >
+                  <Tag size={16} /> {selectedDetailsGroup.pools.some((p: any) => p.promo_code) ? 'Cambiar Código Promo' : 'Aplicar Código Promo'}
+                </button>
               </div>
             )}
 
@@ -9531,6 +9650,135 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
             ¡Entendido!
           </button>
         </div>
+      </Modal>
+
+      {/* Modal para Aplicar Código Promocional Manualmente (Admin) */}
+      <Modal
+        isOpen={!!selectedBatchForPromo}
+        onClose={() => setSelectedBatchForPromo(null)}
+        title="Aplicar Código Promocional a Venta"
+      >
+        {selectedBatchForPromo && (() => {
+          const batch = selectedBatchForPromo.batch;
+          const participant = selectedBatchForPromo.participant;
+          const standardPrice = activeMatchday?.price_per_entry || 25;
+          const currentTotal = batch.reduce((sum, p) => sum + Number(p.cost), 0);
+          
+          // Calcular vista previa del costo según el código escrito/seleccionado
+          const selectedObj = promoCodes.find(p => p.code.toUpperCase() === adminSelectedPromoCode.trim().toUpperCase());
+          let calculatedEntryPrice = standardPrice;
+          if (selectedObj) {
+            const val = Number(selectedObj.discount_value) || 0;
+            if (selectedObj.discount_type === 'fixed_price') {
+              calculatedEntryPrice = val;
+            } else if (selectedObj.discount_type === 'fixed_discount') {
+              calculatedEntryPrice = Math.max(0, standardPrice - val);
+            } else if (selectedObj.discount_type === 'percentage') {
+              calculatedEntryPrice = Math.max(0, standardPrice * (1 - val / 100));
+            }
+          } else if (adminSelectedPromoCode.trim()) {
+            // Si es un código personalizado no listado pero que el admin escribió
+            calculatedEntryPrice = standardPrice;
+          }
+
+          const previewTotal = calculatedEntryPrice * batch.length;
+          const savings = (standardPrice * batch.length) - previewTotal;
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: 'bold' }}>
+                  Participante: {participant?.name || 'Usuario'} (@{participant?.alias || 'alias'})
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Bloque de <strong>{batch.length} {batch.length === 1 ? 'quiniela' : 'quinielas'}</strong> | Costo actual registrado: <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>${currentTotal.toFixed(2)} MXN</span>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '6px', color: 'var(--accent)' }}>
+                  Selecciona un Código de Promoción Activo:
+                </label>
+                <select
+                  className="form-control"
+                  value={adminSelectedPromoCode}
+                  onChange={(e) => setAdminSelectedPromoCode(e.target.value.toUpperCase())}
+                  style={{ background: 'var(--bg-main)', color: 'white', fontSize: '0.9rem', padding: '10px' }}
+                >
+                  <option value="">-- Sin Código / Restablecer Precio Estándar ($25.00 MXN c/u) --</option>
+                  {promoCodes.filter(p => p.is_active).map(p => (
+                    <option key={p.id} value={p.code}>
+                      {p.code} - {p.discount_type === 'fixed_price' ? `$${p.discount_value} MXN c/u` : p.discount_type === 'fixed_discount' ? `-$${p.discount_value} MXN desc.` : `${p.discount_value}% desc.`} (Mín: {p.min_entries} quinielas)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  o Escribe un Código Manualmente:
+                </label>
+                <input
+                  type="text"
+                  placeholder="EJ. PROMO80"
+                  value={adminSelectedPromoCode}
+                  onChange={(e) => setAdminSelectedPromoCode(e.target.value.toUpperCase())}
+                  autoCapitalize="characters"
+                  className="form-control"
+                  style={{ background: 'var(--bg-main)', color: 'white', textTransform: 'uppercase', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              {/* Vista previa del desglose */}
+              {adminSelectedPromoCode.trim() ? (
+                <div style={{ background: 'rgba(38, 115, 71, 0.2)', border: '1px solid var(--primary)', padding: '12px 16px', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 'bold', marginBottom: '4px' }}>
+                    🎉 Resumen con Descuento: {adminSelectedPromoCode}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    • Precio por quiniela: <strong style={{ color: 'white' }}>${calculatedEntryPrice.toFixed(2)} MXN</strong><br />
+                    • Total a cobrar: <strong style={{ color: '#25D366', fontSize: '1rem' }}>${previewTotal.toFixed(2)} MXN</strong>
+                    {savings > 0 && <span style={{ marginLeft: '8px', color: 'var(--accent)', fontWeight: 'bold' }}>(Ahorro: ${savings.toFixed(2)} MXN)</span>}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Se cobrará el precio estándar de <strong>${standardPrice.toFixed(2)} MXN c/u</strong> (Total: ${(standardPrice * batch.length).toFixed(2)} MXN).
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedBatchForPromo(null)}
+                  style={{ width: 'auto', padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  Cancelar
+                </button>
+                {adminSelectedPromoCode.trim() ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleAdminApplyPromoToBatch(batch, adminSelectedPromoCode)}
+                    style={{ width: 'auto', padding: '8px 18px', fontSize: '0.85rem', background: 'var(--accent)', color: '#000', fontWeight: 'bold' }}
+                  >
+                    <Check size={16} /> Aplicar Promoción {adminSelectedPromoCode}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => handleAdminApplyPromoToBatch(batch, '')}
+                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.85rem' }}
+                  >
+                    Quitar Promo (Restaurar Estándar)
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       </div>
