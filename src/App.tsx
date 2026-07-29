@@ -2791,7 +2791,7 @@ Mis pronósticos son:
       title: 'Deshacer Acción',
       message: '¿Seguro que deseas regresar estas quinielas a estado PENDIENTE?\n\nVolverán a aparecer en tu lista de validación.',
       confirmText: 'Sí, Deshacer',
-      confirmColor: 'var(--text-secondary)',
+      confirmColor: '#eab308',
       onConfirm: async () => {
         setConfirmConfig(null);
         try {
@@ -4675,7 +4675,12 @@ Mis pronósticos son:
           </button>
           <button 
             className="btn btn-primary" 
-            style={confirmConfig?.confirmColor ? { backgroundColor: confirmConfig.confirmColor, borderColor: confirmConfig.confirmColor, color: '#ffffff' } : {}}
+            style={confirmConfig?.confirmColor ? { 
+              backgroundColor: confirmConfig.confirmColor, 
+              borderColor: confirmConfig.confirmColor, 
+              color: (confirmConfig.confirmColor === '#eab308' || confirmConfig.confirmColor.includes('warning') || confirmConfig.confirmColor.includes('accent')) ? '#000000' : '#ffffff',
+              fontWeight: 'bold'
+            } : {}}
             onClick={() => confirmConfig?.onConfirm()}
           >
             {confirmConfig?.confirmText || 'Confirmar'}
