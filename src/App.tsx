@@ -3474,58 +3474,68 @@ Mis pronósticos son:
     try {
       setLoading(true);
 
-      // Guardar los resultados seleccionados en la BD
-      for (const match of matches) {
-        await supabase
-          .from('matches')
-          .update({ result: match.result || null })
-          .eq('id', match.id);
-      }
+      // Guardar los resultados seleccionados en la BD en paralelo
+      await Promise.all(
+        matches.map(match =>
+          supabase
+            .from('matches')
+            .update({ result: match.result || null })
+            .eq('id', match.id)
+        )
+      );
 
-      // Cargar todas las quinielas y predicciones de esta quiniela
-      const { data: poolsData, error: poolsErr } = await supabase
-        .from('pools')
-        .select('*')
-        .eq('matchday_id', activeMatchday.id)
-        .eq('payment_status', 'approved');
+      // Intentar primero ejecución atómica vía RPC en Supabase
+      const { error: rpcErr } = await supabase.rpc('recalculate_matchday_scores', {
+        p_matchday_id: activeMatchday.id
+      });
 
-      if (poolsErr) throw poolsErr;
-
-      // Obtener predicciones en lotes (chunks de 50) para evitar el límite de 1000 registros
-      let predsData: any[] = [];
-      const poolIds = poolsData.map(p => p.id);
-      const chunkSize = 50;
-      
-      for (let i = 0; i < poolIds.length; i += chunkSize) {
-        const chunk = poolIds.slice(i, i + chunkSize);
-        const { data: chunkPreds, error: predsErr } = await supabase
-          .from('predictions')
-          .select('*')
-          .in('pool_id', chunk);
-
-        if (predsErr) throw predsErr;
-        if (chunkPreds) {
-          predsData = [...predsData, ...chunkPreds];
-        }
-      }
-
-      // Calcular puntos para cada quiniela
-      for (const pool of poolsData) {
-        let score = 0;
-        const poolPreds = predsData.filter(pr => pr.pool_id === pool.id);
-
-        poolPreds.forEach(pred => {
-          const match = matches.find(m => m.id === pred.match_id);
-          if (match && match.result && pred.selection.includes(match.result)) {
-            score += 1; // 1 punto por acierto
-          }
-        });
-
-        // Actualizar en base de datos
-        await supabase
+      if (rpcErr) {
+        // Fallback: cálculo local y actualización por lotes concurrentes (Promise.all)
+        const { data: poolsData, error: poolsErr } = await supabase
           .from('pools')
-          .update({ score })
-          .eq('id', pool.id);
+          .select('id, matchday_id, payment_status, score')
+          .eq('matchday_id', activeMatchday.id)
+          .eq('payment_status', 'approved');
+
+        if (poolsErr) throw poolsErr;
+
+        if (poolsData && poolsData.length > 0) {
+          let predsData: any[] = [];
+          const poolIds = poolsData.map(p => p.id);
+          const chunkSize = 50;
+
+          for (let i = 0; i < poolIds.length; i += chunkSize) {
+            const chunk = poolIds.slice(i, i + chunkSize);
+            const { data: chunkPreds, error: predsErr } = await supabase
+              .from('predictions')
+              .select('pool_id, match_id, selection')
+              .in('pool_id', chunk);
+
+            if (predsErr) throw predsErr;
+            if (chunkPreds) predsData = [...predsData, ...chunkPreds];
+          }
+
+          // Calcular puntajes en memoria y actualizar por lotes en paralelo
+          const updatePromises = poolsData.map(pool => {
+            let score = 0;
+            const poolPreds = predsData.filter(pr => pr.pool_id === pool.id);
+
+            poolPreds.forEach(pred => {
+              const match = matches.find(m => m.id === pred.match_id);
+              if (match && match.result && pred.selection.includes(match.result)) {
+                score += 1;
+              }
+            });
+
+            return supabase.from('pools').update({ score }).eq('id', pool.id);
+          });
+
+          // Ejecutar actualizaciones concurrentes en fragmentos de 15 peticiones
+          const batchLimit = 15;
+          for (let i = 0; i < updatePromises.length; i += batchLimit) {
+            await Promise.all(updatePromises.slice(i, i + batchLimit));
+          }
+        }
       }
 
       if (!incomplete) {
