@@ -803,18 +803,37 @@ export default function App() {
     }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
 
-  // Auto-actualizar datos cada 30 segundos si el usuario es administrador
+  // Escuchar órdenes de pago y quinielas en tiempo real vía Supabase Realtime
   useEffect(() => {
     if (!isAdmin) return;
 
-    const interval = setInterval(() => {
-      loadFinancialData();
-      if (activeMatchday?.id) {
-        loadAllPoolsForMatchday();
-      }
-    }, 30000); // 30 segundos
+    const channel = supabase
+      .channel('admin-pools-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pools' },
+        (payload: any) => {
+          if (activeMatchday?.id) {
+            loadAllPoolsForMatchday();
+          }
+          loadFinancialData();
 
-    return () => clearInterval(interval);
+          if (payload.eventType === 'INSERT') {
+            showAlert('info', '🔔 ¡Nueva orden de pago / quiniela recibida!');
+          } else if (
+            payload.eventType === 'UPDATE' &&
+            payload.new?.payment_receipt_url &&
+            payload.new?.payment_receipt_url !== payload.old?.payment_receipt_url
+          ) {
+            showAlert('info', '🔔 Nuevo comprobante de pago recibido.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin, activeMatchday?.id]);
 
   // --- EFECTO: AUTO-APLICACIÓN INTELIGENTE DE CÓDIGOS PROMO ---
