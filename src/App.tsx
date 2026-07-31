@@ -19,7 +19,10 @@ const createJsPDFDocLazy = async (options?: any) => {
   return new jsPDF(options);
 };
 
+import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
+
 import { 
+  Bell,
   MoreVertical,
   Trophy, 
   User, 
@@ -775,6 +778,7 @@ export default function App() {
     }
 
     loadInitialData();
+    registerServiceWorker();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -820,12 +824,14 @@ export default function App() {
 
           if (payload.eventType === 'INSERT') {
             showAlert('info', '🔔 ¡Nueva orden de pago / quiniela recibida!');
+            sendLocalPushNotification('⚽ La Carmelita Admin', '¡Nueva orden de pago / quiniela recibida en tu plataforma!');
           } else if (
             payload.eventType === 'UPDATE' &&
             payload.new?.payment_receipt_url &&
             payload.new?.payment_receipt_url !== payload.old?.payment_receipt_url
           ) {
             showAlert('info', '🔔 Nuevo comprobante de pago recibido.');
+            sendLocalPushNotification('⚽ La Carmelita Admin', '¡Un participante acaba de subir su comprobante de pago!');
           }
         }
       )
@@ -9026,13 +9032,25 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <h2>Ventas y Análisis Financiero</h2>
-                <button 
-                  className="btn btn-primary" 
-                  style={{ width: 'auto', gap: '8px' }} 
-                  onClick={handleExportGlobalFinancialPDF}
-                >
-                  <FileText size={18} /> Exportar Reporte Global PDF
-                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary" 
+                    style={{ width: 'auto', gap: '8px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 'bold' }} 
+                    onClick={requestAdminPushPermission}
+                    title="Recibir avisos instantáneos de compras en tu teléfono"
+                  >
+                    <Bell size={18} /> Activar Alerta Push Celular
+                  </button>
+                  <button 
+                    type="button"
+                    className="btn btn-primary" 
+                    style={{ width: 'auto', gap: '8px' }} 
+                    onClick={handleExportGlobalFinancialPDF}
+                  >
+                    <FileText size={18} /> Exportar Reporte Global PDF
+                  </button>
+                </div>
               </div>
 
               {/* Filtros */}
