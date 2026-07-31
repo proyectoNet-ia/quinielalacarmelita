@@ -105,7 +105,10 @@ const CarmelitoAssistant: React.FC<CarmelitoAssistantProps> = ({ onAutoFillAnaly
         const el = document.getElementById(step.targetId);
         if (el) {
           el.classList.add('spotlight-active-ring');
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Paso 0: ya se hizo scroll to top en startTutorial, no mover
+          if (currentStep !== 0) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         }
       }
     }
@@ -233,8 +236,14 @@ const CarmelitoAssistant: React.FC<CarmelitoAssistantProps> = ({ onAutoFillAnaly
   };
 
   const startTutorial = () => {
-    setCurrentStep(0);
-    setIsTutorialOpen(true);
+    // Siempre regresar al top antes de abrir el tutorial
+    // para que el cursor quede alineado con los botones visibles
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Esperar a que el scroll termine antes de montar el tutorial
+    setTimeout(() => {
+      setCurrentStep(0);
+      setIsTutorialOpen(true);
+    }, 380);
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -243,8 +252,8 @@ const CarmelitoAssistant: React.FC<CarmelitoAssistantProps> = ({ onAutoFillAnaly
   // getBoundingClientRect ya da coordenadas de viewport, no necesitamos scrollX/Y
   const [cursorViewport, setCursorViewport] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Sincroniza la posición viewport del cursor cuando cambia levDemoIndex
-  React.useEffect(() => {
+  // Sincroniza la posición viewport del cursor cuando cambia levDemoIndex O el usuario scrollea
+  const recalcCursor = React.useCallback(() => {
     if (!isTutorialOpen || currentStep !== 0) { setCursorViewport(null); return; }
     const zone = document.getElementById('zone-p1-p10');
     if (!zone) return;
@@ -259,7 +268,18 @@ const CarmelitoAssistant: React.FC<CarmelitoAssistantProps> = ({ onAutoFillAnaly
       const r = (found as HTMLButtonElement).getBoundingClientRect();
       setCursorViewport({ x: r.left + r.width / 2, y: r.top + r.height * 0.15 });
     }
-  }, [levDemoIndex, isTutorialOpen, currentStep]);
+  }, [isTutorialOpen, currentStep, levDemoIndex]);
+
+  React.useEffect(() => {
+    recalcCursor();
+    // Recalcular si el usuario scrollea o redimensiona mientras el tutorial está abierto
+    window.addEventListener('scroll', recalcCursor, { passive: true });
+    window.addEventListener('resize', recalcCursor, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', recalcCursor);
+      window.removeEventListener('resize', recalcCursor);
+    };
+  }, [recalcCursor]);
 
   return (
     <>
