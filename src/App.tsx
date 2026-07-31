@@ -9963,9 +9963,11 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
         })()}
       </Modal>
 
-      <CarmelitoAssistant 
-        onAutoFillAnalytical={handleAutoFillAnalytical}
-      />
+      {activeTab === 'predictions' && (
+        <CarmelitoAssistant
+          onAutoFillAnalytical={handleAutoFillAnalytical}
+        />
+      )}
 
       </div>
     </div>
