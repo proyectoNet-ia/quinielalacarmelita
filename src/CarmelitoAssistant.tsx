@@ -321,24 +321,26 @@ const CarmelitoAssistant: React.FC<CarmelitoAssistantProps> = ({ onAutoFillAnaly
         {!isTutorialOpen && (
           <span
             style={{
-              background: '#1E5E3A',
-              color: '#E0B828',
-              border: '1px solid #E0B828',
+              background: '#E0B828',
+              color: '#11291F',
+              border: '2px solid #fff',
               borderRadius: '20px',
-              padding: '4px 10px',
-              fontSize: '0.72rem',
-              fontWeight: 'bold',
-              letterSpacing: '0.5px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+              padding: '5px 13px',
+              fontSize: '0.78rem',
+              fontWeight: '900',
+              letterSpacing: '0.8px',
+              textTransform: 'uppercase',
+              boxShadow: '0 3px 14px rgba(0,0,0,0.55), 0 0 18px rgba(224,184,40,0.5)',
               animation: 'tutorialLabelPulse 2.4s ease-in-out infinite',
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
               userSelect: 'none'
             }}
           >
-            Tutorial
+            ⚽ Tutorial
           </span>
         )}
+
 
         <button
           type="button"
