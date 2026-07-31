@@ -1150,4 +1150,165 @@ select.form-control {
   }
 }
 
+/* CLS Optimization: Fixed dimensions for images and containers */
+.team-logo-fixed {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  aspect-ratio: 1 / 1;
+  contain-intrinsic-size: 40px 40px;
+}
+
+.matchday-timer-fixed {
+  min-height: 48px;
+  contain-intrinsic-size: 100% 48px;
+}
+
+/* El Carmelito Assistant Styling */
+.carmelito-floating-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.carmelito-floating-widget * {
+  pointer-events: auto;
+}
+
+.carmelito-bubble {
+  background: #1E5E3A;
+  border: 1px solid #E0B828;
+  color: #FFFFFF;
+  border-radius: 16px;
+  padding: 12px 16px;
+  max-width: 320px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(224, 184, 40, 0.2);
+  margin-bottom: 8px;
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.carmelito-avatar-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #E0B828 0%, #C29F20 100%);
+  border: 2px solid #FFFFFF;
+  color: #11291F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.carmelito-avatar-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(224, 184, 40, 0.5);
+}
+
+/* Vibración & Alerta P11 (Shake Warning & Top Toast) */
+@keyframes shakeWarning {
+  0%, 100% { transform: translateX(0); border-color: #ef4444; }
+  20%, 60% { transform: translateX(-6px); border-color: #ef4444; }
+  40%, 80% { transform: translateX(6px); border-color: #ef4444; }
+}
+
+.shake-warning {
+  animation: shakeWarning 0.4s ease-in-out;
+  border: 2px solid #ef4444 !important;
+}
+
+.toast-top-warning {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background-color: #ef4444;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+/* Resalte visual Spotlight para el Tutorial de El Carmelito */
+.spotlight-active-ring {
+  outline: 3px solid #E0B828 !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 25px rgba(224, 184, 40, 0.65) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Simulación de selección demo durante el Tutorial - Paso 1 */
+@keyframes levDemoPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Animación del dedo/cursor flotante del tutorial */
+@keyframes cursorBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-6px) scale(1.12); }
+}
+
+/* Cursor parpadeante del fake input en el demo de código promo */
+@keyframes caretBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+
+/* Etiqueta "Tutorial" — aparece y desaparece en loop */
+@keyframes tutorialLabelPulse {
+  0%   { opacity: 0;    transform: translateX(6px) scale(0.92); }
+  15%  { opacity: 1;    transform: translateX(0)   scale(1);    }
+  70%  { opacity: 1;    transform: translateX(0)   scale(1);    }
+  90%  { opacity: 0;    transform: translateX(6px) scale(0.92); }
+  100% { opacity: 0;    transform: translateX(6px) scale(0.92); }
+}
+
+
+
+.lev-btn.demo-selected-l {
+  background: var(--selected-l, #1e7e34) !important;
+  color: #fff !important;
+  border-color: #28a745 !important;
+  box-shadow: 0 0 12px rgba(40, 167, 69, 0.7) !important;
+  animation: levDemoPulse 0.4s ease;
+}
+.lev-btn.demo-selected-e {
+  background: var(--selected-e, #856404) !important;
+  color: #fff !important;
+  border-color: #ffc107 !important;
+  box-shadow: 0 0 12px rgba(255, 193, 7, 0.7) !important;
+  animation: levDemoPulse 0.4s ease;
+}
+.lev-btn.demo-selected-v {
+  background: var(--selected-v, #0062cc) !important;
+  color: #fff !important;
+  border-color: #007bff !important;
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.7) !important;
+  animation: levDemoPulse 0.4s ease;
+}
+
+
+
+
+
 

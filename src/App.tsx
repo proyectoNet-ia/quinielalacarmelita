@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
-import { jsPDF } from 'jspdf';
-import { applyPlugin } from 'jspdf-autotable';
-import imageCompression from 'browser-image-compression';
-import Tesseract from 'tesseract.js';
+import CarmelitoAssistant from './CarmelitoAssistant';
+// Dynamic Lazy Loaders para código comprimido inicial (Code Splitting)
+const compressImageLazy = async (file: File, options: any) => {
+  const { default: imageCompression } = await import('browser-image-compression');
+  return imageCompression(file, options);
+};
 
-// Registrar plugin de autotable en jsPDF para evitar errores de vinculación
-applyPlugin(jsPDF);
+const createTesseractWorkerLazy = async (lang: string) => {
+  const { default: Tesseract } = await import('tesseract.js');
+  return Tesseract.createWorker(lang);
+};
+
+const createJsPDFDocLazy = async (options?: any) => {
+  const { jsPDF } = await import('jspdf');
+  const { applyPlugin } = await import('jspdf-autotable');
+  applyPlugin(jsPDF);
+  return new jsPDF(options);
+};
+
 import { 
   MoreVertical,
   Trophy, 
@@ -31,6 +43,7 @@ import {
   Menu,
   MessageCircle,
   Shield,
+  Sparkles,
   Download,
   Edit2,
   Globe,
@@ -176,6 +189,7 @@ interface PromoCode {
   max_uses?: number | null;
   times_used: number;
   is_active: boolean;
+  is_public?: boolean;
   expires_at?: string | null;
   matchday_id?: string | null;
   created_at: string;
@@ -271,6 +285,9 @@ const SearchableSelect = ({ value, onChange, options, placeholder }: { value: st
 };
 
 export default function App() {
+  const [toastWarning, setToastWarning] = useState<string | null>(null);
+  const [isP11Shaking, setIsP11Shaking] = useState<boolean>(false);
+
   // --- Estados de Sesión ---
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -372,11 +389,13 @@ export default function App() {
   const [newPromoMaxUses, setNewPromoMaxUses] = useState<string>('');
   const [newPromoExpiresAt, setNewPromoExpiresAt] = useState<string>('');
   const [newPromoMatchdayId, setNewPromoMatchdayId] = useState<string>('all');
+  const [newPromoIsPublic, setNewPromoIsPublic] = useState<boolean>(true);
 
   // Checkout / Carrito Promo State
   const [promoInputCode, setPromoInputCode] = useState('');
   const [appliedPromoCode, setAppliedPromoCode] = useState<PromoCode | null>(null);
   const [promoFeedback, setPromoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isPromoManuallyRemoved, setIsPromoManuallyRemoved] = useState<boolean>(false);
 
   // Admin Manual Promo Application State
   const [selectedBatchForPromo, setSelectedBatchForPromo] = useState<{ batch: Pool[]; participant: any } | null>(null);
@@ -797,6 +816,68 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [isAdmin, activeMatchday?.id]);
+
+  // --- EFECTO: AUTO-APLICACIÓN INTELIGENTE DE CÓDIGOS PROMO ---
+  useEffect(() => {
+    if (cart.length === 0) {
+      if (appliedPromoCode || promoFeedback) {
+        setAppliedPromoCode(null);
+        setPromoInputCode('');
+        setPromoFeedback(null);
+      }
+      setIsPromoManuallyRemoved(false);
+      return;
+    }
+
+    if (!promoCodes || promoCodes.length === 0) {
+      loadPromoCodes();
+      return;
+    }
+
+    const standardPrice = activeMatchday?.price_per_entry || 25;
+
+    const calculateDiscountPrice = (code: PromoCode) => {
+      const val = Number(code.discount_value) || 0;
+      if (code.discount_type === 'fixed_price') return val;
+      if (code.discount_type === 'fixed_discount') return Math.max(0, standardPrice - val);
+      if (code.discount_type === 'percentage') return Math.max(0, standardPrice * (1 - val / 100));
+      return standardPrice;
+    };
+
+    const now = new Date();
+    const eligibleCodes = promoCodes.filter(code => {
+      if (!code.is_active) return false;
+      if (code.is_public === false) return false; // Exclusivo para ADMIN, no se auto-aplica a participantes
+      if (code.expires_at && new Date(code.expires_at) < now) return false;
+      if (code.max_uses !== null && code.max_uses !== undefined && code.times_used >= code.max_uses) return false;
+      if (code.matchday_id && activeMatchday && code.matchday_id !== activeMatchday.id) return false;
+      if (cart.length < code.min_entries) return false;
+      return true;
+    });
+
+    if (eligibleCodes.length === 0) {
+      if (appliedPromoCode && cart.length < appliedPromoCode.min_entries) {
+        setAppliedPromoCode(null);
+        setPromoInputCode('');
+        setPromoFeedback(null);
+      }
+      return;
+    }
+
+    // Ordenar para encontrar el código que ofrece el mayor descuento (menor precio por quiniela)
+    eligibleCodes.sort((a, b) => calculateDiscountPrice(a) - calculateDiscountPrice(b));
+    const bestCode = eligibleCodes[0];
+
+    // Si no hay código aplicado actualmente y no se removió manualmente, o el código actual ya no cumple el mínimo:
+    if ((!appliedPromoCode && !isPromoManuallyRemoved) || (appliedPromoCode && cart.length < appliedPromoCode.min_entries)) {
+      setAppliedPromoCode(bestCode);
+      setPromoInputCode(bestCode.code);
+      setPromoFeedback({
+        type: 'success',
+        message: `🎉 ¡Promoción '${bestCode.code}' aplicada automáticamente!`
+      });
+    }
+  }, [cart.length, promoCodes, activeMatchday, isPromoManuallyRemoved]);
 
   // Cargar ganadores de la última quiniela finalizada
   useEffect(() => {
@@ -1280,7 +1361,7 @@ export default function App() {
         maxWidthOrHeight: 1200,
         useWebWorker: true
       };
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await compressImageLazy(file, options);
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
@@ -1357,7 +1438,7 @@ export default function App() {
         maxWidthOrHeight: 800,
         useWebWorker: true
       };
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await compressImageLazy(file, options);
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
@@ -1410,6 +1491,7 @@ export default function App() {
         min_entries: Number(newPromoMinEntries) || 2,
         max_uses: newPromoMaxUses.trim() !== '' ? Number(newPromoMaxUses) : null,
         is_active: true,
+        is_public: newPromoIsPublic,
         expires_at: newPromoExpiresAt ? new Date(newPromoExpiresAt).toISOString() : null,
         matchday_id: newPromoMatchdayId !== 'all' ? newPromoMatchdayId : null
       };
@@ -1418,13 +1500,14 @@ export default function App() {
       if (error) throw error;
 
       setIsPromoTableMissing(false);
-      showAlert('success', `Código promocional '${codeUpper}' creado correctamente.`);
+      showAlert('success', `Código promocional '${codeUpper}' (${newPromoIsPublic ? 'Público' : 'Privado ADMIN'}) creado correctamente.`);
       setNewPromoCode('');
       setNewPromoDiscountValue(15);
       setNewPromoMinEntries(2);
       setNewPromoMaxUses('');
       setNewPromoExpiresAt('');
       setNewPromoMatchdayId('all');
+      setNewPromoIsPublic(true);
       loadPromoCodes();
     } catch (err: any) {
       console.error('Error creando código promo:', err);
@@ -1504,6 +1587,12 @@ export default function App() {
         return;
       }
 
+      if (codeData.is_public === false && !isAdmin) {
+        setPromoFeedback({ type: 'error', message: 'Este código promocional es de uso exclusivo administrativo.' });
+        setAppliedPromoCode(null);
+        return;
+      }
+
       if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) {
         setPromoFeedback({ type: 'error', message: 'Este código promocional ha expirado.' });
         setAppliedPromoCode(null);
@@ -1532,6 +1621,7 @@ export default function App() {
       }
 
       // Código Válido
+      setIsPromoManuallyRemoved(false);
       setAppliedPromoCode(codeData);
       setPromoFeedback({
         type: 'success',
@@ -2164,17 +2254,46 @@ export default function App() {
     showAlert('success', 'Quiniela llenada al azar.');
   };
 
+  const handleAutoFillAnalytical = () => {
+    const newSelections: Record<string, string> = {};
+    matches.forEach(m => {
+      const charCodeSum = (m.id || 'x').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const rand = charCodeSum % 100;
+      if (rand < 45) newSelections[m.id] = 'L';
+      else if (rand < 75) newSelections[m.id] = 'V';
+      else newSelections[m.id] = 'E';
+    });
+    setCurrentSelections(newSelections);
+    showAlert('success', 'Quiniela cargada con Llenado con IA.');
+  };
+
   const handleAddToCart = () => {
     if (!activeMatchday) return;
     if (new Date(activeMatchday.deadline) < new Date()) {
       showAlert('error', 'El límite para registrar quinielas ha expirado.');
       return;
     }
+
+    const mainMatches = matches.filter(m => m.is_main !== false);
+    const reserveMatches = matches.filter(m => m.is_main === false);
+
+    const mainIncomplete = mainMatches.length > 0 && mainMatches.some(m => !currentSelections[m.id]);
+    const reserveIncomplete = reserveMatches.length > 0 && reserveMatches.some(m => !currentSelections[m.id]);
+
+    if (!mainIncomplete && reserveIncomplete) {
+      setIsP11Shaking(true);
+      setTimeout(() => setIsP11Shaking(false), 1200);
+      setToastWarning('⚠️ Falta elegir el Partido Suplente (P11) para completar tu boleto.');
+      setTimeout(() => setToastWarning(null), 3000);
+      return;
+    }
+
     const incomplete = matches.some(m => !currentSelections[m.id]);
     if (incomplete || matches.length === 0) {
       showAlert('error', 'Por favor selecciona el pronóstico para todos los partidos.');
       return;
     }
+
     setCart([...cart, { ...currentSelections }]);
     setCurrentSelections({});
     showAlert('success', 'Quiniela añadida al carrito.');
@@ -2424,11 +2543,11 @@ Mis pronósticos son:
         useWebWorker: true,
       };
       
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await compressImageLazy(file, options);
       setVerifyReceiptFile(compressedFile);
 
       // 2. OCR Analysis
-      const worker = await Tesseract.createWorker('spa'); // Usamos español para detectar SPEI, Transferencia, etc.
+      const worker = await createTesseractWorkerLazy('spa'); // Usamos español para detectar SPEI, Transferencia, etc.
       const ret = await worker.recognize(compressedFile);
       const text = ret.data.text.toLowerCase();
       await worker.terminate();
@@ -3545,13 +3664,13 @@ Mis pronósticos son:
   };
 
   // --- Exportación a PDF de Reporte Financiero Global ---
-  const handleExportGlobalFinancialPDF = () => {
+  const handleExportGlobalFinancialPDF = async () => {
     if (financialMatchdays.length === 0) {
       showAlert('error', 'No hay quinielas registradas para exportar.');
       return;
     }
 
-    const doc = new jsPDF({
+    const doc = await createJsPDFDocLazy({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
@@ -3656,8 +3775,8 @@ Mis pronósticos son:
   };
 
   // --- Exportación a PDF de Estado de Cuenta Individual ---
-  const handleExportParticipantStatementPDF = (participant: Participant, participantPools: Pool[]) => {
-    const doc = new jsPDF({
+  const handleExportParticipantStatementPDF = async (participant: Participant, participantPools: Pool[]) => {
+    const doc = await createJsPDFDocLazy({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
@@ -3818,7 +3937,7 @@ Mis pronósticos son:
       const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
 
       // Generar el PDF en vertical (portrait)
-      const doc = new jsPDF({
+      const doc = await createJsPDFDocLazy({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
@@ -4030,7 +4149,7 @@ Mis pronósticos son:
       // Cargar logo de La Carmelita
       const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
 
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const doc = await createJsPDFDocLazy({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
       // Encabezado con Logo y texto en Negro
       if (logoBase64) {
@@ -4198,7 +4317,7 @@ Mis pronósticos son:
       // Cargar logo de La Carmelita
       const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
 
-      const doc = new jsPDF({
+      const doc = await createJsPDFDocLazy({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
@@ -4864,6 +4983,11 @@ Mis pronósticos son:
 
       {/* Contenedor del Contenido Principal */}
       <div className="app-content-wrapper">
+        {toastWarning && (
+          <div className="toast-top-warning">
+            {toastWarning}
+          </div>
+        )}
         {/* Cabecera Móvil */}
         {currentUser && activeTab !== 'coming-soon' && (
           <header className="mobile-header">
@@ -4928,6 +5052,7 @@ Mis pronósticos son:
                 </div>
               )}
             <button 
+              id="zone-upload-receipt"
               className="btn btn-primary animate-pulse-scale"
               onClick={() => {
                 const lastRef = localStorage.getItem('lastReferenceCode');
@@ -5258,7 +5383,7 @@ Mis pronósticos son:
                         </button>
                         <button 
                           className="btn btn-secondary" 
-                          onClick={handleRandomFill}
+                          onClick={handleAutoFillAnalytical}
                           style={{ 
                             background: 'var(--accent)', 
                             color: '#000', 
@@ -5268,8 +5393,8 @@ Mis pronósticos son:
                             gap: '8px'
                           }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M8 8h.01"></path><path d="M16 8h.01"></path><path d="M8 16h.01"></path><path d="M16 16h.01"></path><path d="M12 12h.01"></path></svg>
-                          Llenado al AZAR
+                          <Sparkles size={16} />
+                          Llenado con IA
                         </button>
                       </div>
                           </>
@@ -5288,7 +5413,7 @@ Mis pronósticos son:
                         
                         return (
                           <>
-                            <div style={{ marginBottom: '20px' }}>
+                            <div id="zone-p1-p10" style={{ marginBottom: '20px' }}>
                               {mainMatches.map(match => {
                                 globalIdx++;
                                 const idx = globalIdx - 1;
@@ -5350,7 +5475,7 @@ Mis pronósticos son:
                             </div>
 
                             {reserveMatches.length > 0 && (
-                              <div style={{ marginTop: '30px' }}>
+                              <div id="zone-p11" className={isP11Shaking ? 'shake-warning' : ''} style={{ marginTop: '30px', borderRadius: '8px', transition: 'all 0.2s ease' }}>
                                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', padding: '12px 16px', borderRadius: '4px', marginBottom: '16px' }}>
                                   <p style={{ margin: 0, color: '#fca5a5', fontSize: '0.9rem', fontWeight: '500' }}>
                                     <span style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Partido suplente:</span> Solo se tomará en cuenta si alguno de los {mainMatches.length} partidos principales se suspende. Recuerda marcarlo.
@@ -5427,7 +5552,7 @@ Mis pronósticos son:
                         </button>
                         <button 
                           className="btn btn-secondary" 
-                          onClick={handleRandomFill}
+                          onClick={handleAutoFillAnalytical}
                           style={{ 
                             background: 'var(--accent)', 
                             color: '#000', 
@@ -5437,8 +5562,8 @@ Mis pronósticos son:
                             gap: '8px'
                           }}
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M8 8h.01"></path><path d="M16 8h.01"></path><path d="M8 16h.01"></path><path d="M16 16h.01"></path><path d="M12 12h.01"></path></svg>
-                          Llenado al AZAR
+                          <Sparkles size={18} />
+                          Llenado con IA
                         </button>
                       </div>
                       )}
@@ -5456,6 +5581,7 @@ Mis pronósticos son:
                       
                       <div style={{ marginBottom: '24px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '24px' }}>
                         <button 
+                          id="btn-add-quiniela"
                           className="btn btn-primary"
                           onClick={handleAddToCart}
                           disabled={new Date(activeMatchday.deadline) < new Date()}
@@ -5488,7 +5614,8 @@ Mis pronósticos son:
                           ))}
                           <div style={{ borderTop: '1px solid var(--border-color)', margin: '16px 0', paddingTop: '16px' }}>
                             {/* Bloque de Código Promocional Destacado */}
-                            <div className="promo-box-glow" style={{ marginBottom: '16px', padding: '14px', borderRadius: 'var(--radius-md)' }}>
+                            {((appliedPromoCode !== null) || isAdmin || (promoCodes || []).some(c => c.is_active && c.is_public !== false && (!c.expires_at || new Date(c.expires_at) > new Date()) && (c.max_uses === null || c.max_uses === undefined || c.times_used < c.max_uses) && (!c.matchday_id || (activeMatchday && c.matchday_id === activeMatchday.id)))) && (
+                            <div id="zone-promo" className="promo-box-glow" style={{ marginBottom: '16px', padding: '14px', borderRadius: 'var(--radius-md)' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent)', margin: 0 }}>
                                   <Tag size={16} className="promo-tag-icon-bounce" />
@@ -5533,6 +5660,7 @@ Mis pronósticos son:
                                       setAppliedPromoCode(null);
                                       setPromoInputCode('');
                                       setPromoFeedback(null);
+                                      setIsPromoManuallyRemoved(true);
                                     }}
                                     style={{ width: 'auto', padding: '6px 12px', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '0.8rem', fontWeight: 'bold' }}
                                   >
@@ -5569,7 +5697,25 @@ Mis pronósticos son:
                                   🎉 ¡Precio especial! ${getDiscountedEntryPrice().toFixed(2)} MXN c/u. (Ahorras ${(cart.length * (activeMatchday?.price_per_entry || 25) - cart.length * getDiscountedEntryPrice()).toFixed(2)} MXN)
                                 </div>
                               )}
+                              {!appliedPromoCode && cart.length > 0 && (() => {
+                                const now = new Date();
+                                const upcomingPromos = (promoCodes || [])
+                                  .filter(c => c.is_active && c.is_public !== false && (!c.expires_at || new Date(c.expires_at) > now) && (!c.matchday_id || (activeMatchday && c.matchday_id === activeMatchday.id)) && (c.max_uses === null || c.max_uses === undefined || c.times_used < c.max_uses) && c.min_entries > cart.length)
+                                  .sort((a, b) => a.min_entries - b.min_entries);
+
+                                if (upcomingPromos.length === 0) return null;
+                                const nextPromo = upcomingPromos[0];
+                                const needed = nextPromo.min_entries - cart.length;
+
+                                return (
+                                  <div style={{ marginTop: '8px', background: 'rgba(234, 179, 8, 0.15)', border: '1px dashed var(--accent)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Tag size={14} />
+                                    <span>💡 ¡Agrega {needed} quiniela{needed > 1 ? 's' : ''} más para activar automáticamente la promoción <strong>{nextPromo.code}</strong>!</span>
+                                  </div>
+                                );
+                              })()}
                             </div>
+                            )}
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                               <span style={{ color: 'var(--text-secondary)' }}>Total Quinielas:</span>
@@ -8465,6 +8611,7 @@ Mis pronósticos son:
     max_uses INTEGER,
     times_used INTEGER DEFAULT 0 NOT NULL,
     is_active BOOLEAN DEFAULT true NOT NULL,
+    is_public BOOLEAN DEFAULT true NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
     matchday_id UUID REFERENCES public.matchdays(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -8476,7 +8623,8 @@ DROP POLICY IF EXISTS "public_all_promo_codes" ON public.promo_codes;
 CREATE POLICY "public_all_promo_codes" ON public.promo_codes
   FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
-ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`}
+ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;
+ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true NOT NULL;`}
                   </pre>
                 </div>
 
@@ -8493,6 +8641,7 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`}
     max_uses INTEGER,
     times_used INTEGER DEFAULT 0 NOT NULL,
     is_active BOOLEAN DEFAULT true NOT NULL,
+    is_public BOOLEAN DEFAULT true NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
     matchday_id UUID REFERENCES public.matchdays(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -8504,7 +8653,8 @@ DROP POLICY IF EXISTS "public_all_promo_codes" ON public.promo_codes;
 CREATE POLICY "public_all_promo_codes" ON public.promo_codes
   FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
-ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
+ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;
+ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true NOT NULL;`;
                       navigator.clipboard.writeText(sqlText);
                       showAlert('success', 'Script SQL copiado al portapapeles. Pégalo en SQL Editor de Supabase.');
                     }}
@@ -8615,6 +8765,21 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
 
                   <div className="form-group" style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                      Alcance / Visibilidad
+                    </label>
+                    <select 
+                      className="form-control" 
+                      value={newPromoIsPublic ? 'public' : 'private'} 
+                      onChange={e => setNewPromoIsPublic(e.target.value === 'public')}
+                      style={{ background: 'var(--bg-main)' }}
+                    >
+                      <option value="public">🌐 Pública (Participantes - Auto-aplicable)</option>
+                      <option value="private">🔒 Privada (Exclusivo Administrador)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                       Restringir a Jornada
                     </label>
                     <select 
@@ -8658,10 +8823,11 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
                   </p>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
-                    <table className="leaderboard-table" style={{ minWidth: '600px', fontSize: '0.85rem' }}>
+                    <table className="leaderboard-table" style={{ minWidth: '650px', fontSize: '0.85rem' }}>
                       <thead>
                         <tr>
                           <th>Código</th>
+                          <th>Visibilidad</th>
                           <th>Descuento</th>
                           <th>Usos</th>
                           <th>Jornada</th>
@@ -8677,6 +8843,17 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
                             <tr key={pc.id}>
                               <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
                                 {pc.code}
+                              </td>
+                              <td>
+                                {pc.is_public !== false ? (
+                                  <span style={{ background: 'rgba(37, 211, 102, 0.15)', color: '#25D366', border: '1px solid #25D366', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 'bold' }}>
+                                    🌐 Pública
+                                  </span>
+                                ) : (
+                                  <span style={{ background: 'rgba(234, 179, 8, 0.15)', color: 'var(--accent)', border: '1px solid var(--accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 'bold' }}>
+                                    🔒 Privada (Admin)
+                                  </span>
+                                )}
                               </td>
                               <td>
                                 {pc.discount_type === 'fixed_price' && `$${Number(pc.discount_value).toFixed(2)} por quiniela`}
@@ -9713,7 +9890,7 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
                   <option value="">-- Sin Código / Restablecer Precio Estándar ($25.00 MXN c/u) --</option>
                   {promoCodes.filter(p => p.is_active).map(p => (
                     <option key={p.id} value={p.code}>
-                      {p.code} - {p.discount_type === 'fixed_price' ? `$${p.discount_value} MXN c/u` : p.discount_type === 'fixed_discount' ? `-$${p.discount_value} MXN desc.` : `${p.discount_value}% desc.`} (Mín: {p.min_entries} quinielas)
+                      {p.code} ({p.is_public !== false ? '🌐 Pública' : '🔒 Privada Admin'}) - {p.discount_type === 'fixed_price' ? `$${p.discount_value} MXN c/u` : p.discount_type === 'fixed_discount' ? `-$${p.discount_value} MXN desc.` : `${p.discount_value}% desc.`} (Mín: {p.min_entries} quinielas)
                     </option>
                   ))}
                 </select>
@@ -9785,6 +9962,10 @@ ALTER TABLE public.pools ADD COLUMN IF NOT EXISTS promo_code TEXT;`;
           );
         })()}
       </Modal>
+
+      <CarmelitoAssistant 
+        onAutoFillAnalytical={handleAutoFillAnalytical}
+      />
 
       </div>
     </div>
