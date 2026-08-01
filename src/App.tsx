@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import CarmelitoAssistant from './CarmelitoAssistant';
 // Dynamic Lazy Loaders para código comprimido inicial (Code Splitting)
@@ -290,6 +290,7 @@ const SearchableSelect = ({ value, onChange, options, placeholder }: { value: st
 export default function App() {
   const [toastWarning, setToastWarning] = useState<string | null>(null);
   const [isP11Shaking, setIsP11Shaking] = useState<boolean>(false);
+  const lastFetchTimestamps = useRef<Record<string, number>>({});
 
   // --- Estados de Sesión ---
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
@@ -1151,13 +1152,52 @@ export default function App() {
     }
   };
 
+  // Helper para cargar predicciones únicamente a demanda (Lazy-Load)
+  const ensurePredictionsForPools = async (poolIds: string[]) => {
+    const missingPoolIds = poolIds.filter(id => !predictionsByPool[id]);
+    if (missingPoolIds.length === 0) return;
+    let predData: any[] = [];
+    try {
+      const chunkSize = 80;
+      for (let i = 0; i < missingPoolIds.length; i += chunkSize) {
+        const chunk = missingPoolIds.slice(i, i + chunkSize);
+        const { data: chunkData, error: chunkErr } = await supabase
+          .from('predictions')
+          .select('pool_id, match_id, selection')
+          .in('pool_id', chunk);
+        if (chunkErr) throw chunkErr;
+        if (chunkData) predData = [...predData, ...chunkData];
+      }
+      if (predData.length > 0) {
+        const map: Record<string, Record<string, string>> = {};
+        predData.forEach(p => {
+          if (!map[p.pool_id]) map[p.pool_id] = {};
+          map[p.pool_id][p.match_id] = p.selection;
+        });
+        setPredictionsByPool(prev => ({ ...prev, ...map }));
+      }
+    } catch (err) {
+      console.error('Error cargando predicciones requeridas:', err);
+    }
+  };
+
   const loadAllPoolsForMatchday = async () => {
     if (!activeMatchday) return;
+    // 🜢 P3: Cargar únicamente cabeceras de quinielas y datos de participantes (sin traer miles de predicciones por defecto)
     const { data, error } = await supabase
       .from('pools')
       .select(`
-        *,
+        id,
+        participant_id,
+        matchday_id,
+        payment_status,
+        payment_receipt_url,
+        reference_code,
+        cost,
+        score,
+        created_at,
         participants (
+          id,
           name,
           alias,
           phone
@@ -1169,43 +1209,12 @@ export default function App() {
     if (error) {
       console.error('Error cargando todas las quinielas:', error);
     } else {
-      // Mapear el resultado para adaptarlo al formato
       const formattedPools = (data || []).map(p => ({
         ...p,
         participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
       })) as Pool[];
 
       setAllPoolsForMatchday(formattedPools);
-
-      // Cargar predicciones asociadas
-      if (formattedPools.length > 0) {
-        const poolIds = formattedPools.map(p => p.id);
-        let predData: any[] = [];
-        let predErr = null;
-        try {
-          const chunkSize = 80;
-          for (let i = 0; i < poolIds.length; i += chunkSize) {
-            const chunk = poolIds.slice(i, i + chunkSize);
-            const { data: chunkData, error: chunkErr } = await supabase
-              .from('predictions')
-              .select('*')
-              .in('pool_id', chunk);
-            if (chunkErr) throw chunkErr;
-            if (chunkData) predData = [...predData, ...chunkData];
-          }
-        } catch (err) {
-          predErr = err;
-        }
-        
-        if (!predErr && predData) {
-          const map: Record<string, Record<string, string>> = {};
-          predData.forEach(p => {
-            if (!map[p.pool_id]) map[p.pool_id] = {};
-            map[p.pool_id][p.match_id] = p.selection;
-          });
-          setPredictionsByPool(prev => ({ ...prev, ...map }));
-        }
-      }
     }
   };
 
@@ -4434,6 +4443,9 @@ Mis pronósticos son:
           const nameB = b.participant?.name || '';
           return nameA.localeCompare(nameB);
         });
+
+      // 🜢 P3: Asegurar predicciones únicamente para las quinielas aprobadas al momento de exportar PDF
+      await ensurePredictionsForPools(validPools.map(p => p.id));
 
       const tableData = validPools.map((p, pIdx) => {
           const participantName = p.participant?.name || 'Invitado';
