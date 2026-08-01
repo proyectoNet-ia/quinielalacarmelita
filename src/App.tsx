@@ -4975,6 +4975,13 @@ Mis pronósticos son:
                   <span>Códigos Promo</span>
                 </button>
                 <button 
+                  className={`sidebar-menu-item ${activeTab === 'admin-banners' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('admin-banners'); setIsSidebarOpen(false); }}
+                >
+                  <ImageIcon size={18} />
+                  <span>Banners Promocionales</span>
+                </button>
+                <button 
                   className={`sidebar-menu-item ${activeTab === 'admin-participants' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('admin-participants'); setIsSidebarOpen(false); }}
                 >
@@ -6698,212 +6705,6 @@ Mis pronósticos son:
           <div>
             <h2 style={{ marginBottom: '16px' }}>Gestión de Quinielas y Partidos</h2>
 
-            {/* GESTIÓN DE BANNER PROMOCIONAL SUPERIOR */}
-            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
-                  <ImageIcon size={20} /> Banner Promocional Superior
-                </h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-                  <input 
-                    type="checkbox"
-                    checked={isBannerActive}
-                    onChange={(e) => handleSaveBannerConfig(bannerUrl, e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span>{isBannerActive ? '🟢 Banner Visible' : '⚪ Banner Oculto'}</span>
-                </label>
-              </div>
-
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
-                Carga una imagen o ingresa una URL de tu banner publicitario. Aparecerá en la parte superior sobre el reloj de cuenta regresiva en la vista de partidos para todos los usuarios.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Vista previa del Banner actual */}
-                {bannerUrl ? (
-                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
-                    <img src={bannerUrl} alt="Vista previa del Banner" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }} />
-                    <button
-                      type="button"
-                      onClick={() => handleSaveBannerConfig('', false)}
-                      className="btn btn-danger"
-                      style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}
-                    >
-                      <Trash2 size={14} /> Eliminar Banner
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner cargado actualmente.</div>
-                  </div>
-                )}
-
-                {/* Opciones de carga */}
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Upload size={16} /> {isUploadingBanner ? 'Subiendo...' : 'Subir Imagen de Banner'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      disabled={isUploadingBanner}
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleUploadBannerFile(e.target.files[0]);
-                        }
-                      }}
-                    />
-                  </label>
-
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
-
-                  <input
-                    type="url"
-                    className="form-control"
-                    placeholder="https://ejemplo.com/mi-banner.jpg"
-                    value={bannerUrl}
-                    onChange={(e) => setBannerUrl(e.target.value)}
-                    style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleSaveBannerConfig(bannerUrl, true)}
-                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}
-                  >
-                    Guardar URL
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* GESTIÓN DE BANNER EMERGENTE CUADRADO (POPUP INTELIGENTE) */}
-            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
-                  <ImageIcon size={20} /> Banner Emergente Cuadrado (Popup Inteligente)
-                </h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-                  <input 
-                    type="checkbox"
-                    checked={isPopupBannerActive}
-                    onChange={(e) => handleSavePopupBannerConfig(popupBannerUrl, e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span>{isPopupBannerActive ? '🟢 Popup Activo' : '⚪ Popup Inactivo'}</span>
-                </label>
-              </div>
-
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
-                Carga una imagen promocional (formato vertical u horizontal). Se mostrará a lo largo de forma <strong>inteligente y no invasiva</strong> en una ventana emergente cuando los usuarios ingresen.
-              </p>
-
-              {/* Ajuste de Frecuencia Inteligente */}
-              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'block', marginBottom: '8px' }}>
-                  Frecuencia de despliegue inteligente:
-                </label>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input 
-                      type="radio" 
-                      name="popupFreq" 
-                      checked={popupFrequency === 'once_per_session'} 
-                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_session')} 
-                    />
-                    <span>1 vez por sesión (Recomendado)</span>
-                  </label>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input 
-                      type="radio" 
-                      name="popupFreq" 
-                      checked={popupFrequency === 'once_per_day'} 
-                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_day')} 
-                    />
-                    <span>1 vez al día</span>
-                  </label>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input 
-                      type="radio" 
-                      name="popupFreq" 
-                      checked={popupFrequency === 'always'} 
-                      onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'always')} 
-                    />
-                    <span>Siempre al ingresar</span>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Vista previa del Banner Emergente */}
-                {popupBannerUrl ? (
-                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'transparent', maxWidth: '320px', margin: '0 auto', width: '100%' }}>
-                    <img src={popupBannerUrl} alt="Vista previa Banner Emergente" style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
-                    <button
-                      type="button"
-                      onClick={() => handleSavePopupBannerConfig('', false)}
-                      className="btn btn-danger"
-                      style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}
-                    >
-                      <Trash2 size={14} /> Eliminar
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner emergente cuadrado cargado.</div>
-                  </div>
-                )}
-
-                {/* Opciones de carga */}
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Upload size={16} /> {isUploadingPopupBanner ? 'Subiendo...' : 'Subir Banner Cuadrado'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      disabled={isUploadingPopupBanner}
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleUploadPopupBannerFile(e.target.files[0]);
-                        }
-                      }}
-                    />
-                  </label>
-
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
-
-                  <input
-                    type="url"
-                    className="form-control"
-                    placeholder="https://ejemplo.com/banner-cuadrado.jpg"
-                    value={popupBannerUrl}
-                    onChange={(e) => setPopupBannerUrl(e.target.value)}
-                    style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleSavePopupBannerConfig(popupBannerUrl, true)}
-                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}
-                  >
-                    Guardar URL
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setIsPromoPopupOpen(true)}
-                    disabled={!popupBannerUrl}
-                    style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', background: 'rgba(255,255,255,0.1)' }}
-                  >
-                    <Eye size={16} /> Probar Popup
-                  </button>
-                </div>
-              </div>
-            </div>
 
             {selectedAdminMatchday === null ? (
               <div className="card">
@@ -7631,6 +7432,113 @@ Mis pronósticos son:
           </div>
         )}
 {/* 8.4 ADMIN: GESTIÓN DE CUENTAS BANCARIAS (Pestaña "admin-bank") */}
+        {/* ADMIN: BANNERS PROMOCIONALES */}
+        {activeTab === 'admin-banners' && isAdmin && (
+          <div>
+            <h2 style={{ marginBottom: '24px' }}>Banners Promocionales</h2>
+
+            {/* BANNER PROMOCIONAL SUPERIOR */}
+            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                  <ImageIcon size={20} /> Banner Promocional Superior
+                </h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+                  <input type="checkbox" checked={isBannerActive} onChange={(e) => handleSaveBannerConfig(bannerUrl, e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  <span>{isBannerActive ? '🟢 Banner Visible' : '⚪ Banner Oculto'}</span>
+                </label>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                Carga una imagen o ingresa una URL de tu banner publicitario. Aparecerá en la parte superior sobre el reloj de cuenta regresiva en la vista de partidos para todos los usuarios.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {bannerUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: '#000' }}>
+                    <img src={bannerUrl} alt="Vista previa del Banner" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }} />
+                    <button type="button" onClick={() => handleSaveBannerConfig('', false)} className="btn btn-danger" style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}>
+                      <Trash2 size={14} /> Eliminar Banner
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner cargado actualmente.</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Upload size={16} /> {isUploadingBanner ? 'Subiendo...' : 'Subir Imagen de Banner'}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={isUploadingBanner} onChange={(e) => { if (e.target.files && e.target.files[0]) { handleUploadBannerFile(e.target.files[0]); } }} />
+                  </label>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
+                  <input type="url" className="form-control" placeholder="https://ejemplo.com/mi-banner.jpg" value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }} />
+                  <button type="button" className="btn btn-secondary" onClick={() => handleSaveBannerConfig(bannerUrl, true)} style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}>Guardar URL</button>
+                </div>
+              </div>
+            </div>
+
+            {/* BANNER EMERGENTE CUADRADO (POPUP INTELIGENTE) */}
+            <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                  <ImageIcon size={20} /> Banner Emergente Cuadrado (Popup Inteligente)
+                </h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'white', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+                  <input type="checkbox" checked={isPopupBannerActive} onChange={(e) => handleSavePopupBannerConfig(popupBannerUrl, e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  <span>{isPopupBannerActive ? '🟢 Popup Activo' : '⚪ Popup Inactivo'}</span>
+                </label>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                Carga una imagen promocional (formato vertical u horizontal). Se mostrará de forma <strong>inteligente y no invasiva</strong> en una ventana emergente cuando los usuarios ingresen.
+              </p>
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'block', marginBottom: '8px' }}>Frecuencia de despliegue inteligente:</label>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="radio" name="popupFreq" checked={popupFrequency === 'once_per_session'} onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_session')} />
+                    <span>1 vez por sesión (Recomendado)</span>
+                  </label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="radio" name="popupFreq" checked={popupFrequency === 'once_per_day'} onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'once_per_day')} />
+                    <span>1 vez al día</span>
+                  </label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="radio" name="popupFreq" checked={popupFrequency === 'always'} onChange={() => handleSavePopupBannerConfig(popupBannerUrl, isPopupBannerActive, 'always')} />
+                    <span>Siempre al ingresar</span>
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {popupBannerUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'transparent', maxWidth: '320px', margin: '0 auto', width: '100%' }}>
+                    <img src={popupBannerUrl} alt="Vista previa Banner Emergente" style={{ width: '100%', height: 'auto', maxHeight: '340px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                    <button type="button" onClick={() => handleSavePopupBannerConfig('', false)} className="btn btn-danger" style={{ position: 'absolute', top: '10px', right: '10px', padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}>
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', border: '2px dashed rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <ImageIcon size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                    <div style={{ fontSize: '0.85rem' }}>No hay ningún banner emergente cuadrado cargado.</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Upload size={16} /> {isUploadingPopupBanner ? 'Subiendo...' : 'Subir Banner Cuadrado'}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={isUploadingPopupBanner} onChange={(e) => { if (e.target.files && e.target.files[0]) { handleUploadPopupBannerFile(e.target.files[0]); } }} />
+                  </label>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>o mediante URL:</span>
+                  <input type="url" className="form-control" placeholder="https://ejemplo.com/banner-cuadrado.jpg" value={popupBannerUrl} onChange={(e) => setPopupBannerUrl(e.target.value)} style={{ flex: '1 1 250px', fontSize: '0.85rem', padding: '8px 12px' }} />
+                  <button type="button" className="btn btn-secondary" onClick={() => handleSavePopupBannerConfig(popupBannerUrl, true)} style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem' }}>Guardar URL</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsPromoPopupOpen(true)} disabled={!popupBannerUrl} style={{ width: 'auto', padding: '8px 16px', fontSize: '0.825rem', background: 'rgba(255,255,255,0.1)' }}>
+                    <Eye size={16} /> Probar Popup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'admin-bank' && isAdmin && (
           <div>
             <h2 style={{ marginBottom: '16px' }}>Cuentas Bancarias y Contacto</h2>
