@@ -792,19 +792,29 @@ export default function App() {
     if (activeMatchday) {
       loadLeaderboard();
       if (isAdmin) {
-        loadAllPoolsForMatchday();
-        loadParticipants();
+        // 🜢 GUARD: solo carga si no hay datos ya en memoria
+        if (allPoolsForMatchday.length === 0) {
+          loadAllPoolsForMatchday();
+        }
+        if (participants.length === 0) {
+          loadParticipants();
+        }
       }
     }
     if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history' || activeTab === 'admin-participants')) {
-      loadFinancialData();
+      // 🜢 GUARD: solo carga si no hay datos financieros en memoria
+      if (financialPools.length === 0) {
+        loadFinancialData();
+      }
     }
     if (isAdmin && (activeTab === 'admin-matchdays' || activeTab === 'admin-teams' || activeTab === 'admin-leagues')) {
-      loadTeams();
-      loadLeagues();
+      // 🜢 GUARD: solo carga equipos/ligas si no están en memoria
+      if (teams.length === 0) loadTeams();
+      if (leagues.length === 0) loadLeagues();
     }
     if ((isAdmin && activeTab === 'admin-promos') || activeTab === 'predictions') {
-      loadPromoCodes();
+      // 🜢 GUARD: solo carga códigos si no están en memoria
+      if (promoCodes.length === 0) loadPromoCodes();
     }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
 
@@ -812,17 +822,16 @@ export default function App() {
   useEffect(() => {
     if (!isAdmin) return;
 
+    // 🜢 DEBOUNCE REF: evitar avalancha de re-fetches por eventos en ráfaga
+    let realtimeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel('admin-pools-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pools' },
         (payload: any) => {
-          if (activeMatchday?.id) {
-            loadAllPoolsForMatchday();
-          }
-          loadFinancialData();
-
+          // Notificaciones inmediatas (sin debounce)
           if (payload.eventType === 'INSERT') {
             showAlert('info', '🔔 ¡Nueva orden de pago / quiniela recibida!');
             sendLocalPushNotification('⚽ La Carmelita Admin', '¡Nueva orden de pago / quiniela recibida en tu plataforma!');
@@ -834,11 +843,21 @@ export default function App() {
             showAlert('info', '🔔 Nuevo comprobante de pago recibido.');
             sendLocalPushNotification('⚽ La Carmelita Admin', '¡Un participante acaba de subir su comprobante de pago!');
           }
+
+          // 🜢 DEBOUNCE 500ms: colapsa rafagas de eventos en UNA sola carga
+          if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+          realtimeDebounceTimer = setTimeout(() => {
+            if (activeMatchday?.id) {
+              loadAllPoolsForMatchday();
+            }
+            loadFinancialData();
+          }, 500);
         }
       )
       .subscribe();
 
     return () => {
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       supabase.removeChannel(channel);
     };
   }, [isAdmin, activeMatchday?.id]);
@@ -1080,7 +1099,7 @@ export default function App() {
     if (error) {
       console.error('Error cargando partidos:', error);
     } else {
-      console.log('[DEBUG] Partidos cargados:', data);
+      // Eliminado console.log de debug (no exponer data en producción)
       setMatches(data || []);
     }
   };
