@@ -354,6 +354,8 @@ export default function App() {
   const [matchdayFixedPrize2nd, setMatchdayFixedPrize2nd] = useState<number>(0);
   const [finSearchQuery, setFinSearchQuery] = useState<string>('');
   const [expandedParticipantId, setExpandedParticipantId] = useState<string | null>(null);
+  // 🜢 P2-F: estado local para loading financiero (no bloquea UI global)
+  const [isFinancialLoading, setIsFinancialLoading] = useState<boolean>(false);
 
   // --- Estados de Cuentas Bancarias ---
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -1090,16 +1092,16 @@ export default function App() {
   };
 
   const loadMatches = async (matchdayId: string) => {
+    // 🜢 P2-D: solo columnas necesarias para rendir la UI de partidos
     const { data, error } = await supabase
       .from('matches')
-      .select('*')
+      .select('id, matchday_id, home_team, away_team, home_team_id, away_team_id, result, is_reserve')
       .eq('matchday_id', matchdayId)
       .order('created_at', { ascending: true });
     
     if (error) {
       console.error('Error cargando partidos:', error);
     } else {
-      // Eliminado console.log de debug (no exponer data en producción)
       setMatches(data || []);
     }
   };
@@ -1223,11 +1225,12 @@ export default function App() {
   const loadFinancialData = async () => {
     if (!activeSeason) return;
     try {
-      setLoading(true);
-      // 1. Cargar quinielas de la temporada
+      // 🜢 P2-F: loading local — no bloquea el spinner global ni causa parpadeos de UI
+      setIsFinancialLoading(true);
+      // 🜢 P2-D: solo columnas necesarias en matchdays
       const { data: mData, error: mErr } = await supabase
         .from('matchdays')
-        .select('*')
+        .select('id, season_id, number, status, deadline, price_per_entry, prize_percentage, prize_type, fixed_prize_1st, fixed_prize_2nd')
         .eq('season_id', activeSeason.id)
         .order('number', { ascending: true });
 
@@ -1235,7 +1238,6 @@ export default function App() {
       setFinancialMatchdays(mData || []);
 
       if (mData && mData.length > 0) {
-        // Seleccionar por defecto la quiniela activa más próxima a jugarse (active -> closed -> última)
         const activeOrUpcoming = mData.find(m => m.status === 'active') || 
                                  mData.find(m => m.status === 'closed') || 
                                  mData[mData.length - 1];
@@ -1247,12 +1249,21 @@ export default function App() {
           return prev;
         });
 
-        // 2. Cargar todas las quinielas de estas quinielas
+        // 🜢 P2-D: solo columnas necesarias en pools + participants
         const matchdayIds = mData.map(m => m.id);
         const { data: pData, error: pErr } = await supabase
           .from('pools')
           .select(`
-            *,
+            id,
+            participant_id,
+            matchday_id,
+            payment_status,
+            payment_receipt_url,
+            reference_code,
+            cost,
+            score,
+            promo_code,
+            created_at,
             participants (
               id,
               name,
@@ -1277,13 +1288,12 @@ export default function App() {
         setFinancialPools([]);
       }
 
-      // 3. Cargar todos los participantes
       await loadParticipants();
     } catch (err) {
       console.error('Error cargando datos financieros:', err);
       showAlert('error', 'Error al cargar datos financieros.');
     } finally {
-      setLoading(false);
+      setIsFinancialLoading(false);
     }
   };
 
@@ -1845,9 +1855,10 @@ export default function App() {
   // --- LIGAS CRUD ---
   const loadLeagues = async () => {
     try {
+      // 🜢 P2-D: solo columnas necesarias para la UI de ligas
       const { data, error } = await supabase
         .from('leagues')
-        .select('*')
+        .select('id, name, country, logo_url, created_at')
         .order('name', { ascending: true });
       if (error) throw error;
       setLeagues(data || []);
@@ -6482,7 +6493,11 @@ Mis pronósticos son:
                 </select>
               </div>
             </div>
-            {!financialPools || financialPools.length === 0 ? (
+            {isFinancialLoading ? (
+              <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
+                ⏳ Cargando datos...
+              </p>
+            ) : !financialPools || financialPools.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
                 No hay quinielas registradas en el historial.
               </p>
