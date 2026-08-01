@@ -7,15 +7,15 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_pool_count INT := 0;
   v_updated_count INT := 0;
 BEGIN
-  -- 1. Actualizar puntos de todas las quinielas aprobadas de la jornada en una sola consulta
+  -- Partidos anulados ('A') NO otorgan puntos a ninguna quiniela
   WITH pool_scores AS (
     SELECT 
       p.id AS pool_id,
       COUNT(pr.id) FILTER (
         WHERE m.result IS NOT NULL 
+          AND m.result IN ('L', 'E', 'V')
           AND pr.selection LIKE '%' || m.result || '%'
       ) AS calc_score
     FROM public.pools p
@@ -41,3 +41,4 @@ $$;
 
 -- Otorgar permisos de ejecución a usuarios autenticados y anónimos (si RLS lo permite)
 GRANT EXECUTE ON FUNCTION public.recalculate_matchday_scores(UUID) TO anon, authenticated, service_role;
+

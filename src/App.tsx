@@ -331,6 +331,7 @@ export default function App() {
   const [matchdayApprovedParticipants, setMatchdayApprovedParticipants] = useState<Record<string, number>>({});
   const [matchdayApprovedBots, setMatchdayApprovedBots] = useState<Record<string, number>>({});
   const [matchdayApprovedPools, setMatchdayApprovedPools] = useState<Record<string, number>>({});
+  const [matchdayApprovedRevenue, setMatchdayApprovedRevenue] = useState<Record<string, number>>({});
   const [userPools, setUserPools] = useState<Pool[]>([]);
   const [allPoolsForMatchday, setAllPoolsForMatchday] = useState<Pool[]>([]);
   const [predictionsByPool, setPredictionsByPool] = useState<Record<string, Record<string, string>>>({}); // poolId -> matchId -> selection
@@ -994,6 +995,7 @@ export default function App() {
           matchday_id, 
           participant_id, 
           payment_status,
+          cost,
           participants (
             phone
           )
@@ -1003,6 +1005,7 @@ export default function App() {
       const approvedParts: Record<string, Set<string>> = {};
       const approvedBots: Record<string, Set<string>> = {};
       const approvedPools: Record<string, number> = {};
+      const approvedRevenue: Record<string, number> = {};
       
       if (allPoolsData) {
         allPoolsData.forEach((p: any) => {
@@ -1010,8 +1013,9 @@ export default function App() {
             const isBot = p.participants?.phone === 'BOT-0000';
             
             if (!isBot) {
-              // Contar quinielas aprobadas (vendidas reales)
+              // Contar quinielas aprobadas (vendidas reales) y monto real ingresado con descuentos
               approvedPools[p.matchday_id] = (approvedPools[p.matchday_id] || 0) + 1;
+              approvedRevenue[p.matchday_id] = (approvedRevenue[p.matchday_id] || 0) + Number(p.cost || 0);
             }
             
             // Recolectar participantes únicos aprobados
@@ -1037,6 +1041,7 @@ export default function App() {
       setMatchdayApprovedParticipants(participantCounts);
       setMatchdayApprovedBots(botCounts);
       setMatchdayApprovedPools(approvedPools);
+      setMatchdayApprovedRevenue(approvedRevenue);
 
       let currentMatchday = null;
       if (matchdaysData && matchdaysData.length > 0) {
@@ -2031,7 +2036,7 @@ export default function App() {
     
     const approvedCount = lb.length;
     const pricePerEntry = md.price_per_entry || 25;
-    const totalRecaudado = approvedCount * pricePerEntry;
+    const totalRecaudado = lb.reduce((sum, p) => sum + Number(p.cost || pricePerEntry), 0);
     
     let prizePool = 0;
     if (md.prize_type === 'fixed') {
@@ -2083,6 +2088,7 @@ export default function App() {
         .select(`
           id,
           score,
+          cost,
           participants (
             name,
             alias
@@ -2099,6 +2105,7 @@ export default function App() {
         return {
           id: p.id,
           score: p.score,
+          cost: p.cost,
           name: participantData ? participantData.name : 'Anónimo',
           alias: participantData ? participantData.alias : 'anon'
         };
@@ -2352,64 +2359,77 @@ export default function App() {
       };
 
       const refId = generateRandomCode();
-      let participantId = '';
-
-      const { data: existingPart } = await supabase.from('participants').select('id').eq('alias', cartParticipantName).maybeSingle();
-      if (existingPart) {
-        participantId = existingPart.id;
-      } else {
-        const dummyPin = Math.floor(1000 + Math.random() * 9000).toString();
-        const { data: newPart, error: partErr } = await supabase.from('participants').insert([{
-          name: cartParticipantName,
-          alias: cartParticipantName,
-          phone: cartCountryCode + cartParticipantPhone,
-          pin: dummyPin
-        }]).select('id').single();
-        if (partErr) throw partErr;
-        participantId = newPart.id;
-      }
-
       const finalEntryPrice = getDiscountedEntryPrice();
       const isPromoApplied = appliedPromoCode && cart.length >= appliedPromoCode.min_entries;
       const totalAmount = cart.length * finalEntryPrice;
 
-      const poolsToInsert = cart.map(() => ({
-          participant_id: participantId,
-          matchday_id: activeMatchday!.id,
-          payment_status: 'pending',
-          cost: finalEntryPrice,
-          score: 0,
-          reference_code: refId,
-          promo_code: isPromoApplied ? appliedPromoCode.code : null
-      }));
-      const { data: poolsData, error: poolsErr } = await supabase.from('pools').insert(poolsToInsert).select();
-      if (poolsErr) throw poolsErr;
-
-      // Incrementar uso del código promocional en Supabase si se aplicó
-      if (isPromoApplied && appliedPromoCode) {
-        try {
-          await supabase
-            .from('promo_codes')
-            .update({ times_used: (appliedPromoCode.times_used || 0) + 1 })
-            .eq('id', appliedPromoCode.id);
-        } catch (pErr) {
-          console.error('Error al incrementar uso del código promo:', pErr);
-        }
-      }
-
-      const predictionsToInsert: any[] = [];
-      cart.forEach((selections, idx) => {
-         const poolId = poolsData[idx].id;
-         Object.keys(selections).forEach(matchId => {
-           predictionsToInsert.push({
-             pool_id: poolId,
-             match_id: matchId,
-             selection: selections[matchId]
-           });
-         });
+      // Intentar primero registro atómico vía RPC de PostgreSQL
+      const { error: rpcCartErr } = await supabase.rpc('submit_pool_cart', {
+        p_participant_name: cartParticipantName,
+        p_participant_phone: cartCountryCode + cartParticipantPhone,
+        p_matchday_id: activeMatchday!.id,
+        p_reference_code: refId,
+        p_entry_price: finalEntryPrice,
+        p_promo_code: isPromoApplied && appliedPromoCode ? appliedPromoCode.code : null,
+        p_cart: cart
       });
-      const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
-      if (predErr) throw predErr;
+
+      if (rpcCartErr) {
+        console.warn('RPC submit_pool_cart no disponible o falló, ejecutando fallback:', rpcCartErr);
+
+        let participantId = '';
+        const { data: existingPart } = await supabase.from('participants').select('id').eq('alias', cartParticipantName).maybeSingle();
+        if (existingPart) {
+          participantId = existingPart.id;
+        } else {
+          const dummyPin = Math.floor(1000 + Math.random() * 9000).toString();
+          const { data: newPart, error: partErr } = await supabase.from('participants').insert([{
+            name: cartParticipantName,
+            alias: cartParticipantName,
+            phone: cartCountryCode + cartParticipantPhone,
+            pin: dummyPin
+          }]).select('id').single();
+          if (partErr) throw partErr;
+          participantId = newPart.id;
+        }
+
+        const poolsToInsert = cart.map(() => ({
+            participant_id: participantId,
+            matchday_id: activeMatchday!.id,
+            payment_status: 'pending',
+            cost: finalEntryPrice,
+            score: 0,
+            reference_code: refId,
+            promo_code: isPromoApplied ? appliedPromoCode.code : null
+        }));
+        const { data: poolsData, error: poolsErr } = await supabase.from('pools').insert(poolsToInsert).select();
+        if (poolsErr) throw poolsErr;
+
+        if (isPromoApplied && appliedPromoCode) {
+          try {
+            await supabase
+              .from('promo_codes')
+              .update({ times_used: (appliedPromoCode.times_used || 0) + 1 })
+              .eq('id', appliedPromoCode.id);
+          } catch (pErr) {
+            console.error('Error al incrementar uso del código promo:', pErr);
+          }
+        }
+
+        const predictionsToInsert: any[] = [];
+        cart.forEach((selections, idx) => {
+           const poolId = poolsData[idx].id;
+           Object.keys(selections).forEach(matchId => {
+             predictionsToInsert.push({
+               pool_id: poolId,
+               match_id: matchId,
+               selection: selections[matchId]
+             });
+           });
+        });
+        const { error: predErr } = await supabase.from('predictions').insert(predictionsToInsert);
+        if (predErr) throw predErr;
+      }
       
       let msgText = `Hola, soy ${cartParticipantName}, me he registrado para participar en la quiniela Jornada ${activeMatchday?.number}.
 Código de Referencia: ${refId}
@@ -3185,16 +3205,8 @@ Mis pronósticos son:
 
       if (error) throw error;
 
-      if (newStatus === 'closed') {
-        const { error: deleteError } = await supabase
-          .from('pools')
-          .delete()
-          .eq('matchday_id', activeMatchday.id)
-          .eq('payment_status', 'rejected');
-        if (deleteError) {
-          console.error("Error eliminando quinielas rechazadas:", deleteError);
-        }
-      }
+      // Nota: Ya no se eliminan las quinielas rechazadas al cerrar la jornada 
+      // para permitir su consulta, historial y eventual re-aprobación si el cliente demuestra su pago.
 
       setActiveMatchday(prev => prev ? { ...prev, status: newStatus } : null);
       showAlert('success', `Quiniela marcada como ${newStatus.toUpperCase()}.`);
@@ -3463,8 +3475,8 @@ Mis pronósticos son:
 
         poolPreds.forEach(pred => {
           const match = matches.find(m => m.id === pred.match_id);
-          if (match && match.result && pred.selection.includes(match.result)) {
-            score += 1; // 1 punto por acierto
+          if (match && match.result && match.result !== 'A' && pred.selection.includes(match.result)) {
+            score += 1; // 1 punto por acierto (solo L, E, V)
           }
         });
         
@@ -3499,22 +3511,26 @@ Mis pronósticos son:
     try {
       setLoading(true);
 
-      // Guardar los resultados seleccionados en la BD en paralelo
-      await Promise.all(
-        matches.map(match =>
-          supabase
-            .from('matches')
-            .update({ result: match.result || null })
-            .eq('id', match.id)
-        )
-      );
+      const matchResultsArray = matches.map(m => ({ id: m.id, result: m.result || null }));
 
-      // Intentar primero ejecución atómica vía RPC en Supabase
+      // Ejecución atómica ultra-rápida en 1 SOLA llamada a Supabase (Actualiza partidos y calcula miles de quinielas en ~30ms)
       const { error: rpcErr } = await supabase.rpc('recalculate_matchday_scores', {
-        p_matchday_id: activeMatchday.id
+        p_matchday_id: activeMatchday.id,
+        p_match_results: matchResultsArray
       });
 
       if (rpcErr) {
+        console.warn('RPC recalcular masivo no disponible, ejecutando fallback:', rpcErr);
+
+        await Promise.all(
+          matches.map(match =>
+            supabase
+              .from('matches')
+              .update({ result: match.result || null })
+              .eq('id', match.id)
+          )
+        );
+
         // Fallback: cálculo local y actualización por lotes concurrentes (Promise.all)
         const { data: poolsData, error: poolsErr } = await supabase
           .from('pools')
@@ -3547,7 +3563,7 @@ Mis pronósticos son:
 
             poolPreds.forEach(pred => {
               const match = matches.find(m => m.id === pred.match_id);
-              if (match && match.result && pred.selection.includes(match.result)) {
+              if (match && match.result && match.result !== 'A' && pred.selection.includes(match.result)) {
                 score += 1;
               }
             });
@@ -6930,26 +6946,26 @@ Mis pronósticos son:
                             </div>
                             
                             <div style={{ display: 'flex', alignItems: 'center', gap: '30px', flexWrap: 'wrap' }}>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Participantes</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                  <Users size={16} style={{ color: 'var(--primary)' }}/> 
-                                  {matchdayApprovedParticipants[m.id] || 0}
-                                  {(matchdayApprovedBots[m.id] > 0) && (
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                      ({matchdayApprovedBots[m.id]} bots)
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Vendidas</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FileText size={16} style={{ color: 'var(--primary)' }}/> {matchdayApprovedPools[m.id] || 0}</div>
-                              </div>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Recaudado</div>
-                                <div style={{ fontWeight: 'bold', color: '#25D366', fontSize: '1.2rem' }}>${((matchdayApprovedPools[m.id] || 0) * (m.price_per_entry || 0)).toFixed(2)}</div>
-                              </div>
+                               <div style={{ textAlign: 'center' }}>
+                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Participantes</div>
+                                 <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                   <Users size={16} style={{ color: 'var(--primary)' }}/> 
+                                   {matchdayApprovedParticipants[m.id] || 0}
+                                   {(matchdayApprovedBots[m.id] > 0) && (
+                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                       ({matchdayApprovedBots[m.id]} bots)
+                                     </span>
+                                   )}
+                                 </div>
+                               </div>
+                               <div style={{ textAlign: 'center' }}>
+                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Vendidas</div>
+                                 <div style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FileText size={16} style={{ color: 'var(--primary)' }}/> {matchdayApprovedPools[m.id] || 0}</div>
+                               </div>
+                               <div style={{ textAlign: 'center' }}>
+                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Recaudado</div>
+                                 <div style={{ fontWeight: 'bold', color: '#25D366', fontSize: '1.2rem' }}>${(matchdayApprovedRevenue[m.id] !== undefined ? matchdayApprovedRevenue[m.id] : ((matchdayApprovedPools[m.id] || 0) * (m.price_per_entry || 0))).toFixed(2)}</div>
+                               </div>
                               <div style={{ position: 'relative', zIndex: openMatchdayMenu === m.id ? 50 : 1 }}>
                                 <div>
                                 <button

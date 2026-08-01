@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
     max_uses INTEGER,
     times_used INTEGER DEFAULT 0 NOT NULL,
     is_active BOOLEAN DEFAULT true NOT NULL,
+    is_public BOOLEAN DEFAULT true NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
     matchday_id UUID REFERENCES public.matchdays(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

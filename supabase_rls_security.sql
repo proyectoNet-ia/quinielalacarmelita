@@ -120,7 +120,14 @@ CREATE POLICY "admin_all_participants" ON public.participants
 -- ============================================================
 
 CREATE POLICY "public_insert_pools" ON public.pools
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+  FOR INSERT TO anon, authenticated WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.matchdays m 
+      WHERE m.id = matchday_id 
+        AND m.status = 'active' 
+        AND (m.deadline IS NULL OR timezone('utc'::text, now()) <= m.deadline)
+    )
+  );
 
 CREATE POLICY "public_select_pools_by_ref" ON public.pools
   FOR SELECT TO anon, authenticated USING (true);
@@ -142,7 +149,15 @@ CREATE POLICY "admin_all_pools" ON public.pools
 -- ============================================================
 
 CREATE POLICY "public_insert_predictions" ON public.predictions
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+  FOR INSERT TO anon, authenticated WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.pools p
+      JOIN public.matchdays m ON m.id = p.matchday_id
+      WHERE p.id = pool_id
+        AND m.status = 'active'
+        AND (m.deadline IS NULL OR timezone('utc'::text, now()) <= m.deadline)
+    )
+  );
 
 CREATE POLICY "public_select_predictions" ON public.predictions
   FOR SELECT TO anon, authenticated USING (true);
