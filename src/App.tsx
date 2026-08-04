@@ -452,7 +452,7 @@ export default function App() {
     return tByName?.logo_url;
   };
 
-  const getBase64ImageFromUrl = (imageUrl: string): Promise<string> => {
+  const getBase64ImageFromUrl = (imageUrl: string, maxSize: number = 150): Promise<string> => {
     return new Promise((resolve) => {
       if (!imageUrl) {
         resolve('');
@@ -467,12 +467,12 @@ export default function App() {
         !imageUrl.includes('wikimedia.org') && 
         !imageUrl.includes('githubusercontent.com')
       ) {
-        imageUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(imageUrl) + '&w=250&h=250&fit=contain';
+        imageUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(imageUrl) + '&w=400&h=400&fit=contain';
       }
       img.setAttribute('crossOrigin', 'anonymous');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_SIZE = 150;
+        const MAX_SIZE = maxSize;
         let w = img.naturalWidth || img.width || 500;
         let h = img.naturalHeight || img.height || 500;
         
@@ -4018,13 +4018,13 @@ Mis pronósticos son:
         const al = getTeamLogo(m, false);
         let hb = '';
         let ab = '';
-        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
-        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        try { if (hl) hb = await getBase64ImageFromUrl(hl, 120); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al, 120); } catch(e) {}
         matchLogos[m.id] = { home: hb, away: ab };
       }
 
       // Cargar logo de La Carmelita
-      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png', 400);
 
       // Generar el PDF en vertical (portrait)
       const doc = await createJsPDFDocLazy({
@@ -4033,12 +4033,7 @@ Mis pronósticos son:
         format: 'a4'
       });
 
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(60, 60, 60);
-      doc.text(`Quiniela N°: ${matchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 14, 15);
-
-      const headers = ['#', '  ', ...mData.map(() => '  '), 'Aciertos'];
+      const headers = [{ content: '  ', colSpan: 2 }, ...mData.map(() => '  '), 'Aciertos'];
 
       // Mapear filas
       const tableRows = formattedPools.map((p, pIdx) => {
@@ -4059,7 +4054,7 @@ Mis pronósticos son:
 
 
       doc.autoTable({
-        startY: 20,
+        startY: 10,
         head: [headers],
         body: tableRows,
         theme: 'grid',
@@ -4083,13 +4078,16 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } // Alinear nombre a la izquierda
         },
         didDrawCell: function(data) {
-          if (data.section === 'head' && data.column.index === 1) {
+          if (data.section === 'head' && data.column.index === 0) {
             if (logoBase64) {
               try {
-                // Dibujar logo centrado en la celda de Participante
-                const logoW = data.cell.width - 10; // 5mm padding on each side
-                const logoH = logoW / 2.5; // aspect ratio 2.5
-                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+                // Dibujar logo centrado en la celda combinada del encabezado (# y Participante)
+                const padding = 2; // 2mm padding por lado
+                const logoW = data.cell.width - (padding * 2);
+                const logoH = Math.min(data.cell.height - 4, logoW / 2.3);
+                const logoX = data.cell.x + padding;
+                const logoY = data.cell.y + (data.cell.height - logoH) / 2;
+                doc.addImage(logoBase64, 'PNG', logoX, logoY, logoW, logoH);
               } catch (e) {}
             }
           }
@@ -4104,11 +4102,7 @@ Mis pronósticos son:
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            if (match.is_reserve) {
-              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
-            } else {
-              doc.setTextColor(255, 255, 255);
-            }
+            doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
 
             const logos = matchLogos[match.id];
@@ -4137,9 +4131,14 @@ Mis pronósticos son:
             const matchIdx = data.column.index - 2;
             const match = mData[matchIdx];
             
-            // Resaltar toda la tira del partido de desempate en rojo tenue
-            if (match.is_reserve) {
-              data.cell.styles.fillColor = [255, 235, 235]; // Fondo rojo tenue
+            // Resaltar la columna del partido de desempate en rojo tenue
+            if (match && match.is_reserve) {
+              if (data.section === 'head') {
+                data.cell.styles.fillColor = [200, 50, 50]; // Fondo rojo tenue/distintivo para la cabecera
+                data.cell.styles.textColor = [255, 255, 255]; // Texto blanco
+              } else {
+                data.cell.styles.fillColor = [254, 226, 226]; // Fondo rojo tenue suave para el cuerpo
+              }
             }
 
             if (data.section === 'body') {
@@ -4231,36 +4230,17 @@ Mis pronósticos son:
         const al = getTeamLogo(m, false);
         let hb = '';
         let ab = '';
-        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
-        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        try { if (hl) hb = await getBase64ImageFromUrl(hl, 120); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al, 120); } catch(e) {}
         matchLogos[m.id] = { home: hb, away: ab };
       }
 
       // Cargar logo de La Carmelita
-      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png', 400);
 
       const doc = await createJsPDFDocLazy({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-      // Encabezado con Logo y texto en Negro
-      if (logoBase64) {
-        try {
-          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
-        } catch (e) {
-          console.error("Error drawing logo:", e);
-        }
-      }
-
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
-      doc.setTextColor(0, 0, 0); // Negro puro
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
-      
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(60, 60, 60); // Gris muy oscuro
-      doc.text(`Quiniela N°: ${m.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
-
-      const headers = ['#', 'Participante', ...currentMatches.map(() => '  '), 'Aciertos'];
+      const headers = [{ content: '  ', colSpan: 2 }, ...currentMatches.map(() => '  '), 'Aciertos'];
       const tableData = currentPools.map((pool, pIdx) => {
         const name = pool.participant?.name || 'Desconocido';
         const preds = currentPredictions[pool.id] || {};
@@ -4278,7 +4258,7 @@ Mis pronósticos son:
       });
 
       (doc as any).autoTable({
-        startY: 20,
+        startY: 10,
         head: [headers],
         body: tableData,
         theme: 'grid',
@@ -4302,13 +4282,16 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } 
         },
         didDrawCell: function(data) {
-          if (data.section === 'head' && data.column.index === 1) {
+          if (data.section === 'head' && data.column.index === 0) {
             if (logoBase64) {
               try {
-                // Dibujar logo centrado en la celda de Participante
-                const logoW = data.cell.width - 10; // 5mm padding on each side
-                const logoH = logoW / 2.5; // aspect ratio 2.5
-                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+                // Dibujar logo centrado en la celda combinada del encabezado (# y Participante)
+                const padding = 2; // 2mm padding por lado
+                const logoW = data.cell.width - (padding * 2);
+                const logoH = Math.min(data.cell.height - 4, logoW / 2.3);
+                const logoX = data.cell.x + padding;
+                const logoY = data.cell.y + (data.cell.height - logoH) / 2;
+                doc.addImage(logoBase64, 'PNG', logoX, logoY, logoW, logoH);
               } catch (e) {}
             }
           }
@@ -4323,11 +4306,7 @@ Mis pronósticos son:
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            if (match.is_reserve) {
-              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
-            } else {
-              doc.setTextColor(255, 255, 255);
-            }
+            doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
 
             const logos = matchLogos[match.id];
@@ -4352,10 +4331,21 @@ Mis pronósticos son:
           }
         },
         didParseCell: function(data) {
-          if (data.section === 'body') {
-            if (data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
-              const matchIdx = data.column.index - 2;
-              const match = currentMatches[matchIdx];
+          if (data.column.index >= 2 && data.column.index < 2 + currentMatches.length) {
+            const matchIdx = data.column.index - 2;
+            const match = currentMatches[matchIdx];
+
+            // Resaltar la columna del partido de desempate en rojo tenue
+            if (match && match.is_reserve) {
+              if (data.section === 'head') {
+                data.cell.styles.fillColor = [200, 50, 50]; // Fondo rojo tenue/distintivo para la cabecera
+                data.cell.styles.textColor = [255, 255, 255]; // Texto blanco
+              } else {
+                data.cell.styles.fillColor = [254, 226, 226]; // Fondo rojo tenue suave para el cuerpo
+              }
+            }
+
+            if (data.section === 'body') {
               const cellValue = data.cell.raw;
               if (match && match.result && cellValue === match.result) {
                 data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
@@ -4363,6 +4353,8 @@ Mis pronósticos son:
                 data.cell.styles.fontStyle = 'bold';
               }
             }
+          }
+          if (data.section === 'body') {
             if (data.column.index === 2 + currentMatches.length) {
               data.cell.styles.fontStyle = 'bold';
               data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
@@ -4399,13 +4391,13 @@ Mis pronósticos son:
         const al = getTeamLogo(m, false);
         let hb = '';
         let ab = '';
-        try { if (hl) hb = await getBase64ImageFromUrl(hl); } catch(e) {}
-        try { if (al) ab = await getBase64ImageFromUrl(al); } catch(e) {}
+        try { if (hl) hb = await getBase64ImageFromUrl(hl, 120); } catch(e) {}
+        try { if (al) ab = await getBase64ImageFromUrl(al, 120); } catch(e) {}
         matchLogos[m.id] = { home: hb, away: ab };
       }
 
       // Cargar logo de La Carmelita
-      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png');
+      const logoBase64 = await getBase64ImageFromUrl('/LOGO LA CARMELITA.png', 400);
 
       const doc = await createJsPDFDocLazy({
         orientation: 'portrait',
@@ -4413,27 +4405,8 @@ Mis pronósticos son:
         format: 'a4'
       });
 
-      // Encabezado con Logo y texto en Negro
-      if (logoBase64) {
-        try {
-          doc.addImage(logoBase64, 'PNG', 14, 10, 45, 18);
-        } catch (e) {
-          console.error("Error drawing logo:", e);
-        }
-      }
-
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(16); // Reducir un punto para que quepa bien al lado del logo
-      doc.setTextColor(0, 0, 0); // Negro puro
-      doc.text(`Lista de Participantes - Quinielas La Carmelita`, 63, 17);
-      
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(60, 60, 60); // Gris muy oscuro
-      doc.text(`Quiniela N°: ${activeMatchday.number} | Fecha de Impresión: ${new Date().toLocaleString()}`, 63, 24);
-
       // Configurar columnas de la matriz
-      const headers = ['#', 'Participante', ...matches.map(() => '  '), 'Aciertos'];
+      const headers = [{ content: '  ', colSpan: 2 }, ...matches.map(() => '  '), 'Aciertos'];
 
       // Mapear filas de datos y ordenarlas alfabéticamente para mezclar bots
       const validPools = [...allPoolsForMatchday]
@@ -4472,7 +4445,7 @@ Mis pronósticos son:
 
       // Renderizar tabla con autoTable
       doc.autoTable({
-        startY: 20,
+        startY: 10,
         head: [headers],
         body: tableData,
         theme: 'grid',
@@ -4496,13 +4469,16 @@ Mis pronósticos son:
           1: { halign: 'left', fontStyle: 'bold' } 
         },
         didDrawCell: function(data) {
-          if (data.section === 'head' && data.column.index === 1) {
+          if (data.section === 'head' && data.column.index === 0) {
             if (logoBase64) {
               try {
-                // Dibujar logo centrado en la celda de Participante
-                const logoW = data.cell.width - 10; // 5mm padding on each side
-                const logoH = logoW / 2.5; // aspect ratio 2.5
-                doc.addImage(logoBase64, 'PNG', data.cell.x + 5, data.cell.y + (data.cell.height - logoH) / 2, logoW, logoH);
+                // Dibujar logo centrado en la celda combinada del encabezado (# y Participante)
+                const padding = 2; // 2mm padding por lado
+                const logoW = data.cell.width - (padding * 2);
+                const logoH = Math.min(data.cell.height - 4, logoW / 2.3);
+                const logoX = data.cell.x + padding;
+                const logoY = data.cell.y + (data.cell.height - logoH) / 2;
+                doc.addImage(logoBase64, 'PNG', logoX, logoY, logoW, logoH);
               } catch (e) {}
             }
           }
@@ -4517,11 +4493,7 @@ Mis pronósticos son:
             const awayCode = getTeamCode(match, false);
 
             doc.setFontSize(7);
-            if (match.is_reserve) {
-              doc.setTextColor(150, 0, 0); // Texto rojo oscuro para el fondo rojo tenue
-            } else {
-              doc.setTextColor(255, 255, 255);
-            }
+            doc.setTextColor(255, 255, 255);
             doc.setFont('Helvetica', 'bold');
 
             const logos = matchLogos[match.id];
@@ -4546,10 +4518,21 @@ Mis pronósticos son:
           }
         },
         didParseCell: function(data) {
-          if (data.section === 'body') {
-            if (data.column.index >= 2 && data.column.index < 2 + matches.length) {
-              const matchIdx = data.column.index - 2;
-              const match = matches[matchIdx];
+          if (data.column.index >= 2 && data.column.index < 2 + matches.length) {
+            const matchIdx = data.column.index - 2;
+            const match = matches[matchIdx];
+
+            // Resaltar la columna del partido de desempate en rojo tenue
+            if (match && match.is_reserve) {
+              if (data.section === 'head') {
+                data.cell.styles.fillColor = [200, 50, 50]; // Fondo rojo tenue/distintivo para la cabecera
+                data.cell.styles.textColor = [255, 255, 255]; // Texto blanco
+              } else {
+                data.cell.styles.fillColor = [254, 226, 226]; // Fondo rojo tenue suave para el cuerpo
+              }
+            }
+
+            if (data.section === 'body') {
               const cellValue = data.cell.raw;
               if (match && match.result && cellValue === match.result) {
                 data.cell.styles.fillColor = [253, 224, 71]; // Fondo amarillo
@@ -4557,6 +4540,8 @@ Mis pronósticos son:
                 data.cell.styles.fontStyle = 'bold';
               }
             }
+          }
+          if (data.section === 'body') {
             if (data.column.index === 2 + matches.length) {
               data.cell.styles.fontStyle = 'bold';
               data.cell.styles.fillColor = [240, 245, 242]; // Fondo gris para columna Aciertos
