@@ -1060,7 +1060,7 @@ export default function App() {
         allPoolsData.forEach((p: any) => {
           if (p.payment_status === 'approved') {
             const partObj = Array.isArray(p.participants) ? p.participants[0] : p.participants;
-            const isBot = partObj?.phone === 'BOT-0000' || (typeof p.reference_code === 'string' && p.reference_code.startsWith('BOT-'));
+            const isBot = partObj?.phone === 'BOT-0000' || (typeof p.reference_code === 'string' && (p.reference_code.startsWith('BOT-') || p.reference_code.startsWith('BT-')));
             
             if (!isBot) {
               // Contar quinielas aprobadas (vendidas reales) y monto real ingresado con descuentos
@@ -1327,7 +1327,7 @@ export default function App() {
         const formattedPools = allFormatted.filter(p => {
           const phone = p.participant?.phone;
           const refCode = p.reference_code;
-          const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && refCode.startsWith('BOT-'));
+          const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && (refCode.startsWith('BOT-') || refCode.startsWith('BT-')));
           return !isBot;
         });
         
@@ -2872,7 +2872,7 @@ Mis pronósticos son:
               participant_id: participant.id,
               matchday_id: activeMatchday.id,
               payment_status: 'approved',
-              reference_code: `BOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+              reference_code: `BT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
             });
             totalQuinielas++;
           }
@@ -9243,7 +9243,7 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                         const isBot = (p: Pool) => {
                           const phone = p.participant?.phone;
                           const ref = p.reference_code;
-                          return phone === 'BOT-0000' || (typeof ref === 'string' && ref.startsWith('BOT-'));
+                          return phone === 'BOT-0000' || (typeof ref === 'string' && (ref.startsWith('BOT-') || ref.startsWith('BT-')));
                         };
 
                         const realAppPools = mdAllPools.filter(p => p.payment_status === 'approved' && !isBot(p));
