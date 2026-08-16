@@ -2874,7 +2874,7 @@ Mis pronósticos son:
               participant_id: participant.id,
               matchday_id: activeMatchday.id,
               payment_status: 'approved',
-              reference_code: `BT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+              reference_code: `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
             });
             totalQuinielas++;
           }
@@ -2973,7 +2973,7 @@ Mis pronósticos son:
             participant_id: part.id,
             matchday_id: activeMatchday.id,
             payment_status: 'approved',
-            reference_code: `BT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            reference_code: `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
           });
         }
       });
