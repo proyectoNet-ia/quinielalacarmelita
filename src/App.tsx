@@ -1018,6 +1018,7 @@ export default function App() {
           participant_id, 
           payment_status,
           cost,
+          reference_code,
           participants (
             phone
           )
@@ -1032,7 +1033,8 @@ export default function App() {
       if (allPoolsData) {
         allPoolsData.forEach((p: any) => {
           if (p.payment_status === 'approved') {
-            const isBot = p.participants?.phone === 'BOT-0000';
+            const partObj = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+            const isBot = partObj?.phone === 'BOT-0000' || (typeof p.reference_code === 'string' && p.reference_code.startsWith('BOT-'));
             
             if (!isBot) {
               // Contar quinielas aprobadas (vendidas reales) y monto real ingresado con descuentos
@@ -1290,7 +1292,12 @@ export default function App() {
             ...p,
             participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
           }))
-          .filter(p => p.participant?.phone !== 'BOT-0000') as Pool[];
+          .filter(p => {
+            const phone = p.participant?.phone;
+            const refCode = p.reference_code;
+            const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && refCode.startsWith('BOT-'));
+            return !isBot;
+          }) as Pool[];
         
         setFinancialPools(formattedPools);
       } else {
