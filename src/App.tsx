@@ -975,7 +975,7 @@ export default function App() {
   };
 
   // --- Carga de Datos desde Supabase ---
-  const loadInitialData = async () => {
+  const loadInitialData = async (retryCount = 0) => {
     try {
       setLoading(true);
       // 1. Obtener temporada activa
@@ -1023,6 +1023,7 @@ export default function App() {
             payment_status,
             cost,
             reference_code,
+            created_at,
             participants (
               phone
             )
@@ -1097,6 +1098,10 @@ export default function App() {
       await loadBankAccounts();
     } catch (err: any) {
       console.error('Error cargando datos iniciales:', err);
+      if (retryCount < 2 && (err?.message?.includes('fetch') || err?.details?.includes('fetch') || err?.name === 'TypeError')) {
+        setTimeout(() => loadInitialData(retryCount + 1), 1000);
+        return;
+      }
       showAlert('error', 'Error de conexión: Verifica que configuraste la base de datos Supabase.');
     } finally {
       setLoading(false);
@@ -1242,7 +1247,7 @@ export default function App() {
     }
   };
 
-  const loadFinancialData = async () => {
+  const loadFinancialData = async (retryCount = 0) => {
     if (!activeSeason) return;
     try {
       // 🜢 P2-F: loading local — no bloquea el spinner global ni causa parpadeos de UI
@@ -1314,8 +1319,12 @@ export default function App() {
       }
 
       await loadParticipants();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error cargando datos financieros:', err);
+      if (retryCount < 2 && (err?.message?.includes('fetch') || err?.details?.includes('fetch') || err?.name === 'TypeError')) {
+        setTimeout(() => loadFinancialData(retryCount + 1), 1000);
+        return;
+      }
       showAlert('error', 'Error al cargar datos financieros.');
     } finally {
       setIsFinancialLoading(false);
