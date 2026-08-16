@@ -2983,6 +2983,19 @@ Mis pronósticos son:
 
       if (insertedPools && insertedPools.length > 0) {
         let existingPicksFrequency: Record<string, Record<string, number>> = {};
+        let scrapedOddsData: any = null;
+
+        if (mode === 'strategic10') {
+          try {
+            const res = await fetch('/odds_liga_mx.json');
+            if (res.ok) {
+              scrapedOddsData = await res.json();
+            }
+          } catch (e) {
+            console.log('No se pudo cargar odds_liga_mx.json local, usando ponderación estándar.');
+          }
+        }
+
         if (mode === 'antiTrend20') {
           const { data: existingPreds } = await supabase
             .from('predictions')
@@ -3008,8 +3021,27 @@ Mis pronósticos son:
               const sortedChoices = (['L', 'E', 'V'] as const).sort((a, b) => (freqs[a] || 0) - (freqs[b] || 0));
               choice = Math.random() < 0.7 ? sortedChoices[0] : sortedChoices[1];
             } else if (mode === 'strategic10') {
+              let pL = 0.50;
+              let pE = 0.30;
+
+              if (scrapedOddsData?.matches) {
+                const homeName = (match.home_team || '').toLowerCase();
+                const awayName = (match.away_team || '').toLowerCase();
+                const scrapedMatch = scrapedOddsData.matches.find((sm: any) => {
+                  const smHome = (sm.home_team || '').toLowerCase();
+                  const smAway = (sm.away_team || '').toLowerCase();
+                  return (smHome.includes(homeName) || homeName.includes(smHome)) &&
+                         (smAway.includes(awayName) || awayName.includes(smAway));
+                });
+
+                if (scrapedMatch?.probabilities) {
+                  pL = Number(scrapedMatch.probabilities.prob_l || 50) / 100;
+                  pE = Number(scrapedMatch.probabilities.prob_e || 30) / 100;
+                }
+              }
+
               const rand = Math.random();
-              choice = rand < 0.50 ? 'L' : rand < 0.80 ? 'E' : 'V';
+              choice = rand < pL ? 'L' : rand < (pL + pE) ? 'E' : 'V';
             } else {
               const rand = Math.random();
               choice = rand < 0.45 ? 'L' : rand < 0.75 ? 'E' : 'V';
