@@ -64,7 +64,9 @@ import {
   Save,
   Edit,
   Tag,
-  Percent
+  Percent,
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 
 // Declaración de tipo para jsPDF autoTable para evitar errores de compilación con TS
@@ -2917,6 +2919,127 @@ Mis pronósticos son:
     } catch (err: any) {
       console.error(err);
       showAlert('error', err.message || 'Error al generar bots');
+    } finally {
+      setIsGeneratingBots(false);
+    }
+  };
+
+  const handleQuickGenerateBots = async (mode: 'strategic10' | 'antiTrend20' | 'massive50') => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay jornada activa.');
+      return;
+    }
+    setIsGeneratingBots(true);
+    try {
+      const count = mode === 'strategic10' ? 10 : mode === 'antiTrend20' ? 20 : 50;
+
+      const firstNames = ['Carlos', 'Rafa', 'Luis', 'Gabo', 'Santi', 'Mateo', 'Javier', 'Hugo', 'Beto', 'Fer', 'Diego', 'Alex', 'Oscar', 'Memo', 'Chema', 'Paco', 'Lalo', 'Nacho', 'Tito', 'Pancho'];
+      const lastNames = ['Mendoza', 'Torres', 'Ramírez', 'Vargas', 'Olea', 'García', 'López', 'Rios', 'Solís', 'Vázquez', 'Castro', 'Pineda', 'Morales', 'Reyes', 'Núñez', 'Flores'];
+
+      const newParticipantsToCreate: any[] = [];
+      const botNames: string[] = [];
+
+      for (let i = 0; i < count; i++) {
+        const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const suffix = Math.floor(10 + Math.random() * 89);
+        const name = `${fn} ${ln} ${suffix}`;
+        botNames.push(name);
+
+        const alias = name.toLowerCase().replace(/\s+/g, '') + Math.floor(100 + Math.random() * 900);
+        newParticipantsToCreate.push({
+          name,
+          alias,
+          phone: 'BOT-0000',
+          pin: Math.floor(1000 + Math.random() * 9000).toString(),
+          role: 'user'
+        });
+      }
+
+      let finalParticipantsList = [...participants];
+      if (newParticipantsToCreate.length > 0) {
+        const { data: insertedParts, error: errParts } = await supabase.from('participants').insert(newParticipantsToCreate).select();
+        if (errParts) throw errParts;
+        if (insertedParts) {
+          finalParticipantsList = [...finalParticipantsList, ...insertedParts];
+        }
+      }
+
+      const poolsToInsert: any[] = [];
+      newParticipantsToCreate.forEach(pObj => {
+        const part = finalParticipantsList.find(p => p.name === pObj.name);
+        if (part) {
+          poolsToInsert.push({
+            participant_id: part.id,
+            matchday_id: activeMatchday.id,
+            payment_status: 'approved',
+            reference_code: `BT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+          });
+        }
+      });
+
+      const { data: insertedPools, error: errPools } = await supabase.from('pools').insert(poolsToInsert).select();
+      if (errPools) throw errPools;
+
+      if (insertedPools && insertedPools.length > 0) {
+        let existingPicksFrequency: Record<string, Record<string, number>> = {};
+        if (mode === 'antiTrend20') {
+          const { data: existingPreds } = await supabase
+            .from('predictions')
+            .select('match_id, selection, pool_id, pools!inner(matchday_id, payment_status)')
+            .eq('pools.matchday_id', activeMatchday.id)
+            .eq('pools.payment_status', 'approved');
+
+          (existingPreds || []).forEach((pr: any) => {
+            if (!existingPicksFrequency[pr.match_id]) {
+              existingPicksFrequency[pr.match_id] = { L: 0, E: 0, V: 0 };
+            }
+            if (pr.selection) existingPicksFrequency[pr.match_id][pr.selection]++;
+          });
+        }
+
+        const predictionsToInsert: any[] = [];
+        insertedPools.forEach(pool => {
+          matches.forEach(match => {
+            let choice: 'L' | 'E' | 'V' = 'L';
+
+            if (mode === 'antiTrend20' && existingPicksFrequency[match.id]) {
+              const freqs = existingPicksFrequency[match.id];
+              const sortedChoices = (['L', 'E', 'V'] as const).sort((a, b) => (freqs[a] || 0) - (freqs[b] || 0));
+              choice = Math.random() < 0.7 ? sortedChoices[0] : sortedChoices[1];
+            } else if (mode === 'strategic10') {
+              const rand = Math.random();
+              choice = rand < 0.50 ? 'L' : rand < 0.80 ? 'E' : 'V';
+            } else {
+              const rand = Math.random();
+              choice = rand < 0.45 ? 'L' : rand < 0.75 ? 'E' : 'V';
+            }
+
+            predictionsToInsert.push({
+              pool_id: pool.id,
+              match_id: match.id,
+              selection: choice
+            });
+          });
+        });
+
+        const chunkSize = 500;
+        for (let i = 0; i < predictionsToInsert.length; i += chunkSize) {
+          const chunk = predictionsToInsert.slice(i, i + chunkSize);
+          const { error: errPreds } = await supabase.from('predictions').insert(chunk);
+          if (errPreds) throw errPreds;
+        }
+      }
+
+      const modeTitle = mode === 'strategic10' ? '10 Quinielas Estratégicas' : mode === 'antiTrend20' ? '20 Coberturas Anti-Tendencia' : '50 Quinielas en Lote';
+      showAlert('success', `¡Se generaron exitosamente ${modeTitle}!`);
+      await loadInitialData();
+      await loadParticipants();
+      await loadAllPoolsForMatchday();
+      await loadLeaderboard();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al generar quinielas inteligentes.');
     } finally {
       setIsGeneratingBots(false);
     }
@@ -8580,36 +8703,86 @@ Mis pronósticos son:
                 </div>
 
                 <div className="card">
-                  <h3 style={{ marginBottom: '16px' }}>Generar Lote</h3>
+                  <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Zap size={20} color="var(--primary)" /> Generador Inteligente 1-Clic
+                  </h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    Ingresa el nombre del bot y la cantidad de quinielas, separados por coma. Un bot por línea.<br/>
-                    Ejemplo:<br/>
-                    <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px' }}>Juan Perez, 50</code><br/>
-                    <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px' }}>Maria Bot, 100</code>
+                    Genera quinielas automáticas con folios discretos (<code>BT-XXXXXX</code>) y estrategias matemáticas sin entrada manual:
                   </p>
-                  <textarea 
-                    className="input-field" 
-                    rows={8}
-                    placeholder="Nombre Bot 1, 10&#10;Nombre Bot 2, 20"
-                    value={botInputText}
-                    onChange={(e) => setBotInputText(e.target.value)}
-                    style={{ fontFamily: 'monospace', minHeight: '150px' }}
-                  />
-                  
-                  <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleGenerateBots}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
                       disabled={isGeneratingBots}
-                      style={{ padding: '12px 24px', fontSize: '1rem', width: '100%', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                      onClick={() => handleQuickGenerateBots('strategic10')}
+                      style={{ padding: '12px 16px', justifyContent: 'flex-start', gap: '12px', display: 'flex', alignItems: 'center' }}
                     >
-                      {isGeneratingBots ? (
-                        <>Generando...</>
-                      ) : (
-                        <><Play size={18} /> Generar Quinielas Aprobadas</>
-                      )}
+                      <Zap size={20} />
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+10 Quinielas Estratégicas (Favoritos Liga MX)</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Nombres reales + ponderación de victoria local/empate</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={isGeneratingBots}
+                      onClick={() => handleQuickGenerateBots('antiTrend20')}
+                      style={{ padding: '12px 16px', justifyContent: 'flex-start', gap: '12px', display: 'flex', alignItems: 'center', background: 'rgba(234, 179, 8, 0.15)', borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                    >
+                      <ShieldCheck size={20} />
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+20 Cobertura Anti-Tendencia (Sorpresas / Vacíos)</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Analiza votos reales y cubre resultados desiertos</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={isGeneratingBots}
+                      onClick={() => handleQuickGenerateBots('massive50')}
+                      style={{ padding: '12px 16px', justifyContent: 'flex-start', gap: '12px', display: 'flex', alignItems: 'center' }}
+                    >
+                      <RotateCcw size={20} />
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+50 Lote Masivo Balanceado</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Generación combinatoria masiva instantánea de 50 quinielas</div>
+                      </div>
                     </button>
                   </div>
+
+                  <hr style={{ borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
+
+                  <details style={{ cursor: 'pointer' }}>
+                    <summary style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                      📝 Modo Manual Personalizado (Ingreso por texto)
+                    </summary>
+                    <div style={{ marginTop: '12px' }}>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                        Ingresa <code>Nombre Bot, Cantidad</code> (Un bot por línea):
+                      </p>
+                      <textarea 
+                        className="input-field" 
+                        rows={5}
+                        placeholder="Nombre Bot 1, 10&#10;Nombre Bot 2, 20"
+                        value={botInputText}
+                        onChange={(e) => setBotInputText(e.target.value)}
+                        style={{ fontFamily: 'monospace', minHeight: '100px' }}
+                      />
+                      <button 
+                        type="button"
+                        className="btn btn-secondary" 
+                        onClick={handleGenerateBots}
+                        disabled={isGeneratingBots}
+                        style={{ padding: '10px', fontSize: '0.9rem', width: '100%', marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                      >
+                        <Play size={16} /> Generar Lote Personalizado
+                      </button>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
