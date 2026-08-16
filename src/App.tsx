@@ -298,7 +298,17 @@ export default function App() {
   const [adminEmail, setAdminEmail] = useState<string>('');
 
   // --- Navegación ---
-  const [activeTab, setActiveTab] = useState<string>('predictions'); // coming-soon, predictions, my-pools, leaderboard, admin-payments, admin-matchdays, admin-participants, verify-payment
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    const saved = localStorage.getItem('la_carmelita_active_tab');
+    return saved || 'predictions';
+  });
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    if (tab && tab !== 'login') {
+      localStorage.setItem('la_carmelita_active_tab', tab);
+    }
+  };
   const [closedMobileTab, setClosedMobileTab] = useState<'matches'|'ranking'>('matches');
   const [adminPendingPage, setAdminPendingPage] = useState(1);
   const [adminHistoryPage, setAdminHistoryPage] = useState(1);
@@ -711,12 +721,15 @@ export default function App() {
   useEffect(() => {
     // 1. Cargar sesión de participante desde LocalStorage
     const storedUser = localStorage.getItem('la_carmelita_user');
+    const savedTab = localStorage.getItem('la_carmelita_active_tab');
     if (storedUser) {
       const parsed = JSON.parse(storedUser);
       setCurrentUser(parsed);
       if (parsed.role === 'admin') {
         setIsAdmin(true);
-        setActiveTab('admin-payments');
+        if (!savedTab || !savedTab.startsWith('admin-')) {
+          setActiveTab('admin-payments');
+        }
       }
     }
 
@@ -725,7 +738,9 @@ export default function App() {
       if (session) {
         setIsAdmin(true);
         setAdminEmail(session.user.email || '');
-        setActiveTab('admin-payments');
+        if (!savedTab || !savedTab.startsWith('admin-')) {
+          setActiveTab('admin-payments');
+        }
         // También simular un objeto de usuario local si es admin
         setCurrentUser({
           id: session.user.id,
@@ -2307,6 +2322,7 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('la_carmelita_user');
+    localStorage.removeItem('la_carmelita_active_tab');
     setCurrentUser(null);
     setIsAdmin(false);
     setActiveTab('predictions');
