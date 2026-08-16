@@ -356,6 +356,7 @@ export default function App() {
   const [simulatedMaxScore, setSimulatedMaxScore] = useState(0);
   // --- Estados de Dashboard Financiero ---
   const [financialPools, setFinancialPools] = useState<Pool[]>([]);
+  const [allFinancialPools, setAllFinancialPools] = useState<Pool[]>([]);
   const [financialMatchdays, setFinancialMatchdays] = useState<Matchday[]>([]);
   const [selectedFinMatchdayId, setSelectedFinMatchdayId] = useState<string>('');
   const [prizePercentage, setPrizePercentage] = useState<number>(80);
@@ -1316,21 +1317,24 @@ export default function App() {
 
         if (pErr) throw pErr;
 
-        const formattedPools = (pData || [])
-          .map(p => ({
-            ...p,
-            participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
-          }))
-          .filter(p => {
-            const phone = p.participant?.phone;
-            const refCode = p.reference_code;
-            const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && refCode.startsWith('BOT-'));
-            return !isBot;
-          }) as Pool[];
+        const allFormatted = (pData || []).map(p => ({
+          ...p,
+          participant: Array.isArray(p.participants) ? p.participants[0] : p.participants
+        })) as Pool[];
+        
+        setAllFinancialPools(allFormatted);
+
+        const formattedPools = allFormatted.filter(p => {
+          const phone = p.participant?.phone;
+          const refCode = p.reference_code;
+          const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && refCode.startsWith('BOT-'));
+          return !isBot;
+        });
         
         setFinancialPools(formattedPools);
       } else {
         setFinancialPools([]);
+        setAllFinancialPools([]);
       }
 
       await loadParticipants();
@@ -9205,66 +9209,92 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                 </div>
               )}
 
-              {/* Desglose de Ventas por Quiniela */}
-              {selectedFinMatchdayId === 'all' && (
-                <div className="card" style={{ padding: '20px', marginBottom: '16px' }}>
-                  <h3>Desglose de Ventas por Quiniela</h3>
-                  <div style={{ overflowX: 'auto', marginTop: '12px' }}>
-                    <table className="leaderboard-table" style={{ minWidth: '500px' }}>
-                      <thead>
-                        <tr>
-                          <th>Quiniela</th>
-                          <th>Estado</th>
-                          <th>Aprobadas</th>
-                          <th>Pendientes</th>
-                          <th>Ingreso Aprobado</th>
-                          <th>Bolsa de Premios</th>
-                          <th>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {financialMatchdays.map(md => {
-                          const mdPools = financialPools.filter(p => p.matchday_id === md.id);
-                          const appCount = mdPools.filter(p => p.payment_status === 'approved').length;
-                          const penCount = mdPools.filter(p => p.payment_status === 'pending').length;
-                          const appAmount = mdPools.filter(p => p.payment_status === 'approved').reduce((acc, curr) => acc + Number(curr.cost), 0);
-                          const prizeAmount = appAmount * (prizePercentage / 100);
-
-                          return (
-                            <tr key={md.id}>
-                              <td style={{ color: 'white', fontWeight: '700' }}>Quiniela {md.number}</td>
-                              <td>
-                                <span style={{ 
-                                  fontSize: '0.75rem', 
-                                  padding: '2px 6px', 
-                                  borderRadius: '4px',
-                                  background: md.status === 'active' ? 'rgba(224, 184, 40, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                                  color: md.status === 'active' ? 'var(--primary)' : 'var(--text-muted)'
-                                }}>
-                                  {md.status.toUpperCase()}
-                                </span>
-                              </td>
-                              <td>{appCount}</td>
-                              <td>{penCount}</td>
-                              <td style={{ color: 'var(--primary)', fontWeight: '600' }}>${appAmount.toFixed(2)}</td>
-                              <td>${prizeAmount.toFixed(2)}</td>
-                              <td>
-                                <button 
-                                  className="btn btn-primary" 
-                                  style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  onClick={() => handleExportMatchdayPredictionsPDF(md.id)}
-                                >
-                                  <FileText size={12} /> Pronósticos
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+              {/* Tabla de Auditoría y Desglose Completo por Quiniela */}
+              <div className="card" style={{ padding: '20px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+                  <h3>Auditoría y Desglose de Ventas por Quiniela</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Desglose detallado de quinielas reales, bots simulados, rechazadas y total en sistema
+                  </span>
                 </div>
-              )}
+                <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+                  <table className="leaderboard-table" style={{ minWidth: '750px' }}>
+                    <thead>
+                      <tr>
+                        <th>Quiniela</th>
+                        <th>Estado</th>
+                        <th>Reales Aprobadas</th>
+                        <th>Bots Simulados</th>
+                        <th>Pendientes</th>
+                        <th>Rechazadas</th>
+                        <th>Total DB</th>
+                        <th>Ingreso Real</th>
+                        <th>Bolsa de Premios</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedFinMatchdayId === 'all' 
+                        ? financialMatchdays 
+                        : financialMatchdays.filter(md => md.id === selectedFinMatchdayId)
+                      ).map(md => {
+                        const mdAllPools = allFinancialPools.filter(p => p.matchday_id === md.id);
+                        
+                        const isBot = (p: Pool) => {
+                          const phone = p.participant?.phone;
+                          const ref = p.reference_code;
+                          return phone === 'BOT-0000' || (typeof ref === 'string' && ref.startsWith('BOT-'));
+                        };
+
+                        const realAppPools = mdAllPools.filter(p => p.payment_status === 'approved' && !isBot(p));
+                        const botAppPools = mdAllPools.filter(p => p.payment_status === 'approved' && isBot(p));
+                        const penCount = mdAllPools.filter(p => p.payment_status === 'pending').length;
+                        const rejCount = mdAllPools.filter(p => p.payment_status === 'rejected').length;
+                        const totalCount = mdAllPools.length;
+
+                        const appAmount = realAppPools.reduce((acc, curr) => acc + Number(curr.cost || 0), 0);
+                        
+                        const prizeAmount = md.prize_type === 'fixed'
+                          ? (Number(md.fixed_prize_1st || 0) + Number(md.fixed_prize_2nd || 0))
+                          : appAmount * (prizePercentage / 100);
+
+                        return (
+                          <tr key={md.id}>
+                            <td style={{ color: 'white', fontWeight: '700' }}>Quiniela {md.number}</td>
+                            <td>
+                              <span style={{ 
+                                fontSize: '0.75rem', 
+                                padding: '2px 6px', 
+                                borderRadius: '4px',
+                                background: md.status === 'active' ? 'rgba(224, 184, 40, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                                color: md.status === 'active' ? 'var(--primary)' : 'var(--text-muted)'
+                              }}>
+                                {md.status.toUpperCase()}
+                              </span>
+                            </td>
+                            <td style={{ color: 'var(--primary)', fontWeight: '700' }}>{realAppPools.length}</td>
+                            <td style={{ color: '#60a5fa', fontWeight: '600' }}>{botAppPools.length}</td>
+                            <td style={{ color: '#ffb300' }}>{penCount}</td>
+                            <td style={{ color: 'var(--danger)' }}>{rejCount}</td>
+                            <td style={{ fontWeight: '700' }}>{totalCount}</td>
+                            <td style={{ color: 'var(--primary)', fontWeight: '700' }}>${appAmount.toFixed(2)}</td>
+                            <td>${prizeAmount.toFixed(2)}</td>
+                            <td>
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ width: 'auto', padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                onClick={() => handleExportMatchdayPredictionsPDF(md.id)}
+                              >
+                                <FileText size={12} /> Pronósticos
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
               {/* Tabla de Rentabilidad de las Últimas 5 Quinielas */}
               <div className="card" style={{ padding: '20px' }}>
