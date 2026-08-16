@@ -1011,19 +1011,28 @@ export default function App() {
       
       setAllMatchdays(matchdaysData || []);
       
-      const { data: allPoolsData, error: allPoolsErr } = await supabase
-        .from('pools')
-        .select(`
-          matchday_id, 
-          participant_id, 
-          payment_status,
-          cost,
-          reference_code,
-          participants (
-            phone
-          )
-        `);
-      if (allPoolsErr) throw allPoolsErr;
+      const matchdayIds = (matchdaysData || []).map(m => m.id);
+      let allPoolsData: any[] = [];
+
+      if (matchdayIds.length > 0) {
+        const { data: pData, error: allPoolsErr } = await supabase
+          .from('pools')
+          .select(`
+            matchday_id, 
+            participant_id, 
+            payment_status,
+            cost,
+            reference_code,
+            participants (
+              phone
+            )
+          `)
+          .in('matchday_id', matchdayIds)
+          .order('created_at', { ascending: false });
+          
+        if (allPoolsErr) throw allPoolsErr;
+        allPoolsData = pData || [];
+      }
       
       const approvedParts: Record<string, Set<string>> = {};
       const approvedBots: Record<string, Set<string>> = {};
