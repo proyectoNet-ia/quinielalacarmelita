@@ -424,6 +424,7 @@ export default function App() {
   // --- Estados Generador Bots ---
   const [botInputText, setBotInputText] = useState('');
   const [isGeneratingBots, setIsGeneratingBots] = useState(false);
+  const [botSearchQuery, setBotSearchQuery] = useState('');
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -8834,6 +8835,170 @@ Mis pronósticos son:
                     </div>
                   </details>
                 </div>
+              </div>
+
+              {/* --- TABLA DE AUDITORÍA Y RANKING DE BOTS DE LA JORNADA ACTIVA --- */}
+              <div className="card" style={{ marginTop: '24px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Trophy size={20} color="var(--primary)" /> Tabla de Auditoría & Ranking de Bots (Jornada {activeMatchday?.number})
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Posicionamiento en tiempo real de los bots generados respecto a la tabla general de la jornada.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="Buscar bot por nombre o folio..."
+                      value={botSearchQuery}
+                      onChange={(e) => setBotSearchQuery(e.target.value)}
+                      style={{ padding: '8px 12px', fontSize: '0.85rem', width: '240px' }}
+                    />
+                  </div>
+                </div>
+
+                {(() => {
+                  const approvedPools = [...allPoolsForMatchday]
+                    .filter((p: any) => p.payment_status === 'approved')
+                    .sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+
+                  const totalApproved = approvedPools.length;
+
+                  const rankedBots = approvedPools
+                    .map((pool: any, idx: number) => {
+                      const partObj = Array.isArray(pool.participants) ? pool.participants[0] : pool.participants;
+                      const phone = partObj?.phone || '';
+                      const refCode = pool.reference_code || '';
+                      const name = (partObj?.name || 'Desconocido').trim();
+                      const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && (refCode.startsWith('BOT-') || refCode.startsWith('BT-')));
+
+                      return {
+                        rank: idx + 1,
+                        poolId: pool.id,
+                        name,
+                        alias: partObj?.alias || 'anon',
+                        phone,
+                        refCode,
+                        score: pool.score || 0,
+                        status: pool.payment_status,
+                        created_at: pool.created_at,
+                        isBot
+                      };
+                    })
+                    .filter(item => item.isBot);
+
+                  const filteredBots = rankedBots.filter(b => 
+                    b.name.toLowerCase().includes(botSearchQuery.toLowerCase()) ||
+                    b.refCode.toLowerCase().includes(botSearchQuery.toLowerCase())
+                  );
+
+                  const topBot = rankedBots[0];
+                  const avgBotScore = rankedBots.length > 0
+                    ? (rankedBots.reduce((acc, b) => acc + b.score, 0) / rankedBots.length).toFixed(1)
+                    : '0';
+
+                  if (rankedBots.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '30px 16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
+                        <Users size={32} style={{ opacity: 0.5, marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontSize: '0.95rem' }}>No hay quinielas de bots registradas en la Jornada {activeMatchday?.number}.</p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem' }}>Utiliza los botones superiores para generar bots estratégicos o anti-tendencia.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div>
+                      {/* Métricas rápidas de los bots */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid var(--primary)' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Bots Registrados</span>
+                          <strong style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>{rankedBots.length} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>/ {totalApproved} total</span></strong>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid var(--accent)' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Mejor Posición de Bot</span>
+                          <strong style={{ fontSize: '1.2rem', color: 'var(--accent)' }}>#{topBot?.rank || '-'} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>de {totalApproved}</span></strong>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Promedio Aciertos Bot</span>
+                          <strong style={{ fontSize: '1.2rem', color: '#10b981' }}>{avgBotScore} pts</strong>
+                        </div>
+                      </div>
+
+                      {/* Tabla detallada de bots */}
+                      <div className="table-container" style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '110px' }}>Ranking</th>
+                              <th style={{ padding: '10px 12px' }}>Bot / Participante</th>
+                              <th style={{ padding: '10px 12px' }}>Folio Ref.</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Puntuación</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Estado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredBots.map((b) => (
+                              <tr key={b.poolId} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: b.rank <= 3 ? 'rgba(234, 179, 8, 0.05)' : 'transparent' }}>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <span style={{ 
+                                    padding: '4px 8px', 
+                                    borderRadius: '12px', 
+                                    background: b.rank === 1 ? 'rgba(234, 179, 8, 0.2)' : b.rank <= 5 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                                    color: b.rank === 1 ? 'var(--accent)' : b.rank <= 5 ? '#60a5fa' : 'var(--text-primary)',
+                                    fontSize: '0.82rem'
+                                  }}>
+                                    #{b.rank} / {totalApproved}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ 
+                                      width: '24px', 
+                                      height: '24px', 
+                                      borderRadius: '50%', 
+                                      background: 'rgba(255,255,255,0.1)', 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      justifyContent: 'center', 
+                                      fontSize: '0.75rem',
+                                      color: 'var(--primary)' 
+                                    }}>
+                                      🤖
+                                    </span>
+                                    <span>{b.name}</span>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                                  {b.refCode}
+                                </td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                  {b.score} pts
+                                </td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                  <span style={{ 
+                                    background: 'rgba(16, 185, 129, 0.15)', 
+                                    color: '#10b981', 
+                                    padding: '3px 8px', 
+                                    borderRadius: '4px', 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 'bold' 
+                                  }}>
+                                    Aprobado
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );
