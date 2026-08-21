@@ -2450,10 +2450,13 @@ export default function App() {
       const isPromoApplied = appliedPromoCode && cart.length >= appliedPromoCode.min_entries;
       const totalAmount = cart.length * finalEntryPrice;
 
+      const cleanName = cartParticipantName.trim();
+      const cleanPhone = (cartCountryCode + cartParticipantPhone).trim();
+
       // Intentar primero registro atómico vía RPC de PostgreSQL
       const { error: rpcCartErr } = await supabase.rpc('submit_pool_cart', {
-        p_participant_name: cartParticipantName,
-        p_participant_phone: cartCountryCode + cartParticipantPhone,
+        p_participant_name: cleanName,
+        p_participant_phone: cleanPhone,
         p_matchday_id: activeMatchday!.id,
         p_reference_code: refId,
         p_entry_price: finalEntryPrice,
@@ -2465,15 +2468,22 @@ export default function App() {
         console.warn('RPC submit_pool_cart no disponible o falló, ejecutando fallback:', rpcCartErr);
 
         let participantId = '';
-        const { data: existingPart } = await supabase.from('participants').select('id').eq('alias', cartParticipantName).maybeSingle();
-        if (existingPart) {
-          participantId = existingPart.id;
+        // Buscar participante existente insensible a mayúsculas/minúsculas y sin espacios
+        const { data: existingParts } = await supabase
+          .from('participants')
+          .select('id, name, alias, phone')
+          .or(`alias.ilike.${cleanName},name.ilike.${cleanName}${cleanPhone ? `,phone.eq.${cleanPhone}` : ''}`)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (existingParts && existingParts.length > 0) {
+          participantId = existingParts[0].id;
         } else {
           const dummyPin = Math.floor(1000 + Math.random() * 9000).toString();
           const { data: newPart, error: partErr } = await supabase.from('participants').insert([{
-            name: cartParticipantName,
-            alias: cartParticipantName,
-            phone: cartCountryCode + cartParticipantPhone,
+            name: cleanName,
+            alias: cleanName,
+            phone: cleanPhone,
             pin: dummyPin
           }]).select('id').single();
           if (partErr) throw partErr;
