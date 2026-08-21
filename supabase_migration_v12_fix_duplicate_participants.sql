@@ -109,7 +109,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.submit_pool_cart(TEXT, TEXT, UUID, TEXT, NUMERIC, TEXT, JSONB) TO anon, authenticated, service_role;
 
--- 2. Consolidar participantes duplicados existentes en Supabase (revinculando sus pools al ID primario)
+-- 2. Consolidar participantes duplicados existentes en Supabase
 DO $$
 DECLARE
   rec RECORD;
@@ -121,12 +121,14 @@ BEGIN
     GROUP BY LOWER(TRIM(name))
     HAVING COUNT(*) > 1
   ) LOOP
+    -- 1. Obtener ID del participante primario (el más antiguo)
     SELECT id INTO primary_pid
     FROM public.participants
     WHERE LOWER(TRIM(name)) = rec.clean_name
     ORDER BY created_at ASC
     LIMIT 1;
 
+    -- 2. Revincular quinielas (pools) de los participantes duplicados al ID primario
     UPDATE public.pools
     SET participant_id = primary_pid
     WHERE participant_id IN (
@@ -134,12 +136,20 @@ BEGIN
       WHERE LOWER(TRIM(name)) = rec.clean_name AND id != primary_pid
     );
 
-    UPDATE public.participants
-    SET name = TRIM(name), alias = TRIM(alias)
-    WHERE id = primary_pid;
-
+    -- 3. Eliminar los registros duplicados secundarios
     DELETE FROM public.participants
     WHERE LOWER(TRIM(name)) = rec.clean_name AND id != primary_pid;
+
+    -- 4. Limpiar espacios en el registro primario de forma segura
+    BEGIN
+      UPDATE public.participants
+      SET name = TRIM(name), alias = TRIM(alias)
+      WHERE id = primary_pid;
+    EXCEPTION WHEN unique_violation THEN
+      UPDATE public.participants
+      SET name = TRIM(name), alias = TRIM(alias) || '_' || FLOOR(100 + RANDOM() * 900)::text
+      WHERE id = primary_pid;
+    END;
   END LOOP;
 END;
 $$;
