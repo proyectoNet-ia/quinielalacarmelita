@@ -2845,9 +2845,10 @@ Mis pronósticos son:
       
       lines.forEach(line => {
         const parts = line.split(',');
-        if (parts.length >= 2) {
+        if (parts.length >= 1) {
           const name = parts[0].trim();
-          const count = parseInt(parts[1].trim(), 10) || 1;
+          // Forzar mínimo 2 quinielas por bot
+          const count = Math.max(2, parseInt((parts[1] || '2').trim(), 10) || 2);
           botConfigs.push({ name, count });
           
           const exists = participants.find(p => p.name.toLowerCase() === name.toLowerCase());
@@ -2880,12 +2881,13 @@ Mis pronósticos son:
       for (const config of botConfigs) {
         const participant = finalParticipantsList.find(p => p.name.toLowerCase() === config.name.toLowerCase());
         if (participant) {
+          const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
           for (let i = 0; i < config.count; i++) {
             poolsToInsert.push({
               participant_id: participant.id,
               matchday_id: activeMatchday.id,
               payment_status: 'approved',
-              reference_code: `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+              reference_code: batchRefCode
             });
             totalQuinielas++;
           }
@@ -2998,12 +3000,18 @@ Mis pronósticos son:
       newParticipantsToCreate.forEach(pObj => {
         const part = finalParticipantsList.find(p => p.name === pObj.name);
         if (part) {
-          poolsToInsert.push({
-            participant_id: part.id,
-            matchday_id: activeMatchday.id,
-            payment_status: 'approved',
-            reference_code: `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-          });
+          // Cada bot genera mínimo 2 quinielas (2 o 3 quinielas) bajo el mismo folio de compra
+          const quinielasPerBot = Math.random() < 0.65 ? 2 : 3;
+          const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+          for (let q = 0; q < quinielasPerBot; q++) {
+            poolsToInsert.push({
+              participant_id: part.id,
+              matchday_id: activeMatchday.id,
+              payment_status: 'approved',
+              reference_code: batchRefCode
+            });
+          }
         }
       });
 
