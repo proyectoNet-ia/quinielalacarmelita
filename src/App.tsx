@@ -2933,20 +2933,38 @@ Mis pronósticos son:
     try {
       const count = mode === 'strategic10' ? 10 : mode === 'antiTrend20' ? 20 : 50;
 
-      const firstNames = ['Carlos', 'Rafa', 'Luis', 'Gabo', 'Santi', 'Mateo', 'Javier', 'Hugo', 'Beto', 'Fer', 'Diego', 'Alex', 'Oscar', 'Memo', 'Chema', 'Paco', 'Lalo', 'Nacho', 'Tito', 'Pancho'];
-      const lastNames = ['Mendoza', 'Torres', 'Ramírez', 'Vargas', 'Olea', 'García', 'López', 'Rios', 'Solís', 'Vázquez', 'Castro', 'Pineda', 'Morales', 'Reyes', 'Núñez', 'Flores'];
+      const firstNames = ['Carlos', 'Rafa', 'Luis', 'Gabo', 'Santi', 'Mateo', 'Javier', 'Hugo', 'Beto', 'Fer', 'Diego', 'Alex', 'Oscar', 'Memo', 'Chema', 'Paco', 'Lalo', 'Nacho', 'Tito', 'Pancho', 'Daniel', 'Rodrigo', 'Andrés', 'Gonzalo', 'Mariano', 'Bruno', 'Iker', 'Emilio', 'Tomás', 'Sebas'];
+      const lastNames = ['Mendoza', 'Torres', 'Ramírez', 'Vargas', 'Olea', 'García', 'López', 'Rios', 'Solís', 'Vázquez', 'Castro', 'Pineda', 'Morales', 'Reyes', 'Núñez', 'Flores', 'Castillo', 'Hernández', 'Sánchez', 'Gómez', 'Martínez', 'Ortega', 'Guerrero', 'Estrada'];
 
       const newParticipantsToCreate: any[] = [];
-      const botNames: string[] = [];
+      const botNamesSet = new Set<string>();
+      const existingNamesLower = new Set(participants.map((p: any) => p.name?.toLowerCase()));
 
       for (let i = 0; i < count; i++) {
-        const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-        const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-        const suffix = Math.floor(10 + Math.random() * 89);
-        const name = `${fn} ${ln} ${suffix}`;
-        botNames.push(name);
+        let name = '';
+        let attempts = 0;
+        while (attempts < 50) {
+          attempts++;
+          const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+          const ln1 = lastNames[Math.floor(Math.random() * lastNames.length)];
+          const hasSecondLastName = Math.random() < 0.35;
+          if (hasSecondLastName) {
+            let ln2 = lastNames[Math.floor(Math.random() * lastNames.length)];
+            while (ln2 === ln1) {
+              ln2 = lastNames[Math.floor(Math.random() * lastNames.length)];
+            }
+            name = `${fn} ${ln1} ${ln2}`;
+          } else {
+            name = `${fn} ${ln1}`;
+          }
 
-        const alias = name.toLowerCase().replace(/\s+/g, '') + Math.floor(100 + Math.random() * 900);
+          if (!existingNamesLower.has(name.toLowerCase()) && !botNamesSet.has(name.toLowerCase())) {
+            break;
+          }
+        }
+
+        botNamesSet.add(name.toLowerCase());
+        const alias = name.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
         newParticipantsToCreate.push({
           name,
           alias,
