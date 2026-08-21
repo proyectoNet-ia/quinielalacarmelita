@@ -3114,6 +3114,96 @@ Mis pronósticos son:
     }
   };
 
+  const handleDeleteSingleBot = async (participantId: string, botName: string, refCode?: string) => {
+    if (!activeMatchday) return;
+    if (!window.confirm(`¿Estás seguro de eliminar el bot "${botName}" de la Jornada ${activeMatchday.number}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // 1. Intentar vía RPC atómico delete_bot_participant
+      const { error: rpcErr } = await supabase.rpc('delete_bot_participant', {
+        p_participant_id: participantId,
+        p_matchday_id: activeMatchday.id
+      });
+
+      if (rpcErr) {
+        console.warn('RPC delete_bot_participant no disponible o falló, ejecutando fallback:', rpcErr);
+
+        if (refCode) {
+          await supabase.from('pools').delete().eq('reference_code', refCode);
+        }
+        await supabase.from('pools').delete().eq('participant_id', participantId).eq('matchday_id', activeMatchday.id);
+        await supabase.from('participants').delete().eq('id', participantId).eq('phone', 'BOT-0000');
+      }
+
+      showAlert('success', `Bot "${botName}" eliminado correctamente de la Jornada ${activeMatchday.number}.`);
+      await loadParticipants();
+      await loadAllPoolsForMatchday();
+      await loadLeaderboard();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al eliminar el bot.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAllBotsForMatchday = async () => {
+    if (!activeMatchday) return;
+    const botPools = allPoolsForMatchday.filter(p => {
+      const partObj = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+      const phone = partObj?.phone || '';
+      const ref = p.reference_code || '';
+      return phone === 'BOT-0000' || (typeof ref === 'string' && (ref.startsWith('BOT-') || ref.startsWith('BT-')));
+    });
+
+    if (botPools.length === 0) {
+      showAlert('info', 'No hay bots para eliminar en esta jornada.');
+      return;
+    }
+
+    if (!window.confirm(`⚠️ ATENCIÓN: Se eliminarán TODAS las ${botPools.length} quinielas de bots en la Jornada ${activeMatchday.number}.\n\n¿Deseas continuar?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // 1. Intentar vía RPC atómico delete_all_bots_in_matchday
+      const { error: rpcErr } = await supabase.rpc('delete_all_bots_in_matchday', {
+        p_matchday_id: activeMatchday.id
+      });
+
+      if (rpcErr) {
+        console.warn('RPC delete_all_bots_in_matchday no disponible o falló, ejecutando fallback:', rpcErr);
+
+        const botPoolIds = botPools.map(p => p.id);
+        const botPartIds = [...new Set(botPools.map(p => p.participant_id))];
+
+        const chunkSize = 200;
+        for (let i = 0; i < botPoolIds.length; i += chunkSize) {
+          const chunk = botPoolIds.slice(i, i + chunkSize);
+          await supabase.from('pools').delete().in('id', chunk);
+        }
+
+        for (const pid of botPartIds) {
+          await supabase.from('participants').delete().eq('id', pid).eq('phone', 'BOT-0000');
+        }
+      }
+
+      showAlert('success', `Se eliminaron exitosamente todas las quinielas de bots de la Jornada ${activeMatchday.number}.`);
+      await loadParticipants();
+      await loadAllPoolsForMatchday();
+      await loadLeaderboard();
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al eliminar los bots de la jornada.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleValidatePayment = async (poolIdOrIds: string | string[], status: 'approved' | 'rejected') => {
     try {
       setLoading(true);
@@ -8867,14 +8957,32 @@ Mis pronósticos son:
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDeleteAllBotsForMatchday}
+                      style={{ 
+                        padding: '8px 12px', 
+                        fontSize: '0.8rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        color: '#ef4444',
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        background: 'rgba(239, 68, 68, 0.1)'
+                      }}
+                    >
+                      <Trash2 size={14} /> Eliminar Todos los Bots
+                    </button>
+                    
                     <input
                       type="text"
                       className="input-field"
                       placeholder="Buscar bot por nombre o folio..."
                       value={botSearchQuery}
                       onChange={(e) => setBotSearchQuery(e.target.value)}
-                      style={{ padding: '8px 12px', fontSize: '0.85rem', width: '240px' }}
+                      style={{ padding: '8px 12px', fontSize: '0.85rem', width: '220px' }}
                     />
                   </div>
                 </div>
@@ -8897,6 +9005,7 @@ Mis pronósticos son:
                       return {
                         rank: idx + 1,
                         poolId: pool.id,
+                        participantId: pool.participant_id,
                         name,
                         alias: partObj?.alias || 'anon',
                         phone,
@@ -8957,6 +9066,7 @@ Mis pronósticos son:
                               <th style={{ padding: '10px 12px' }}>Folio Ref.</th>
                               <th style={{ padding: '10px 12px', textAlign: 'center' }}>Puntuación</th>
                               <th style={{ padding: '10px 12px', textAlign: 'center' }}>Estado</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '100px' }}>Acción</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -9008,6 +9118,26 @@ Mis pronósticos son:
                                   }}>
                                     Aprobado
                                   </span>
+                                </td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => handleDeleteSingleBot(b.participantId, b.name, b.refCode)}
+                                    title={`Eliminar bot ${b.name}`}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '0.75rem',
+                                      color: '#ef4444',
+                                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Trash2 size={12} /> Eliminar
+                                  </button>
                                 </td>
                               </tr>
                             ))}
