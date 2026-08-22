@@ -20,6 +20,7 @@ const createJsPDFDocLazy = async (options?: any) => {
 };
 
 import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
+import { MEXICAN_MALE_NAMES, MEXICAN_FEMALE_NAMES, MEXICAN_SURNAMES } from './data/mexicanNamesData';
 
 import { 
   Bell,
@@ -2946,9 +2947,6 @@ Mis pronósticos son:
     try {
       const count = mode === 'strategic10' ? 10 : mode === 'antiTrend20' ? 20 : 50;
 
-      const firstNames = ['Carlos', 'Rafa', 'Luis', 'Gabo', 'Santi', 'Mateo', 'Javier', 'Hugo', 'Beto', 'Fer', 'Diego', 'Alex', 'Oscar', 'Memo', 'Chema', 'Paco', 'Lalo', 'Nacho', 'Tito', 'Pancho', 'Daniel', 'Rodrigo', 'Andrés', 'Gonzalo', 'Mariano', 'Bruno', 'Iker', 'Emilio', 'Tomás', 'Sebas'];
-      const lastNames = ['Mendoza', 'Torres', 'Ramírez', 'Vargas', 'Olea', 'García', 'López', 'Rios', 'Solís', 'Vázquez', 'Castro', 'Pineda', 'Morales', 'Reyes', 'Núñez', 'Flores', 'Castillo', 'Hernández', 'Sánchez', 'Gómez', 'Martínez', 'Ortega', 'Guerrero', 'Estrada'];
-
       const newParticipantsToCreate: any[] = [];
       const botNamesSet = new Set<string>();
       const existingNamesLower = new Set(participants.map((p: any) => p.name?.toLowerCase()));
@@ -2956,15 +2954,17 @@ Mis pronósticos son:
       for (let i = 0; i < count; i++) {
         let name = '';
         let attempts = 0;
-        while (attempts < 50) {
+        while (attempts < 100) {
           attempts++;
-          const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-          const ln1 = lastNames[Math.floor(Math.random() * lastNames.length)];
-          const hasSecondLastName = Math.random() < 0.35;
+          const isFemale = Math.random() < 0.35;
+          const namesPool = isFemale ? MEXICAN_FEMALE_NAMES : MEXICAN_MALE_NAMES;
+          const fn = namesPool[Math.floor(Math.random() * namesPool.length)];
+          const ln1 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
+          const hasSecondLastName = Math.random() < 0.40;
           if (hasSecondLastName) {
-            let ln2 = lastNames[Math.floor(Math.random() * lastNames.length)];
+            let ln2 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
             while (ln2 === ln1) {
-              ln2 = lastNames[Math.floor(Math.random() * lastNames.length)];
+              ln2 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
             }
             name = `${fn} ${ln1} ${ln2}`;
           } else {
