@@ -21,6 +21,7 @@ const createJsPDFDocLazy = async (options?: any) => {
 
 import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
 import { MEXICAN_MALE_NAMES, MEXICAN_FEMALE_NAMES, MEXICAN_SURNAMES } from './data/mexicanNamesData';
+import { matchTeamNames } from './utils/teamNormalizer';
 
 import { 
   Bell,
@@ -3020,68 +3021,85 @@ Mis pronósticos son:
 
       if (insertedPools && insertedPools.length > 0) {
         let existingPicksFrequency: Record<string, Record<string, number>> = {};
+        let humanConsensusChoice: Record<string, 'L' | 'E' | 'V'> = {};
         let scrapedOddsData: any = null;
 
-        if (mode === 'strategic10') {
-          try {
-            const res = await fetch('/odds_liga_mx.json');
-            if (res.ok) {
-              scrapedOddsData = await res.json();
-            }
-          } catch (e) {
-            console.log('No se pudo cargar odds_liga_mx.json local, usando ponderación estándar.');
+        try {
+          const res = await fetch('/odds_liga_mx.json');
+          if (res.ok) {
+            scrapedOddsData = await res.json();
           }
+        } catch (e) {
+          console.log('No se pudo cargar odds_liga_mx.json local, usando normalización inteligente.');
         }
 
-        if (mode === 'antiTrend20') {
-          const { data: existingPreds } = await supabase
-            .from('predictions')
-            .select('match_id, selection, pool_id, pools!inner(matchday_id, payment_status)')
-            .eq('pools.matchday_id', activeMatchday.id)
-            .eq('pools.payment_status', 'approved');
+        const { data: existingPreds } = await supabase
+          .from('predictions')
+          .select('match_id, selection, pool_id, pools!inner(matchday_id, payment_status)')
+          .eq('pools.matchday_id', activeMatchday.id)
+          .eq('pools.payment_status', 'approved');
 
-          (existingPreds || []).forEach((pr: any) => {
-            if (!existingPicksFrequency[pr.match_id]) {
-              existingPicksFrequency[pr.match_id] = { L: 0, E: 0, V: 0 };
-            }
-            if (pr.selection) existingPicksFrequency[pr.match_id][pr.selection]++;
-          });
-        }
+        (existingPreds || []).forEach((pr: any) => {
+          if (!existingPicksFrequency[pr.match_id]) {
+            existingPicksFrequency[pr.match_id] = { L: 0, E: 0, V: 0 };
+          }
+          if (pr.selection) existingPicksFrequency[pr.match_id][pr.selection]++;
+        });
+
+        // Determinar tendencia/consenso por partido
+        matches.forEach(match => {
+          const freqs = existingPicksFrequency[match.id] || { L: 0, E: 0, V: 0 };
+          const sorted = (['L', 'E', 'V'] as const).sort((a, b) => (freqs[b] || 0) - (freqs[a] || 0));
+          humanConsensusChoice[match.id] = (freqs.L + freqs.E + freqs.V) >= 2 ? sorted[0] : 'L';
+        });
 
         const predictionsToInsert: any[] = [];
         insertedPools.forEach(pool => {
           matches.forEach(match => {
             let choice: 'L' | 'E' | 'V' = 'L';
 
-            if (mode === 'antiTrend20' && existingPicksFrequency[match.id]) {
-              const freqs = existingPicksFrequency[match.id];
-              const sortedChoices = (['L', 'E', 'V'] as const).sort((a, b) => (freqs[a] || 0) - (freqs[b] || 0));
-              choice = Math.random() < 0.7 ? sortedChoices[0] : sortedChoices[1];
-            } else if (mode === 'strategic10') {
-              let pL = 0.50;
-              let pE = 0.30;
+            // Probabilidades implícitas base
+            let pL = 0.50;
+            let pE = 0.28;
+            let pV = 0.22;
 
-              if (scrapedOddsData?.matches) {
-                const homeName = (match.home_team || '').toLowerCase();
-                const awayName = (match.away_team || '').toLowerCase();
-                const scrapedMatch = scrapedOddsData.matches.find((sm: any) => {
-                  const smHome = (sm.home_team || '').toLowerCase();
-                  const smAway = (sm.away_team || '').toLowerCase();
-                  return (smHome.includes(homeName) || homeName.includes(smHome)) &&
-                         (smAway.includes(awayName) || awayName.includes(smAway));
-                });
+            if (scrapedOddsData?.matches) {
+              const homeName = match.home_team || '';
+              const awayName = match.away_team || '';
+              const scrapedMatch = scrapedOddsData.matches.find((sm: any) => {
+                return matchTeamNames(homeName, sm.home_team || '') && matchTeamNames(awayName, sm.away_team || '');
+              });
 
-                if (scrapedMatch?.probabilities) {
-                  pL = Number(scrapedMatch.probabilities.prob_l || 50) / 100;
-                  pE = Number(scrapedMatch.probabilities.prob_e || 30) / 100;
-                }
+              if (scrapedMatch?.probabilities) {
+                pL = Number(scrapedMatch.probabilities.prob_l || 50) / 100;
+                pE = Number(scrapedMatch.probabilities.prob_e || 28) / 100;
+                pV = Number(scrapedMatch.probabilities.prob_v || 22) / 100;
               }
+            }
 
+            if (mode === 'antiTrend20') {
+              // Modo Consenso Humano con Variación Inteligente
+              const consensus = humanConsensusChoice[match.id] || (pL >= pV ? 'L' : 'V');
+              if (Math.random() < 0.78) {
+                choice = consensus;
+              } else {
+                const options: ('L'|'E'|'V')[] = (['L', 'E', 'V'] as const).filter(c => c !== consensus);
+                choice = Math.random() < 0.65 ? options[0] : options[1];
+              }
+            } else if (mode === 'strategic10') {
+              // Modo Estratégico de Momios & Favoritos Reales
               const rand = Math.random();
-              choice = rand < pL ? 'L' : rand < (pL + pE) ? 'E' : 'V';
+              if (pL >= pV && pL >= pE) {
+                choice = rand < 0.70 ? 'L' : rand < 0.88 ? 'E' : 'V';
+              } else if (pV >= pL && pV >= pE) {
+                choice = rand < 0.68 ? 'V' : rand < 0.86 ? 'E' : 'L';
+              } else {
+                choice = rand < 0.42 ? 'L' : rand < 0.78 ? 'E' : 'V';
+              }
             } else {
+              // Modo Masivo Ponderado Inteligente (massive50)
               const rand = Math.random();
-              choice = rand < 0.45 ? 'L' : rand < 0.75 ? 'E' : 'V';
+              choice = rand < (pL * 0.9) ? 'L' : rand < (pL * 0.9 + pE * 1.1) ? 'E' : 'V';
             }
 
             predictionsToInsert.push({
