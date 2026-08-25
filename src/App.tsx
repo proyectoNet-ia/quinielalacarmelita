@@ -9243,11 +9243,10 @@ Mis pronósticos son:
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                           <thead>
                             <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
-                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '110px' }}>Ranking</th>
-                              <th style={{ padding: '10px 12px' }}>Bot / Participante</th>
-                              <th style={{ padding: '10px 12px' }}>Folio Ref.</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Puntuación</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '180px' }}>Acción</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '100px' }}>Ranking</th>
+                              <th style={{ padding: '10px 12px' }}>Bot / Folio</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '110px' }}>Puntuación</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '210px' }}>Acción</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -9265,25 +9264,26 @@ Mis pronósticos son:
                                   </span>
                                 </td>
                                 <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <span style={{ 
-                                      width: '24px', 
-                                      height: '24px', 
+                                      width: '28px', 
+                                      height: '28px', 
                                       borderRadius: '50%', 
                                       background: 'rgba(255,255,255,0.1)', 
                                       display: 'inline-flex', 
                                       alignItems: 'center', 
                                       justifyContent: 'center', 
-                                      fontSize: '0.75rem',
-                                      color: 'var(--primary)' 
+                                      fontSize: '0.85rem',
+                                      color: 'var(--primary)',
+                                      flexShrink: 0
                                     }}>
                                       🤖
                                     </span>
-                                    <span>{b.name}</span>
+                                    <div>
+                                      <div style={{ color: '#fff', fontWeight: '600', fontSize: '0.9rem' }}>{b.name}</div>
+                                      <div style={{ fontFamily: 'monospace', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '1px' }}>{b.refCode}</div>
+                                    </div>
                                   </div>
-                                </td>
-                                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                                  {b.refCode}
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>
                                   {b.score} pts
