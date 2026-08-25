@@ -577,6 +577,54 @@ export default function App() {
     count?: number;
   }>({ isOpen: false, type: 'single' });
 
+  const [viewBotModal, setViewBotModal] = useState<{
+    isOpen: boolean;
+    botName: string;
+    refCode: string;
+    poolId: string;
+    score: number;
+    rank: number;
+    loading: boolean;
+    predictions: Record<string, string>;
+  }>({ isOpen: false, botName: '', refCode: '', poolId: '', score: 0, rank: 0, loading: false, predictions: {} });
+
+  const handleOpenBotPredictionsModal = async (poolId: string, botName: string, refCode: string, score: number, rank: number) => {
+    setViewBotModal({
+      isOpen: true,
+      botName,
+      refCode,
+      poolId,
+      score,
+      rank,
+      loading: true,
+      predictions: {}
+    });
+
+    try {
+      const { data: preds, error } = await supabase
+        .from('predictions')
+        .select('match_id, selection')
+        .eq('pool_id', poolId);
+
+      if (error) throw error;
+
+      const predsMap: Record<string, string> = {};
+      (preds || []).forEach((p: any) => {
+        predsMap[p.match_id] = p.selection;
+      });
+
+      setViewBotModal(prev => ({
+        ...prev,
+        loading: false,
+        predictions: predsMap
+      }));
+    } catch (e) {
+      console.error('Error cargando predicciones del bot:', e);
+      showAlert('error', 'No se pudieron cargar las predicciones del bot.');
+      setViewBotModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
   useEffect(() => {
     fetch('/odds_liga_mx.json')
       .then(res => res.json())
@@ -9254,25 +9302,45 @@ Mis pronósticos son:
                                   </span>
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className="btn btn-danger"
-                                    onClick={() => handleDeleteSingleBot(b.participantId, b.name, b.refCode)}
-                                    disabled={activeMatchday?.status !== 'active'}
-                                    title={`Eliminar bot ${b.name}`}
-                                    style={{
-                                      padding: '4px 10px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: '600',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      opacity: activeMatchday?.status !== 'active' ? 0.5 : 1,
-                                      cursor: activeMatchday?.status !== 'active' ? 'not-allowed' : 'pointer'
-                                    }}
-                                  >
-                                    <Trash2 size={12} /> Eliminar
-                                  </button>
+                                  <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary"
+                                      onClick={() => handleOpenBotPredictionsModal(b.poolId, b.name, b.refCode, b.score, b.rank)}
+                                      style={{
+                                        padding: '4px 10px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        background: 'rgba(59, 130, 246, 0.15)',
+                                        color: '#60a5fa',
+                                        borderColor: 'rgba(59, 130, 246, 0.4)'
+                                      }}
+                                    >
+                                      <Eye size={12} /> Pronósticos
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-danger"
+                                      onClick={() => handleDeleteSingleBot(b.participantId, b.name, b.refCode)}
+                                      disabled={activeMatchday?.status !== 'active'}
+                                      title={`Eliminar bot ${b.name}`}
+                                      style={{
+                                        padding: '4px 10px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        opacity: activeMatchday?.status !== 'active' ? 0.5 : 1,
+                                        cursor: activeMatchday?.status !== 'active' ? 'not-allowed' : 'pointer'
+                                      }}
+                                    >
+                                      <Trash2 size={12} /> Eliminar
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -10793,6 +10861,144 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                 <Trash2 size={16} /> Confirmar Eliminación
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Auditoría de Pronósticos de Bot con Colores de Tendencia y Sorpresa */}
+      {viewBotModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--card-bg)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '620px',
+            width: '100%',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            {/* Header del Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🤖 {viewBotModal.botName}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Folio: <code style={{ color: 'var(--primary)' }}>{viewBotModal.refCode}</code> | Ranking: <strong style={{ color: 'var(--accent)' }}>#{viewBotModal.rank}</strong> | Puntuación: <strong style={{ color: 'var(--primary)' }}>{viewBotModal.score} pts</strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setViewBotModal(prev => ({ ...prev, isOpen: false }))}
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+              >
+                <X size={16} /> Cerrar
+              </button>
+            </div>
+
+            {/* Leyenda de Colores */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.78rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: '600' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(16, 185, 129, 0.3)', border: '1px solid #10b981' }}></span> 🟢 Tendencia Favorita (Fuentes)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontWeight: '600' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(245, 158, 11, 0.3)', border: '1px solid #fbbf24' }}></span> ⚡ Sorpresa Empate
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontWeight: '600' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.3)', border: '1px solid #f87171' }}></span> ⚡ Sorpresa Variante (Underdog/Visita)
+              </span>
+            </div>
+
+            {/* Cuerpo de Partidos y Pronósticos */}
+            {viewBotModal.loading ? (
+              <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-secondary)' }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px auto' }} />
+                <p style={{ margin: 0 }}>Cargando pronósticos del bot...</p>
+              </div>
+            ) : (
+              <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {matches.map((m, i) => {
+                  const botPick = viewBotModal.predictions[m.id] || '-';
+                  const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                  const maxP = Math.max(probL, probE, probV);
+                  const favoritePick = probL === maxP ? 'L' : probE === maxP ? 'E' : 'V';
+                  const isFavoriteTrend = botPick === favoritePick;
+                  const isDrawSurprise = !isFavoriteTrend && botPick === 'E';
+
+                  // Estilos por tipo de pronóstico
+                  let badgeBg = 'rgba(16, 185, 129, 0.2)';
+                  let badgeBorder = 'rgba(16, 185, 129, 0.5)';
+                  let badgeTextColor = '#10b981';
+                  let labelText = '🟢 Tendencia Favorita';
+
+                  if (!isFavoriteTrend) {
+                    if (isDrawSurprise) {
+                      badgeBg = 'rgba(245, 158, 11, 0.25)';
+                      badgeBorder = 'rgba(245, 158, 11, 0.6)';
+                      badgeTextColor = '#fbbf24';
+                      labelText = '⚡ Sorpresa Empate';
+                    } else {
+                      badgeBg = 'rgba(239, 68, 68, 0.25)';
+                      badgeBorder = 'rgba(239, 68, 68, 0.6)';
+                      badgeTextColor = '#f87171';
+                      labelText = '⚡ Sorpresa Variante';
+                    }
+                  }
+
+                  return (
+                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.25)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.88rem', color: '#fff' }}>
+                          P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          Momios Fuentes: <span style={{ color: probL === maxP ? '#10b981' : 'inherit' }}>L: {probL}%</span> | <span style={{ color: probE === maxP ? '#10b981' : 'inherit' }}>E: {probE}%</span> | <span style={{ color: probV === maxP ? '#10b981' : 'inherit' }}>V: {probV}%</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.72rem', color: badgeTextColor, fontWeight: 'bold' }}>
+                          {labelText}
+                        </span>
+                        <div style={{ 
+                          background: badgeBg, 
+                          border: `1px solid ${badgeBorder}`, 
+                          color: badgeTextColor,
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold',
+                          fontSize: '1rem',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}>
+                          {botPick}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
