@@ -976,11 +976,18 @@ export default function App() {
       if (teams.length === 0) loadTeams();
       if (leagues.length === 0) loadLeagues();
     }
-    if ((isAdmin && activeTab === 'admin-promos') || activeTab === 'predictions') {
+    if ((isAdmin && (activeTab === 'admin-promos' || activeTab === 'admin-payments' || activeTab === 'admin-history' || activeTab === 'admin-dashboard')) || activeTab === 'predictions') {
       // 🜢 GUARD: solo carga códigos si no están en memoria
       if (promoCodes.length === 0) loadPromoCodes();
     }
   }, [activeTab, currentUser, activeMatchday, isAdmin]);
+
+  // Escuchar apertura del modal de asignación de promociones para asegurar catálogo actualizado
+  useEffect(() => {
+    if (selectedBatchForPromo) {
+      loadPromoCodes();
+    }
+  }, [selectedBatchForPromo]);
 
   // Escuchar órdenes de pago y quinielas en tiempo real vía Supabase Realtime
   useEffect(() => {
@@ -1911,7 +1918,22 @@ export default function App() {
         showAlert('success', 'Promoción eliminada del bloque. Se restauró el precio estándar ($25 MXN c/u).');
       } else {
         // Buscar si existe el código en promoCodes para calcular precio especial
-        const promoObj = promoCodes.find(p => p.code.toUpperCase() === cleanCode);
+        let promoObj = promoCodes.find(p => p.code.toUpperCase() === cleanCode);
+        
+        // Fallback: si no está en memoria, buscarlo directamente en Supabase
+        if (!promoObj) {
+          try {
+            const { data } = await supabase
+              .from('promo_codes')
+              .select('*')
+              .eq('code', cleanCode)
+              .maybeSingle();
+            if (data) promoObj = data;
+          } catch (e) {
+            console.error('Error buscando promo directa en Supabase:', e);
+          }
+        }
+
         let entryPrice = standardPrice;
         
         if (promoObj) {
@@ -1947,6 +1969,7 @@ export default function App() {
       setSelectedBatchForPromo(null);
       await loadFinancialData();
       await loadAllPoolsForMatchday();
+      await loadPromoCodes();
     } catch (err: any) {
       console.error('Error al aplicar promoción manualmente:', err);
       showAlert('error', err.message || 'Error al aplicar código promocional.');
@@ -10746,12 +10769,14 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                   onChange={(e) => setAdminSelectedPromoCode(e.target.value.toUpperCase())}
                   style={{ background: 'var(--bg-main)', color: 'white', fontSize: '0.9rem', padding: '10px' }}
                 >
-                  <option value="">-- Sin Código / Restablecer Precio Estándar ($25.00 MXN c/u) --</option>
-                  {promoCodes.filter(p => p.is_active).map(p => (
-                    <option key={p.id} value={p.code}>
-                      {p.code} ({p.is_public !== false ? '🌐 Pública' : '🔒 Privada Admin'}) - {p.discount_type === 'fixed_price' ? `$${p.discount_value} MXN c/u` : p.discount_type === 'fixed_discount' ? `-$${p.discount_value} MXN desc.` : `${p.discount_value}% desc.`} (Mín: {p.min_entries} quinielas)
-                    </option>
-                  ))}
+                  <option value="">-- Sin Código / Restablecer Precio Estándar (${standardPrice.toFixed(2)} MXN c/u) --</option>
+                  {promoCodes
+                    .filter(p => p.is_active !== false)
+                    .map(p => (
+                      <option key={p.id} value={p.code}>
+                        {p.code} ({p.is_public !== false ? '🌐 Pública' : '🔒 Privada (Admin)'}) - {p.discount_type === 'fixed_price' ? `$${Number(p.discount_value).toFixed(2)} MXN c/u` : p.discount_type === 'fixed_discount' ? `-$${Number(p.discount_value).toFixed(2)} MXN desc.` : `${p.discount_value}% desc.`} (Mín: {p.min_entries} quinielas)
+                      </option>
+                    ))}
                 </select>
               </div>
 
