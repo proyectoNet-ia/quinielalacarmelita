@@ -669,6 +669,44 @@ export default function App() {
     return { probL, probE, probV };
   };
 
+  const [isSyncingOdds, setIsSyncingOdds] = useState(false);
+
+  const handleSyncOddsForActiveMatchday = async () => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay jornada activa.');
+      return;
+    }
+
+    try {
+      setIsSyncingOdds(true);
+      showAlert('info', 'Sincronizando momios y calculando probabilidades para la jornada...');
+
+      const res = await fetch(`/odds_liga_mx.json?t=${Date.now()}`);
+      let freshData = oddsData;
+      if (res.ok) {
+        freshData = await res.json();
+        setOddsData(freshData);
+      }
+
+      let matchedCount = 0;
+      matches.forEach(m => {
+        const rawHome = (m.home_team || '').split('||special::')[0].trim();
+        const rawAway = (m.away_team || '').split('||special::')[0].trim();
+        if (freshData?.matches) {
+          const found = freshData.matches.some((sm: any) => matchTeamNames(rawHome, sm.home_team || '') && matchTeamNames(rawAway, sm.away_team || ''));
+          if (found) matchedCount++;
+        }
+      });
+
+      showAlert('success', `¡Momios sincronizados con éxito! ${matches.length} partidos procesados (${matchedCount} con cuotas directas de fuentes).`);
+    } catch (err: any) {
+      console.error('Error sincronizando momios:', err);
+      showAlert('error', 'No se pudieron sincronizar los momios.');
+    } finally {
+      setIsSyncingOdds(false);
+    }
+  };
+
   useEffect(() => {
     const checkName = async () => {
       if (cartParticipantName.trim().length < 3 || !activeMatchday) {
@@ -9001,9 +9039,31 @@ Mis pronósticos son:
 
                     {/* Matriz de Probabilidades Estadísticas / Momios Admin */}
                     <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
-                        <BarChart2 size={16} /> Matriz de Probabilidades Implícitas (Momios Admin)
-                      </h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
+                          <BarChart2 size={16} /> Matriz de Probabilidades Implícitas (Momios Admin)
+                        </h4>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={isSyncingOdds}
+                          onClick={handleSyncOddsForActiveMatchday}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            borderColor: 'rgba(16, 185, 129, 0.4)'
+                          }}
+                        >
+                          <RefreshCw size={12} className={isSyncingOdds ? 'animate-spin' : ''} />
+                          {isSyncingOdds ? 'Sincronizando...' : 'Sincronizar Momios 1-Clic'}
+                        </button>
+                      </div>
                       <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                           <thead>
