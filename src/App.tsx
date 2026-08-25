@@ -581,18 +581,33 @@ export default function App() {
     let probE = 28;
     let probV = 22;
 
+    const rawHome = (match.home_team || '').split('||special::')[0].trim();
+    const rawAway = (match.away_team || '').split('||special::')[0].trim();
+
     if (oddsObj?.matches) {
-      const homeName = match.home_team || '';
-      const awayName = match.away_team || '';
       const scrapedMatch = oddsObj.matches.find((sm: any) => {
-        return matchTeamNames(homeName, sm.home_team || '') && matchTeamNames(awayName, sm.away_team || '');
+        return matchTeamNames(rawHome, sm.home_team || '') && matchTeamNames(rawAway, sm.away_team || '');
       });
 
       if (scrapedMatch?.probabilities) {
         probL = Math.round(Number(scrapedMatch.probabilities.prob_l || 50));
         probE = Math.round(Number(scrapedMatch.probabilities.prob_e || 28));
         probV = Math.round(Number(scrapedMatch.probabilities.prob_v || 22));
+        return { probL, probE, probV };
       }
+    }
+
+    // Fallback por fortaleza si no esta en el archivo de momios
+    const hKey = rawHome.toLowerCase();
+    const aKey = rawAway.toLowerCase();
+    const giants = ['america', 'monterrey', 'tigres', 'toluca', 'barcelona', 'real madrid', 'napoli', 'arsenal'];
+    
+    if (giants.some(g => hKey.includes(g)) && !giants.some(g => aKey.includes(g))) {
+      probL = 70; probE = 19; probV = 11;
+    } else if (giants.some(g => aKey.includes(g)) && !giants.some(g => hKey.includes(g))) {
+      probL = 18; probE = 25; probV = 57;
+    } else {
+      probL = 46; probE = 30; probV = 24;
     }
 
     return { probL, probE, probV };

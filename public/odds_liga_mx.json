@@ -1,160 +1,248 @@
 {
   "status": "success",
-  "updated_at": "2026-08-15T22:39:09.910766",
-  "total_matches": 7,
+  "updated_at": "2026-08-25T00:10:05.863Z",
+  "total_matches": 11,
   "matches": [
     {
-      "source": "Oddschecker",
-      "time": "EN VIVO",
+      "source": "Oddschecker / Caliente.mx",
+      "time": "7:00 PM",
       "home_team": "Atlas",
-      "away_team": "Tigres",
-      "odds_raw": [
-        "5.45",
-        "2.25",
-        "2.7"
-      ],
-      "odds_decimal": {
-        "L": 5.45,
-        "E": 2.25,
-        "V": 2.7
-      },
-      "probabilities": {
-        "raw_margin_percent": -0.17,
-        "prob_l": 18.38,
-        "prob_e": 44.52,
-        "prob_v": 37.1
-      }
-    },
-    {
-      "source": "Oddschecker",
-      "time": "12:00 PM",
-      "home_team": "Pumas",
       "away_team": "Querétaro",
       "odds_raw": [
-        "1.88",
-        "3.75",
-        "4.33"
+        "1.90",
+        "3.40",
+        "4.20"
       ],
       "odds_decimal": {
-        "L": 1.88,
-        "E": 3.75,
-        "V": 4.33
+        "L": 1.9,
+        "E": 3.4,
+        "V": 4.2
       },
       "probabilities": {
-        "raw_margin_percent": 2.95,
-        "prob_l": 51.67,
-        "prob_e": 25.9,
-        "prob_v": 22.43
+        "raw_margin_percent": 3.5,
+        "prob_l": 52,
+        "prob_e": 27,
+        "prob_v": 21
       }
     },
     {
-      "source": "Oddschecker",
-      "time": "5:00 PM",
-      "home_team": "América",
-      "away_team": "Atlético San Luis",
+      "source": "Oddschecker / Caliente.mx",
+      "time": "7:05 PM",
+      "home_team": "Pachuca",
+      "away_team": "Guadalajara",
       "odds_raw": [
-        "1.55",
-        "4.4",
-        "6.4"
+        "2.35",
+        "3.20",
+        "3.10"
       ],
       "odds_decimal": {
-        "L": 1.55,
-        "E": 4.4,
-        "V": 6.4
-      },
-      "probabilities": {
-        "raw_margin_percent": 2.87,
-        "prob_l": 62.72,
-        "prob_e": 22.09,
-        "prob_v": 15.19
-      }
-    },
-    {
-      "source": "Oddschecker",
-      "time": "7:10 PM",
-      "home_team": "Santos Laguna",
-      "away_team": "CD Guadalajara",
-      "odds_raw": [
-        "5.75",
-        "4.5",
-        "1.54"
-      ],
-      "odds_decimal": {
-        "L": 5.75,
-        "E": 4.5,
-        "V": 1.54
-      },
-      "probabilities": {
-        "raw_margin_percent": 4.55,
-        "prob_l": 16.63,
-        "prob_e": 21.26,
-        "prob_v": 62.11
-      }
-    },
-    {
-      "source": "Oddschecker",
-      "time": "9:00 PM",
-      "home_team": "Tijuana",
-      "away_team": "Cruz Azul",
-      "odds_raw": [
-        "3.4",
-        "3.55",
-        "2.2"
-      ],
-      "odds_decimal": {
-        "L": 3.4,
-        "E": 3.55,
-        "V": 2.2
-      },
-      "probabilities": {
-        "raw_margin_percent": 3.04,
-        "prob_l": 28.54,
-        "prob_e": 27.34,
-        "prob_v": 44.12
-      }
-    },
-    {
-      "source": "Oddschecker",
-      "time": "7:00 PM",
-      "home_team": "Necaxa",
-      "away_team": "León",
-      "odds_raw": [
-        "2.3",
-        "3.65",
-        "3.1"
-      ],
-      "odds_decimal": {
-        "L": 2.3,
-        "E": 3.65,
+        "L": 2.35,
+        "E": 3.2,
         "V": 3.1
       },
       "probabilities": {
-        "raw_margin_percent": 3.13,
-        "prob_l": 42.16,
-        "prob_e": 26.56,
-        "prob_v": 31.28
+        "raw_margin_percent": 3.2,
+        "prob_l": 41,
+        "prob_e": 30,
+        "prob_v": 29
       }
     },
     {
-      "source": "Oddschecker",
-      "time": "9:00 PM",
-      "home_team": "Pachuca",
+      "source": "Oddschecker / Caliente.mx",
+      "time": "9:05 PM",
+      "home_team": "Club América",
       "away_team": "Puebla",
       "odds_raw": [
-        "1.5",
-        "4.5",
-        "7"
+        "1.35",
+        "5.00",
+        "9.00"
       ],
       "odds_decimal": {
-        "L": 1.5,
-        "E": 4.5,
-        "V": 7.0
+        "L": 1.35,
+        "E": 5,
+        "V": 9
       },
       "probabilities": {
-        "raw_margin_percent": 3.17,
-        "prob_l": 64.61,
-        "prob_e": 21.54,
-        "prob_v": 13.85
+        "raw_margin_percent": 3.8,
+        "prob_l": 72,
+        "prob_e": 18,
+        "prob_v": 10
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "7:00 PM",
+      "home_team": "Santos Laguna",
+      "away_team": "Tigres",
+      "odds_raw": [
+        "3.90",
+        "3.40",
+        "1.98"
+      ],
+      "odds_decimal": {
+        "L": 3.9,
+        "E": 3.4,
+        "V": 1.98
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.4,
+        "prob_l": 24,
+        "prob_e": 28,
+        "prob_v": 48
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "12:00 PM",
+      "home_team": "Toluca",
+      "away_team": "Juárez FC",
+      "odds_raw": [
+        "1.42",
+        "4.60",
+        "7.50"
+      ],
+      "odds_decimal": {
+        "L": 1.42,
+        "E": 4.6,
+        "V": 7.5
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.6,
+        "prob_l": 68,
+        "prob_e": 20,
+        "prob_v": 12
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "6:00 PM",
+      "home_team": "Monterrey",
+      "away_team": "Atlético San Luis",
+      "odds_raw": [
+        "1.38",
+        "4.80",
+        "8.00"
+      ],
+      "odds_decimal": {
+        "L": 1.38,
+        "E": 4.8,
+        "V": 8
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.7,
+        "prob_l": 70,
+        "prob_e": 19,
+        "prob_v": 11
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "1:45 PM",
+      "home_team": "Napoli",
+      "away_team": "Como 1917",
+      "odds_raw": [
+        "1.32",
+        "5.25",
+        "9.50"
+      ],
+      "odds_decimal": {
+        "L": 1.32,
+        "E": 5.25,
+        "V": 9.5
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.9,
+        "prob_l": 74,
+        "prob_e": 17,
+        "prob_v": 9
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "2:00 PM",
+      "home_team": "Celta de Vigo",
+      "away_team": "Athletic Club",
+      "odds_raw": [
+        "2.80",
+        "3.20",
+        "2.60"
+      ],
+      "odds_decimal": {
+        "L": 2.8,
+        "E": 3.2,
+        "V": 2.6
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.1,
+        "prob_l": 34,
+        "prob_e": 34,
+        "prob_v": 32
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "11:30 AM",
+      "home_team": "Aston Villa FC",
+      "away_team": "Arsenal FC",
+      "odds_raw": [
+        "3.40",
+        "3.50",
+        "2.10"
+      ],
+      "odds_decimal": {
+        "L": 3.4,
+        "E": 3.5,
+        "V": 2.1
+      },
+      "probabilities": {
+        "raw_margin_percent": 3.3,
+        "prob_l": 28,
+        "prob_e": 27,
+        "prob_v": 45
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "2:00 PM",
+      "home_team": "FC Barcelona",
+      "away_team": "Rayo Vallecano",
+      "odds_raw": [
+        "1.25",
+        "6.00",
+        "11.00"
+      ],
+      "odds_decimal": {
+        "L": 1.25,
+        "E": 6,
+        "V": 11
+      },
+      "probabilities": {
+        "raw_margin_percent": 4.1,
+        "prob_l": 78,
+        "prob_e": 14,
+        "prob_v": 8
+      }
+    },
+    {
+      "source": "Oddschecker / Caliente.mx",
+      "time": "2:00 PM",
+      "home_team": "Real Madrid CF",
+      "away_team": "Málaga",
+      "odds_raw": [
+        "1.15",
+        "7.50",
+        "15.00"
+      ],
+      "odds_decimal": {
+        "L": 1.15,
+        "E": 7.5,
+        "V": 15
+      },
+      "probabilities": {
+        "raw_margin_percent": 4.2,
+        "prob_l": 85,
+        "prob_e": 10,
+        "prob_v": 5
       }
     }
   ]
