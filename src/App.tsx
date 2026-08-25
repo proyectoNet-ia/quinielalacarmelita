@@ -11050,7 +11050,7 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
         </div>
       )}
 
-      {activeTab === 'predictions' && (
+      {activeTab === 'predictions' && activeMatchday?.status === 'active' && (
         <CarmelitoAssistant
           onAutoFillAnalytical={handleAutoFillAnalytical}
         />
