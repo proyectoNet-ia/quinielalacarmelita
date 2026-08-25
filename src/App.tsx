@@ -8984,8 +8984,8 @@ Mis pronósticos son:
                     >
                       <Zap size={20} />
                       <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+10 Quinielas Estratégicas (Favoritos Liga MX)</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Nombres reales + ponderación de victoria local/empate</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+10 Quinielas Estratégicas (Momios & Favoritos)</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Ponderación de cuotas reales + 70% peso a favoritos con 1-2 sorpresas</div>
                       </div>
                     </button>
 
@@ -8998,8 +8998,8 @@ Mis pronósticos son:
                     >
                       <ShieldCheck size={20} />
                       <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+20 Cobertura Anti-Tendencia (Sorpresas / Vacíos)</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Analiza votos reales y cubre resultados desiertos</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+20 Quinielas de Consenso (Tendencia & Variaciones)</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Pesa la tendencia favorita humana + 1-3 variaciones por boleto</div>
                       </div>
                     </button>
 
@@ -9012,8 +9012,8 @@ Mis pronósticos son:
                     >
                       <RotateCcw size={20} />
                       <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+50 Lote Masivo Balanceado</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Generación combinatoria masiva instantánea de 50 quinielas</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>+50 Lote Masivo Ponderado (Nacionales e Int.)</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Matriz de probabilidad implícita combinada sin patrones incoherentes</div>
                       </div>
                     </button>
                   </div>
