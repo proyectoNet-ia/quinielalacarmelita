@@ -68,7 +68,8 @@ import {
   Tag,
   Percent,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  BarChart2
 } from 'lucide-react';
 
 // Declaración de tipo para jsPDF autoTable para evitar errores de compilación con TS
@@ -566,6 +567,36 @@ export default function App() {
   const [successAlias, setSuccessAlias] = useState('');
   const [successMessageText, setSuccessMessageText] = useState('');
   const [whatsappConfig, setWhatsappConfig] = useState('');
+  const [oddsData, setOddsData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/odds_liga_mx.json')
+      .then(res => res.json())
+      .then(data => setOddsData(data))
+      .catch(() => console.log('Sin odds_liga_mx.json inicial'));
+  }, []);
+
+  const getMatchProbabilities = (match: any, oddsObj: any) => {
+    let probL = 50;
+    let probE = 28;
+    let probV = 22;
+
+    if (oddsObj?.matches) {
+      const homeName = match.home_team || '';
+      const awayName = match.away_team || '';
+      const scrapedMatch = oddsObj.matches.find((sm: any) => {
+        return matchTeamNames(homeName, sm.home_team || '') && matchTeamNames(awayName, sm.away_team || '');
+      });
+
+      if (scrapedMatch?.probabilities) {
+        probL = Math.round(Number(scrapedMatch.probabilities.prob_l || 50));
+        probE = Math.round(Number(scrapedMatch.probabilities.prob_e || 28));
+        probV = Math.round(Number(scrapedMatch.probabilities.prob_v || 22));
+      }
+    }
+
+    return { probL, probE, probV };
+  };
 
   useEffect(() => {
     const checkName = async () => {
@@ -8876,6 +8907,47 @@ Mis pronósticos son:
                     <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>
                       <em>La cobertura teórica asume que las quinielas se distribuyen de forma uniforme sobre las {totalCombinations.toLocaleString()} combinaciones. Matemáticamente aumenta tu probabilidad de obtener la quiniela perfecta.</em>
                     </p>
+
+                    {/* Matriz de Probabilidades Estadísticas / Momios Admin */}
+                    <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
+                        <BarChart2 size={16} /> Matriz de Probabilidades Implícitas (Momios Admin)
+                      </h4>
+                      <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                              <th style={{ padding: '6px 8px' }}>Partido</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Local %</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Empate %</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Visita %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {matches.map((m, i) => {
+                              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                              const maxP = Math.max(probL, probE, probV);
+                              return (
+                                <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <td style={{ padding: '6px 8px', fontWeight: '500' }}>
+                                    P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? 'var(--primary)' : 'inherit' }}>
+                                    {probL}%
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? 'var(--primary)' : 'inherit' }}>
+                                    {probE}%
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? 'var(--primary)' : 'inherit' }}>
+                                    {probV}%
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
