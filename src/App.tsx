@@ -9093,17 +9093,18 @@ Mis pronósticos son:
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn btn-danger"
                       onClick={handleDeleteAllBotsForMatchday}
+                      disabled={activeMatchday?.status !== 'active'}
                       style={{ 
-                        padding: '8px 12px', 
-                        fontSize: '0.8rem', 
+                        padding: '8px 14px', 
+                        fontSize: '0.82rem', 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: '6px',
-                        color: '#ef4444',
-                        borderColor: 'rgba(239, 68, 68, 0.4)',
-                        background: 'rgba(239, 68, 68, 0.1)'
+                        fontWeight: 'bold',
+                        opacity: activeMatchday?.status !== 'active' ? 0.5 : 1,
+                        cursor: activeMatchday?.status !== 'active' ? 'not-allowed' : 'pointer'
                       }}
                     >
                       <Trash2 size={14} /> Eliminar Todos los Bots
@@ -9255,18 +9256,19 @@ Mis pronósticos son:
                                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                                   <button
                                     type="button"
-                                    className="btn btn-secondary"
+                                    className="btn btn-danger"
                                     onClick={() => handleDeleteSingleBot(b.participantId, b.name, b.refCode)}
+                                    disabled={activeMatchday?.status !== 'active'}
                                     title={`Eliminar bot ${b.name}`}
                                     style={{
-                                      padding: '4px 8px',
+                                      padding: '4px 10px',
                                       fontSize: '0.75rem',
-                                      color: '#ef4444',
-                                      borderColor: 'rgba(239, 68, 68, 0.4)',
-                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      fontWeight: '600',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '4px'
+                                      gap: '4px',
+                                      opacity: activeMatchday?.status !== 'active' ? 0.5 : 1,
+                                      cursor: activeMatchday?.status !== 'active' ? 'not-allowed' : 'pointer'
                                     }}
                                   >
                                     <Trash2 size={12} /> Eliminar
