@@ -9247,8 +9247,7 @@ Mis pronósticos son:
                               <th style={{ padding: '10px 12px' }}>Bot / Participante</th>
                               <th style={{ padding: '10px 12px' }}>Folio Ref.</th>
                               <th style={{ padding: '10px 12px', textAlign: 'center' }}>Puntuación</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Estado</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '100px' }}>Acción</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '180px' }}>Acción</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -9288,18 +9287,6 @@ Mis pronósticos son:
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>
                                   {b.score} pts
-                                </td>
-                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                  <span style={{ 
-                                    background: 'rgba(16, 185, 129, 0.15)', 
-                                    color: '#10b981', 
-                                    padding: '3px 8px', 
-                                    borderRadius: '4px', 
-                                    fontSize: '0.75rem', 
-                                    fontWeight: 'bold' 
-                                  }}>
-                                    Aprobado
-                                  </span>
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                                   <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
