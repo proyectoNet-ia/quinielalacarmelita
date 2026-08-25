@@ -568,6 +568,14 @@ export default function App() {
   const [successMessageText, setSuccessMessageText] = useState('');
   const [whatsappConfig, setWhatsappConfig] = useState('');
   const [oddsData, setOddsData] = useState<any>(null);
+  const [deleteBotModal, setDeleteBotModal] = useState<{
+    isOpen: boolean;
+    type: 'single' | 'all';
+    participantId?: string;
+    botName?: string;
+    refCode?: string;
+    count?: number;
+  }>({ isOpen: false, type: 'single' });
 
   useEffect(() => {
     fetch('/odds_liga_mx.json')
@@ -3178,44 +3186,26 @@ Mis pronósticos son:
     }
   };
 
-  const handleDeleteSingleBot = async (participantId: string, botName: string, refCode?: string) => {
-    if (!activeMatchday) return;
-    if (!window.confirm(`¿Estás seguro de eliminar el bot "${botName}" de la Jornada ${activeMatchday.number}?`)) {
+  const handleDeleteSingleBot = (participantId: string, botName: string, refCode?: string) => {
+    if (!activeMatchday || activeMatchday.status !== 'active') {
+      showAlert('error', 'No se pueden eliminar bots cuando la quiniela/jornada está cerrada.');
+      return;
+    }
+    setDeleteBotModal({
+      isOpen: true,
+      type: 'single',
+      participantId,
+      botName,
+      refCode
+    });
+  };
+
+  const handleDeleteAllBotsForMatchday = () => {
+    if (!activeMatchday || activeMatchday.status !== 'active') {
+      showAlert('error', 'No se pueden eliminar bots cuando la quiniela/jornada está cerrada.');
       return;
     }
 
-    try {
-      setLoading(true);
-      // 1. Intentar vía RPC atómico delete_bot_participant
-      const { error: rpcErr } = await supabase.rpc('delete_bot_participant', {
-        p_participant_id: participantId,
-        p_matchday_id: activeMatchday.id
-      });
-
-      if (rpcErr) {
-        console.warn('RPC delete_bot_participant no disponible o falló, ejecutando fallback:', rpcErr);
-
-        if (refCode) {
-          await supabase.from('pools').delete().eq('reference_code', refCode);
-        }
-        await supabase.from('pools').delete().eq('participant_id', participantId).eq('matchday_id', activeMatchday.id);
-        await supabase.from('participants').delete().eq('id', participantId).eq('phone', 'BOT-0000');
-      }
-
-      showAlert('success', `Bot "${botName}" eliminado correctamente de la Jornada ${activeMatchday.number}.`);
-      await loadParticipants();
-      await loadAllPoolsForMatchday();
-      await loadLeaderboard();
-    } catch (err: any) {
-      console.error(err);
-      showAlert('error', err.message || 'Error al eliminar el bot.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteAllBotsForMatchday = async () => {
-    if (!activeMatchday) return;
     const botPools = allPoolsForMatchday.filter(p => {
       const partObj = Array.isArray(p.participants) ? p.participants[0] : p.participants;
       const phone = partObj?.phone || '';
@@ -3228,43 +3218,81 @@ Mis pronósticos son:
       return;
     }
 
-    if (!window.confirm(`⚠️ ATENCIÓN: Se eliminarán TODAS las ${botPools.length} quinielas de bots en la Jornada ${activeMatchday.number}.\n\n¿Deseas continuar?`)) {
+    setDeleteBotModal({
+      isOpen: true,
+      type: 'all',
+      count: botPools.length
+    });
+  };
+
+  const confirmDeleteBotExecution = async () => {
+    if (!activeMatchday || activeMatchday.status !== 'active') {
+      showAlert('error', 'No se pueden eliminar bots cuando la quiniela/jornada está cerrada.');
+      setDeleteBotModal({ isOpen: false, type: 'single' });
       return;
     }
 
     try {
       setLoading(true);
-      // 1. Intentar vía RPC atómico delete_all_bots_in_matchday
-      const { error: rpcErr } = await supabase.rpc('delete_all_bots_in_matchday', {
-        p_matchday_id: activeMatchday.id
-      });
 
-      if (rpcErr) {
-        console.warn('RPC delete_all_bots_in_matchday no disponible o falló, ejecutando fallback:', rpcErr);
+      if (deleteBotModal.type === 'single' && deleteBotModal.participantId) {
+        const { error: rpcErr } = await supabase.rpc('delete_bot_participant', {
+          p_participant_id: deleteBotModal.participantId,
+          p_matchday_id: activeMatchday.id
+        });
 
-        const botPoolIds = botPools.map(p => p.id);
-        const botPartIds = [...new Set(botPools.map(p => p.participant_id))];
+        if (rpcErr) {
+          console.warn('RPC delete_bot_participant no disponible o falló, ejecutando fallback:', rpcErr);
 
-        const chunkSize = 200;
-        for (let i = 0; i < botPoolIds.length; i += chunkSize) {
-          const chunk = botPoolIds.slice(i, i + chunkSize);
-          await supabase.from('pools').delete().in('id', chunk);
+          if (deleteBotModal.refCode) {
+            await supabase.from('pools').delete().eq('reference_code', deleteBotModal.refCode);
+          }
+          await supabase.from('pools').delete().eq('participant_id', deleteBotModal.participantId).eq('matchday_id', activeMatchday.id);
+          await supabase.from('participants').delete().eq('id', deleteBotModal.participantId).eq('phone', 'BOT-0000');
         }
 
-        for (const pid of botPartIds) {
-          await supabase.from('participants').delete().eq('id', pid).eq('phone', 'BOT-0000');
+        showAlert('success', `Bot "${deleteBotModal.botName}" eliminado correctamente de la Jornada ${activeMatchday.number}.`);
+      } else if (deleteBotModal.type === 'all') {
+        const botPools = allPoolsForMatchday.filter(p => {
+          const partObj = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+          const phone = partObj?.phone || '';
+          const ref = p.reference_code || '';
+          return phone === 'BOT-0000' || (typeof ref === 'string' && (ref.startsWith('BOT-') || ref.startsWith('BT-')));
+        });
+
+        const { error: rpcErr } = await supabase.rpc('delete_all_bots_in_matchday', {
+          p_matchday_id: activeMatchday.id
+        });
+
+        if (rpcErr) {
+          console.warn('RPC delete_all_bots_in_matchday no disponible o falló, ejecutando fallback:', rpcErr);
+
+          const botPoolIds = botPools.map(p => p.id);
+          const botPartIds = [...new Set(botPools.map(p => p.participant_id))];
+
+          const chunkSize = 200;
+          for (let i = 0; i < botPoolIds.length; i += chunkSize) {
+            const chunk = botPoolIds.slice(i, i + chunkSize);
+            await supabase.from('pools').delete().in('id', chunk);
+          }
+
+          for (const pid of botPartIds) {
+            await supabase.from('participants').delete().eq('id', pid).eq('phone', 'BOT-0000');
+          }
         }
+
+        showAlert('success', `Se eliminaron exitosamente todas las quinielas de bots de la Jornada ${activeMatchday.number}.`);
       }
 
-      showAlert('success', `Se eliminaron exitosamente todas las quinielas de bots de la Jornada ${activeMatchday.number}.`);
       await loadParticipants();
       await loadAllPoolsForMatchday();
       await loadLeaderboard();
     } catch (err: any) {
       console.error(err);
-      showAlert('error', err.message || 'Error al eliminar los bots de la jornada.');
+      showAlert('error', err.message || 'Error al eliminar bots.');
     } finally {
       setLoading(false);
+      setDeleteBotModal({ isOpen: false, type: 'single' });
     }
   };
 
@@ -10676,6 +10704,96 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
           );
         })()}
       </Modal>
+
+      {/* Modal de Confirmación de Eliminación de Bots (Diseño Tailwind / La Carmelita) */}
+      {deleteBotModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--card-bg)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '440px',
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ 
+                background: 'rgba(239, 68, 68, 0.15)', 
+                color: '#ef4444', 
+                width: '44px', 
+                height: '44px', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: 'bold' }}>
+                  {deleteBotModal.type === 'single' ? '¿Eliminar Bot?' : '¿Eliminar Todos los Bots?'}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Jornada {activeMatchday?.number}
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
+              {deleteBotModal.type === 'single'
+                ? `¿Estás seguro de eliminar el bot "${deleteBotModal.botName}" y todas sus quinielas asociadas? Esta acción no se puede deshacer.`
+                : `⚠️ ATENCIÓN: Se eliminarán de forma permanente TODAS las ${deleteBotModal.count} quinielas de bots registradas en la Jornada ${activeMatchday?.number}.`
+              }
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setDeleteBotModal({ isOpen: false, type: 'single' })}
+                disabled={loading}
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={confirmDeleteBotExecution}
+                disabled={loading}
+                style={{
+                  background: '#ef4444',
+                  borderColor: '#ef4444',
+                  color: '#fff',
+                  padding: '8px 16px',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Trash2 size={16} /> Confirmar Eliminación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'predictions' && (
         <CarmelitoAssistant
