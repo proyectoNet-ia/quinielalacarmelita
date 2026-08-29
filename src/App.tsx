@@ -2633,16 +2633,19 @@ export default function App() {
         console.warn('RPC submit_pool_cart no disponible o falló, ejecutando fallback:', rpcCartErr);
 
         let participantId = '';
-        // Buscar participante existente insensible a mayúsculas/minúsculas y sin espacios
+        // Buscar participante existente insensible a mayúsculas/minúsculas y sin espacios (estrictamente por nombre o alias)
         const { data: existingParts } = await supabase
           .from('participants')
           .select('id, name, alias, phone')
-          .or(`alias.ilike.${cleanName},name.ilike.${cleanName}${cleanPhone ? `,phone.eq.${cleanPhone}` : ''}`)
+          .or(`alias.ilike.${cleanName},name.ilike.${cleanName}`)
           .order('created_at', { ascending: true })
           .limit(1);
 
         if (existingParts && existingParts.length > 0) {
           participantId = existingParts[0].id;
+          if (cleanPhone && (!existingParts[0].phone || existingParts[0].phone === '')) {
+            await supabase.from('participants').update({ phone: cleanPhone }).eq('id', participantId);
+          }
         } else {
           const dummyPin = Math.floor(1000 + Math.random() * 9000).toString();
           const { data: newPart, error: partErr } = await supabase.from('participants').insert([{
