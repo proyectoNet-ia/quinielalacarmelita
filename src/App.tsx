@@ -6109,15 +6109,21 @@ Mis pronósticos son:
                                       {/* Indicador de partido */}
                                       <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap' }}>
                                         <span style={{ 
-                                          background: getSpecialTitle(match) ? '#1E5032' : 'var(--border-color)', 
-                                          color: getSpecialTitle(match) ? 'white' : 'var(--text-primary)',
-                                          border: getSpecialTitle(match) ? '1px solid var(--accent)' : 'none',
+                                          background: getSpecialTitle(match) ? 'linear-gradient(135deg, #7c2d12 0%, #1E5032 65%)' : 'var(--border-color)', 
+                                          color: getSpecialTitle(match) ? '#ffffff' : 'var(--text-primary)',
+                                          border: getSpecialTitle(match) ? '1px solid #f59e0b' : 'none',
                                           padding: '2px 8px', 
                                           borderRadius: 'var(--radius-sm)', 
                                           fontSize: '0.65rem', 
-                                          fontWeight: '800' 
+                                          fontWeight: '800',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          boxShadow: getSpecialTitle(match) ? '0 2px 8px rgba(239, 68, 68, 0.4)' : 'none'
                                         }}>
-                                          P{idx + 1} {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}
+                                          {getSpecialTitle(match) && <span className="special-badge-flame">🔥</span>}
+                                          <span>P{idx + 1} {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}</span>
+                                          {getSpecialTitle(match) && <span className="special-badge-flame" style={{ animationDelay: '0.65s' }}>🔥</span>}
                                         </span>
                                       </div>
               
@@ -6174,16 +6180,21 @@ Mis pronósticos son:
                                     <div className={`match-card ${getSpecialTitle(match) ? 'special-match' : ''}`} key={match.id}>
                                       <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap' }}>
                                         <span style={{ 
-                                          background: getSpecialTitle(match) ? '#1E5032' : 'var(--danger)', 
+                                          background: getSpecialTitle(match) ? 'linear-gradient(135deg, #7c2d12 0%, #1E5032 65%)' : 'var(--danger)', 
                                           color: 'white',
-                                          border: 'none',
+                                          border: getSpecialTitle(match) ? '1px solid #f59e0b' : 'none',
                                           padding: '2px 8px', 
                                           borderRadius: 'var(--radius-sm)', 
                                           fontSize: '0.65rem', 
                                           fontWeight: '800',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
                                           boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                         }}>
-                                          P{globalIdx} (Reserva) {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}
+                                          {getSpecialTitle(match) && <span className="special-badge-flame">🔥</span>}
+                                          <span>P{globalIdx} (Reserva) {getSpecialTitle(match) ? `- ${getSpecialTitle(match)}` : ''}</span>
+                                          {getSpecialTitle(match) && <span className="special-badge-flame" style={{ animationDelay: '0.65s' }}>🔥</span>}
                                         </span>
                                       </div>
                                       <div className="lev-group">

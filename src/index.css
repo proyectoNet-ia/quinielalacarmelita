@@ -303,9 +303,39 @@ select.form-control {
   position: relative;
 }
 
+@keyframes fire-glow {
+  0%, 100% {
+    border-color: rgba(245, 158, 11, 0.85);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25), inset 0 0 12px rgba(239, 68, 68, 0.08);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.95);
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.4), inset 0 0 18px rgba(245, 158, 11, 0.15);
+  }
+}
+
+@keyframes flame-pulse {
+  0%, 100% {
+    transform: scale(1) rotate(-3deg);
+    filter: drop-shadow(0 0 3px #f59e0b);
+  }
+  50% {
+    transform: scale(1.18) rotate(4deg);
+    filter: drop-shadow(0 0 7px #ef4444);
+  }
+}
+
 .match-card.special-match {
-  background: rgba(30, 80, 50, 0.4);
-  border: 1px solid var(--accent);
+  background: rgba(30, 80, 50, 0.45);
+  border: 1px solid #f59e0b;
+  animation: fire-glow 2.8s infinite ease-in-out;
+}
+
+.special-badge-flame {
+  display: inline-block;
+  animation: flame-pulse 1.3s infinite ease-in-out;
+  transform-origin: bottom center;
+  user-select: none;
 }
 .match-card.special-match .lev-btn {
   background: rgba(0, 0, 0, 0.3);
