@@ -20,7 +20,7 @@ const createJsPDFDocLazy = async (options?: any) => {
 };
 
 import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
-import { triggerPatrioticConfetti } from './utils/confettiEffect';
+import { triggerPatrioticConfetti, triggerFullScreenConfetti } from './utils/confettiEffect';
 import { MEXICAN_MALE_NAMES, MEXICAN_FEMALE_NAMES, MEXICAN_SURNAMES } from './data/mexicanNamesData';
 import { matchTeamNames } from './utils/teamNormalizer';
 
@@ -2714,7 +2714,8 @@ Mis pronósticos son:
       setSuccessAlias(cartParticipantName);
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
-      triggerPatrioticConfetti(undefined, window.innerHeight * 0.3, 75);
+      triggerFullScreenConfetti();
+      showAlert('success', '🎉 ¡Boleto registrado con éxito! Abriendo WhatsApp en 2 segundos...');
       
       // Reset promo state
       setAppliedPromoCode(null);
@@ -2725,7 +2726,10 @@ Mis pronósticos son:
       
       const targetPhone = whatsappConfig ? whatsappConfig.replace(/\D/g, '') : '523122440708';
       const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
-      window.open(waUrl, '_blank');
+      
+      setTimeout(() => {
+        window.open(waUrl, '_blank');
+      }, 2000);
 
       setCart([]);
       setCartParticipantName('');
