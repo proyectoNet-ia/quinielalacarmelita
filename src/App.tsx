@@ -1379,6 +1379,8 @@ export default function App() {
         payment_status,
         payment_receipt_url,
         reference_code,
+        promo_code,
+        validation_flags,
         cost,
         score,
         created_at,
@@ -3482,6 +3484,47 @@ Mis pronósticos son:
           }
         } catch (err) {
           showAlert('error', 'Error al validar el bloque de pagos.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleDeletePaymentBatch = (refCode: string, batch?: Pool[]) => {
+    const isIndividual = refCode.startsWith('INDIVIDUAL_');
+    const poolIds = batch ? batch.map(p => p.id) : [];
+    const count = batch?.length || 1;
+    const participantName = batch?.[0]?.participant?.name || 'Usuario';
+    const participantAlias = batch?.[0]?.participant?.alias;
+
+    setConfirmConfig({
+      title: 'Eliminar Bloque de Quinielas',
+      message: `¿Estás seguro de que deseas ELIMINAR permanentemente este bloque?\n\n• Folio: ${isIndividual ? 'Individual' : refCode}\n• Participante: ${participantName} ${participantAlias ? `(@${participantAlias})` : ''}\n• Cantidad: ${count} ${count === 1 ? 'quiniela' : 'quinielas'}\n\n⚠️ Esta acción borrará de la base de datos las quinielas y sus pronósticos. No se puede deshacer.`,
+      confirmText: 'Sí, Eliminar Bloque',
+      confirmColor: 'var(--danger)',
+      onConfirm: async () => {
+        setConfirmConfig(null);
+        try {
+          setLoading(true);
+          let error;
+          if (isIndividual && poolIds.length > 0) {
+            const res = await supabase.from('pools').delete().in('id', poolIds);
+            error = res.error;
+          } else {
+            const res = await supabase.from('pools').delete().eq('reference_code', refCode);
+            error = res.error;
+          }
+
+          if (error) throw error;
+
+          showAlert('success', `Bloque de quinielas eliminado correctamente.`);
+          await loadAllPoolsForMatchday();
+          if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history')) {
+            loadFinancialData();
+          }
+        } catch (err: any) {
+          showAlert('error', `Error al eliminar el bloque: ${err.message || 'Error desconocido'}`);
         } finally {
           setLoading(false);
         }
@@ -6871,9 +6914,36 @@ Mis pronósticos son:
                                       {paymentType === 'TRANSFERENCIA' ? '🏦 TRANSFERENCIA' : '💵 DEPÓSITO'}
                                     </div>
                                   )}
-                                  {usedPromoInBatch && (
-                                    <div style={{ fontSize: '0.75rem', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', background: 'rgba(234, 179, 8, 0.25)', color: 'var(--accent)', border: '1px solid var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                      <Tag size={12} /> Promo: {usedPromoInBatch}
+                                  {usedPromoInBatch ? (
+                                    <div style={{ 
+                                      fontSize: '0.78rem', 
+                                      fontWeight: '800', 
+                                      padding: '3px 10px', 
+                                      borderRadius: '12px', 
+                                      background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.35) 0%, rgba(202, 138, 4, 0.5) 100%)', 
+                                      color: '#FACC15', 
+                                      border: '1px solid #FACC15', 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      gap: '5px',
+                                      boxShadow: '0 0 8px rgba(234, 179, 8, 0.25)' 
+                                    }}>
+                                      <Tag size={12} /> PROMO ACTIVA: {usedPromoInBatch}
+                                    </div>
+                                  ) : (
+                                    <div style={{ 
+                                      fontSize: '0.75rem', 
+                                      fontWeight: '600', 
+                                      padding: '2px 8px', 
+                                      borderRadius: '12px', 
+                                      background: 'rgba(255, 255, 255, 0.05)', 
+                                      color: 'var(--text-muted)', 
+                                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      gap: '4px' 
+                                    }}>
+                                      <Tag size={11} /> Sin Promo
                                     </div>
                                   )}
                                 </div>
@@ -6963,6 +7033,26 @@ Mis pronósticos son:
                                   }}
                                 >
                                   <X size={14} /> Rechazar {batch.length}
+                                </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ 
+                                    padding: '8px', 
+                                    fontSize: '0.85rem', 
+                                    border: '1px solid rgba(239, 68, 68, 0.4)', 
+                                    background: 'rgba(239, 68, 68, 0.12)', 
+                                    color: 'var(--danger)', 
+                                    flex: '1 1 110px', 
+                                    display: 'flex', 
+                                    justifyContent: 'center', 
+                                    alignItems: 'center', 
+                                    gap: '4px',
+                                    fontWeight: '600'
+                                  }}
+                                  onClick={() => handleDeletePaymentBatch(code, batch)}
+                                  title="Eliminar permanentemente este bloque"
+                                >
+                                  <Trash2 size={14} /> Eliminar
                                 </button>
                                 {primaryParticipant?.phone && (
                                   <a 
