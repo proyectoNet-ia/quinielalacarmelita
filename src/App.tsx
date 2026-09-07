@@ -49,6 +49,7 @@ import {
   MessageCircle,
   Shield,
   Sparkles,
+  Dices,
   Download,
   Edit2,
   Globe,
@@ -2538,18 +2539,7 @@ export default function App() {
     showAlert('success', 'Quiniela llenada al azar.');
   };
 
-  const handleAutoFillAnalytical = () => {
-    const newSelections: Record<string, string> = {};
-    matches.forEach(m => {
-      const charCodeSum = (m.id || 'x').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-      const rand = charCodeSum % 100;
-      if (rand < 45) newSelections[m.id] = 'L';
-      else if (rand < 75) newSelections[m.id] = 'V';
-      else newSelections[m.id] = 'E';
-    });
-    setCurrentSelections(newSelections);
-    showAlert('success', 'Quiniela cargada con Llenado con IA.');
-  };
+  const handleAutoFillAnalytical = handleRandomFill;
 
   const handleAddToCart = () => {
     if (!activeMatchday) return;
@@ -5999,7 +5989,7 @@ Mis pronósticos son:
                         </button>
                         <button 
                           className="btn btn-secondary" 
-                          onClick={handleAutoFillAnalytical}
+                          onClick={handleRandomFill}
                           style={{ 
                             background: 'var(--accent)', 
                             color: '#000', 
@@ -6009,8 +5999,8 @@ Mis pronósticos son:
                             gap: '8px'
                           }}
                         >
-                          <Sparkles size={16} />
-                          Llenado con IA
+                          <Dices size={16} />
+                          Llenado al Azar
                         </button>
                       </div>
                           </>
@@ -6168,7 +6158,7 @@ Mis pronósticos son:
                         </button>
                         <button 
                           className="btn btn-secondary" 
-                          onClick={handleAutoFillAnalytical}
+                          onClick={handleRandomFill}
                           style={{ 
                             background: 'var(--accent)', 
                             color: '#000', 
@@ -6178,8 +6168,8 @@ Mis pronósticos son:
                             gap: '8px'
                           }}
                         >
-                          <Sparkles size={18} />
-                          Llenado con IA
+                          <Dices size={18} />
+                          Llenado al Azar
                         </button>
                       </div>
                       )}
