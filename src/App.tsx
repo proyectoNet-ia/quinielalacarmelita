@@ -20,6 +20,7 @@ const createJsPDFDocLazy = async (options?: any) => {
 };
 
 import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
+import { triggerPatrioticConfetti } from './utils/confettiEffect';
 import { MEXICAN_MALE_NAMES, MEXICAN_FEMALE_NAMES, MEXICAN_SURNAMES } from './data/mexicanNamesData';
 import { matchTeamNames } from './utils/teamNormalizer';
 
@@ -2536,6 +2537,7 @@ export default function App() {
       newSelections[m.id] = randomChoice;
     });
     setCurrentSelections(newSelections);
+    triggerPatrioticConfetti(undefined, window.innerHeight * 0.35, 45);
     showAlert('success', 'Quiniela llenada al azar.');
   };
 
@@ -2570,6 +2572,7 @@ export default function App() {
 
     setCart([...cart, { ...currentSelections }]);
     setCurrentSelections({});
+    triggerPatrioticConfetti(undefined, window.innerHeight * 0.4, 60);
     showAlert('success', 'Quiniela añadida al carrito.');
   };
 
@@ -2711,6 +2714,7 @@ Mis pronósticos son:
       setSuccessAlias(cartParticipantName);
       setSuccessMessageText(msgText);
       setShowSuccessScreen(true);
+      triggerPatrioticConfetti(undefined, window.innerHeight * 0.3, 75);
       
       // Reset promo state
       setAppliedPromoCode(null);
@@ -5966,10 +5970,40 @@ Mis pronósticos son:
 
                         {activeMatchday?.status === 'active' && (
                           <>
-                            <div style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '12px', borderRadius: 'var(--radius-md)', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-                              <Clock size={18} color="var(--accent)" />
-                              <span style={{ color: '#fff', fontSize: '1rem' }}>Cierre programado en:</span>
-                              <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.1rem' }}>{getRemainingTime(activeMatchday.deadline)}</span>
+                            <div style={{ 
+                              width: '100%', 
+                              background: 'rgba(234, 179, 8, 0.12)', 
+                              border: '1px solid rgba(234, 179, 8, 0.3)', 
+                              padding: '10px 16px', 
+                              borderRadius: 'var(--radius-md)', 
+                              marginBottom: '16px', 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              flexWrap: 'wrap', 
+                              gap: '10px' 
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Clock size={18} color="var(--accent)" />
+                                <span style={{ color: '#fff', fontSize: '0.95rem' }}>Cierre programado en:</span>
+                                <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.05rem' }}>{getRemainingTime(activeMatchday.deadline)}</span>
+                              </div>
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                background: 'linear-gradient(90deg, rgba(0, 104, 71, 0.35) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(206, 17, 38, 0.35) 100%)',
+                                border: '1px solid rgba(255, 255, 255, 0.25)',
+                                color: '#fff',
+                                fontWeight: 'bold',
+                                fontSize: '0.82rem',
+                                letterSpacing: '0.3px'
+                              }}>
+                                <span>🇲🇽</span>
+                                <span>Especial Mes Patrio</span>
+                              </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginBottom: '16px' }}>
                         <button 
