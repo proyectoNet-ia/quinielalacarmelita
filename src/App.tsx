@@ -426,6 +426,16 @@ export default function App() {
   const [selectedBatchForPromo, setSelectedBatchForPromo] = useState<{ batch: Pool[]; participant: any } | null>(null);
   const [adminSelectedPromoCode, setAdminSelectedPromoCode] = useState<string>('');
 
+  // Admin Manual Add Pool / Quiniela to User State
+  const [isAddPoolModalOpen, setIsAddPoolModalOpen] = useState<boolean>(false);
+  const [addPoolParticipant, setAddPoolParticipant] = useState<Participant | null>(null);
+  const [addPoolRefCode, setAddPoolRefCode] = useState<string>('');
+  const [manualPicks, setManualPicks] = useState<Record<string, 'L' | 'E' | 'V'>>({});
+  const [manualPoolStatus, setManualPoolStatus] = useState<'approved' | 'pending'>('approved');
+  const [manualPoolCount, setManualPoolCount] = useState<number>(1);
+  const [manualPoolSearch, setManualPoolSearch] = useState<string>('');
+  const [isSavingManualPool, setIsSavingManualPool] = useState<boolean>(false);
+
   // --- Estados Generador Bots ---
   const [botInputText, setBotInputText] = useState('');
   const [isGeneratingBots, setIsGeneratingBots] = useState(false);
@@ -3557,6 +3567,115 @@ Mis pronósticos son:
       showAlert('error', err.message || 'Error al actualizar el participante.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- Manejo de Agregar Quiniela Manual a Usuario ---
+  const openAddPoolModal = (participant?: Participant | null, refCode?: string) => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay ninguna jornada activa para agregar quinielas.');
+      return;
+    }
+    setAddPoolParticipant(participant || null);
+    setAddPoolRefCode(refCode || '');
+    setManualPicks({});
+    setManualPoolStatus('approved');
+    setManualPoolCount(1);
+    setManualPoolSearch('');
+    setIsAddPoolModalOpen(true);
+  };
+
+  const handleRandomizeManualPicks = () => {
+    const options: ('L' | 'E' | 'V')[] = ['L', 'E', 'V'];
+    const newPicks: Record<string, 'L' | 'E' | 'V'> = {};
+    matches.forEach(m => {
+      newPicks[m.id] = options[Math.floor(Math.random() * options.length)];
+    });
+    setManualPicks(newPicks);
+  };
+
+  const handleSaveManualPool = async () => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay ninguna jornada activa.');
+      return;
+    }
+    if (!addPoolParticipant) {
+      showAlert('error', 'Por favor selecciona un participante para asignarle la quiniela.');
+      return;
+    }
+    if (matches.length === 0) {
+      showAlert('error', 'No hay partidos configurados en la jornada activa.');
+      return;
+    }
+    const missingMatches = matches.filter(m => !manualPicks[m.id]);
+    if (missingMatches.length > 0) {
+      showAlert('error', `Faltan ${missingMatches.length} partidos por pronosticar. Puedes usar "🎲 Llenar al Azar" para completar rápidamente.`);
+      return;
+    }
+
+    try {
+      setIsSavingManualPool(true);
+      const count = Math.max(1, manualPoolCount);
+      const refCode = addPoolRefCode && addPoolRefCode.trim() !== '' && !addPoolRefCode.startsWith('INDIVIDUAL_')
+        ? addPoolRefCode.trim()
+        : `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      const entryPrice = activeMatchday.price_per_entry || 25;
+      const poolsToInsert = [];
+      for (let i = 0; i < count; i++) {
+        poolsToInsert.push({
+          participant_id: addPoolParticipant.id,
+          matchday_id: activeMatchday.id,
+          payment_status: manualPoolStatus,
+          cost: entryPrice,
+          score: 0,
+          reference_code: refCode
+        });
+      }
+
+      const { data: insertedPools, error: poolsErr } = await supabase
+        .from('pools')
+        .insert(poolsToInsert)
+        .select();
+
+      if (poolsErr) throw poolsErr;
+
+      if (insertedPools && insertedPools.length > 0) {
+        const predictionsToInsert: any[] = [];
+        insertedPools.forEach(pool => {
+          Object.keys(manualPicks).forEach(matchId => {
+            predictionsToInsert.push({
+              pool_id: pool.id,
+              match_id: matchId,
+              selection: manualPicks[matchId]
+            });
+          });
+        });
+
+        const chunkSize = 500;
+        for (let i = 0; i < predictionsToInsert.length; i += chunkSize) {
+          const chunk = predictionsToInsert.slice(i, i + chunkSize);
+          const { error: predErr } = await supabase.from('predictions').insert(chunk);
+          if (predErr) throw predErr;
+        }
+      }
+
+      showAlert('success', `¡Se ${count === 1 ? 'agregó 1 quiniela' : `agregaron ${count} quinielas`} exitosamente a ${addPoolParticipant.name}!`);
+      setIsAddPoolModalOpen(false);
+      setAddPoolParticipant(null);
+      setManualPicks({});
+
+      await loadAllPoolsForMatchday();
+      await loadParticipants();
+      if (isAdmin && (activeTab === 'admin-dashboard' || activeTab === 'admin-history' || activeTab === 'admin-participants')) {
+        await loadFinancialData();
+      }
+      await loadLeaderboard();
+    } catch (err: any) {
+      console.error('Error al agregar quiniela manual:', err);
+      showAlert('error', err.message || 'Error al guardar la quiniela.');
+    } finally {
+      setIsSavingManualPool(false);
     }
   };
 
@@ -6820,6 +6939,14 @@ Mis pronósticos son:
                   ✏️ Cambiar N°
                 </button>
               )}
+              <button 
+                className="btn btn-primary" 
+                onClick={() => openAddPoolModal()}
+                style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}
+                title="Crear y agregar una quiniela manualmente a cualquier participante"
+              >
+                <PlusCircle size={15} /> ➕ Agregar Quiniela a Usuario
+              </button>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
               Revisa los comprobantes de transferencia bancaria subidos por los participantes. La aprobación habilita la quiniela para la tabla y exportación PDF.
@@ -7016,6 +7143,26 @@ Mis pronósticos son:
                                   title="Aplicar o modificar código promocional para este usuario"
                                 >
                                   <Tag size={14} /> {usedPromoInBatch ? `Promo: ${usedPromoInBatch}` : 'Aplicar Promo'}
+                                </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ 
+                                    padding: '8px 12px', 
+                                    fontSize: '0.85rem', 
+                                    flex: '1 1 120px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: '6px', 
+                                    background: 'rgba(34, 197, 94, 0.15)', 
+                                    color: 'var(--success)', 
+                                    border: '1px solid var(--success)',
+                                    fontWeight: 'bold'
+                                  }}
+                                  onClick={() => openAddPoolModal(primaryParticipant, code)}
+                                  title="Agregar una quiniela adicional a este participante / lote"
+                                >
+                                  <PlusCircle size={14} /> + Quiniela
                                 </button>
                                 <button 
                                   className="btn btn-primary" 
@@ -8968,7 +9115,17 @@ Mis pronósticos son:
 
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-                <h3>Participantes Registrados ({participants.length})</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0 }}>Participantes Registrados ({participants.length})</h3>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => openAddPoolModal()}
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    title="Crear y agregar una quiniela manualmente a cualquier participante"
+                  >
+                    <PlusCircle size={14} /> ➕ Agregar Quiniela
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   className="form-control" 
@@ -9034,6 +9191,25 @@ Mis pronósticos son:
                               <td style={{ color: '#ffb300' }}>${totalPending.toFixed(2)}</td>
                               <td style={{ textAlign: 'center' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <button 
+                                    className="btn btn-secondary" 
+                                    style={{ 
+                                      width: 'auto', 
+                                      padding: '6px 10px', 
+                                      fontSize: '0.75rem', 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      gap: '4px',
+                                      background: 'rgba(34, 197, 94, 0.15)',
+                                      color: 'var(--success)',
+                                      border: '1px solid var(--success)',
+                                      fontWeight: '600'
+                                    }}
+                                    onClick={() => openAddPoolModal(p)}
+                                    title={`Agregar Quiniela a ${p.name}`}
+                                  >
+                                    <PlusCircle size={12} /> + Quiniela
+                                  </button>
                                   <button 
                                     className="btn btn-primary" 
                                     style={{ width: 'auto', padding: '6px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
@@ -10541,6 +10717,336 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
           <img src={viewReceiptUrl} alt="Comprobante Completo" className="lightbox-content" />
         </div>
       )}
+
+      {/* Modal para Agregar Quiniela Manualmente a un Usuario */}
+      <Modal
+        isOpen={isAddPoolModalOpen}
+        onClose={() => {
+          if (!isSavingManualPool) {
+            setIsAddPoolModalOpen(false);
+          }
+        }}
+        title="➕ Agregar Quiniela Manual a Usuario"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* 1. Selección / Información de Participante */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 'bold' }}>
+              👤 Participante Destinatario:
+            </label>
+            {addPoolParticipant ? (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                padding: '12px 16px', 
+                background: 'rgba(34, 197, 94, 0.1)', 
+                border: '1px solid var(--success)', 
+                borderRadius: '8px',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>
+                    {addPoolParticipant.name}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    @{addPoolParticipant.alias} {addPoolParticipant.phone && addPoolParticipant.phone !== 'BOT-0000' ? `• Tel: ${addPoolParticipant.phone}` : ''}
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)' }}
+                  onClick={() => setAddPoolParticipant(null)}
+                >
+                  Cambiar Usuario
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Buscar usuario por nombre, alias o teléfono..." 
+                  value={manualPoolSearch}
+                  onChange={e => setManualPoolSearch(e.target.value)}
+                  style={{ marginBottom: '8px' }}
+                />
+                <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px', background: 'rgba(0,0,0,0.2)' }}>
+                  {participants
+                    .filter(p => 
+                      !manualPoolSearch.trim() || 
+                      p.name.toLowerCase().includes(manualPoolSearch.toLowerCase()) || 
+                      p.alias.toLowerCase().includes(manualPoolSearch.toLowerCase()) ||
+                      p.phone.includes(manualPoolSearch)
+                    )
+                    .slice(0, 10)
+                    .map(p => (
+                      <div 
+                        key={p.id}
+                        onClick={() => setAddPoolParticipant(p)}
+                        style={{ 
+                          padding: '8px 12px', 
+                          borderRadius: '4px', 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          background: 'rgba(255,255,255,0.03)',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      >
+                        <span style={{ color: 'white', fontWeight: '500' }}>{p.name} (@{p.alias})</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>Seleccionar →</span>
+                      </div>
+                    ))}
+                  {participants.filter(p => !manualPoolSearch.trim() || p.name.toLowerCase().includes(manualPoolSearch.toLowerCase()) || p.alias.toLowerCase().includes(manualPoolSearch.toLowerCase())).length === 0 && (
+                    <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      No se encontraron participantes.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Folio / Referencia vinculada */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Folio / Referencia:
+              </label>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Generar automático o REF-XXXX" 
+                value={addPoolRefCode}
+                onChange={e => setAddPoolRefCode(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Estado del Pago:
+              </label>
+              <select 
+                className="form-control" 
+                value={manualPoolStatus} 
+                onChange={e => setManualPoolStatus(e.target.value as 'approved' | 'pending')}
+                style={{ fontWeight: 'bold', color: manualPoolStatus === 'approved' ? 'var(--success)' : 'var(--warning)' }}
+              >
+                <option value="approved">🟢 Aprobado (Pagado)</option>
+                <option value="pending">🟡 Pendiente de Revisión</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 3. Cantidad de Quinielas */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div>
+              <div style={{ fontWeight: '600', color: 'white', fontSize: '0.9rem' }}>Cantidad de Quinielas</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Costo: ${activeMatchday?.price_per_entry || 25} MXN c/u</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setManualPoolCount(Math.max(1, manualPoolCount - 1))}
+              >
+                -
+              </button>
+              <span style={{ fontSize: '1.1rem', fontWeight: 'bold', minWidth: '24px', textAlign: 'center' }}>{manualPoolCount}</span>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setManualPoolCount(manualPoolCount + 1)}
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Matriz de Pronósticos de la Jornada */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'white', margin: 0 }}>
+                ⚽ Pronósticos Quiniela N° {activeMatchday?.number} ({matches.length} Partidos)
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(234, 179, 8, 0.15)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
+                  onClick={handleRandomizeManualPicks}
+                >
+                  <Dices size={14} /> 🎲 Llenar al Azar
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                  onClick={() => setManualPicks({})}
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+
+            <div style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              {matches.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                  No hay partidos configurados en la jornada activa.
+                </div>
+              ) : (
+                matches.map((match, idx) => {
+                  const homeName = getTeamName(match, true);
+                  const awayName = getTeamName(match, false);
+                  const homeLogo = getTeamLogo(match, true);
+                  const awayLogo = getTeamLogo(match, false);
+                  const currentPick = manualPicks[match.id];
+
+                  return (
+                    <div 
+                      key={match.id} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between', 
+                        padding: '10px 14px', 
+                        borderRadius: '8px', 
+                        background: currentPick ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)', 
+                        border: currentPick ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.05)',
+                        flexWrap: 'wrap',
+                        gap: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 200px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold', width: '20px' }}>
+                          #{idx + 1}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {homeLogo && <img src={homeLogo} alt="" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />}
+                          <span style={{ fontSize: '0.85rem', fontWeight: currentPick === 'L' ? 'bold' : 'normal', color: currentPick === 'L' ? 'var(--primary)' : 'white' }}>
+                            {homeName}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>vs</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {awayLogo && <img src={awayLogo} alt="" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />}
+                          <span style={{ fontSize: '0.85rem', fontWeight: currentPick === 'V' ? 'bold' : 'normal', color: currentPick === 'V' ? 'var(--accent)' : 'white' }}>
+                            {awayName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setManualPicks(prev => ({ ...prev, [match.id]: 'L' }))}
+                          style={{
+                            width: '40px',
+                            height: '34px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            border: currentPick === 'L' ? '2px solid var(--primary)' : '1px solid rgba(255,255,255,0.15)',
+                            background: currentPick === 'L' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                            color: currentPick === 'L' ? '#000000' : 'white',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          L
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setManualPicks(prev => ({ ...prev, [match.id]: 'E' }))}
+                          style={{
+                            width: '40px',
+                            height: '34px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            border: currentPick === 'E' ? '2px solid #eab308' : '1px solid rgba(255,255,255,0.15)',
+                            background: currentPick === 'E' ? '#eab308' : 'rgba(255,255,255,0.05)',
+                            color: currentPick === 'E' ? '#000000' : 'white',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          E
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setManualPicks(prev => ({ ...prev, [match.id]: 'V' }))}
+                          style={{
+                            width: '40px',
+                            height: '34px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            border: currentPick === 'V' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)',
+                            background: currentPick === 'V' ? '#38bdf8' : 'rgba(255,255,255,0.05)',
+                            color: currentPick === 'V' ? '#000000' : 'white',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          V
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* 5. Resumen y Botones de Guardar */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            paddingTop: '16px', 
+            borderTop: '1px solid var(--border-color)', 
+            flexWrap: 'wrap', 
+            gap: '12px' 
+          }}>
+            <div>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Estimado: </span>
+              <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>
+                ${(manualPoolCount * (activeMatchday?.price_per_entry || 25)).toFixed(2)} MXN
+              </strong>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsAddPoolModalOpen(false)}
+                disabled={isSavingManualPool}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleSaveManualPool}
+                disabled={isSavingManualPool || !addPoolParticipant || matches.length === 0}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                {isSavingManualPool ? (
+                  <>Guardando...</>
+                ) : (
+                  <><Check size={16} /> Guardar Quiniela(s)</>
+                )}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
       <Modal
