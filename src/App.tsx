@@ -384,10 +384,19 @@ export default function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [winProbabilities, setWinProbabilities] = useState<Record<string, number>>({});
 
-  // --- Simulación de Ganadores ---
+  // --- Simulación de Ganadores Aislada (Sandbox) ---
+  const [activeResultsSubTab, setActiveResultsSubTab] = useState<'official' | 'simulator'>('official');
+  const [simulationResults, setSimulationResults] = useState<Record<string, 'L' | 'E' | 'V' | 'A'>>({});
   const [simulatedWinners, setSimulatedWinners] = useState<any[]>([]);
   const [isSimulatedWinnersModalOpen, setIsSimulatedWinnersModalOpen] = useState(false);
   const [simulatedMaxScore, setSimulatedMaxScore] = useState(0);
+  const [simulatedPodiumStats, setSimulatedPodiumStats] = useState<{
+    humanWinners: any[];
+    botWinners: any[];
+    total1stPrize: number;
+    payoutPerWinner: number;
+    isShieldActive: boolean;
+  }>({ humanWinners: [], botWinners: [], total1stPrize: 0, payoutPerWinner: 0, isShieldActive: false });
   // --- Estados de Dashboard Financiero ---
   const [financialPools, setFinancialPools] = useState<Pool[]>([]);
   const [allFinancialPools, setAllFinancialPools] = useState<Pool[]>([]);
@@ -4712,11 +4721,42 @@ Mis pronósticos son:
     });
   };
 
-  // Calificar Resultados (Solo Local)
+  // Calificar Resultados Oficiales (Modifica `matches` local antes de Guardar en BD)
   const handleSetMatchResult = (matchId: string, result: 'L' | 'E' | 'V' | 'A') => {
     const match = matches.find(m => m.id === matchId);
     const newResult = match?.result === result ? null : result;
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, result: newResult } : m));
+  };
+
+  // Calificar Resultados en Simulador Aislado (Solo modifica `simulationResults`, 0 impacto en BD y frontend)
+  const handleSetSimulationMatchResult = (matchId: string, result: 'L' | 'E' | 'V' | 'A') => {
+    setSimulationResults(prev => {
+      const next = { ...prev };
+      if (next[matchId] === result) {
+        delete next[matchId];
+      } else {
+        next[matchId] = result;
+      }
+      return next;
+    });
+  };
+
+  // Autollenar simulador con los resultados más probables según momios/favoritos
+  const handleAutofillSimulationWithOdds = () => {
+    const filled: Record<string, 'L' | 'E' | 'V' | 'A'> = {};
+    matches.forEach(m => {
+      const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+      const maxP = Math.max(probL, probE, probV);
+      filled[m.id] = probL === maxP ? 'L' : probE === maxP ? 'E' : 'V';
+    });
+    setSimulationResults(filled);
+    showAlert('success', '🎲 Se cargaron los resultados más probables según momios en el simulador.');
+  };
+
+  // Limpiar pronósticos del simulador
+  const handleClearSimulation = () => {
+    setSimulationResults({});
+    showAlert('info', '🧹 Se limpiaron todos los resultados del simulador.');
   };
 
   const handleSimulateWinners = async () => {
@@ -4727,12 +4767,24 @@ Mis pronósticos son:
       return;
     }
 
+    const effectiveResults = Object.keys(simulationResults).length > 0 
+      ? simulationResults 
+      : matches.reduce((acc, m) => {
+          if (m.result) acc[m.id] = m.result as 'L' | 'E' | 'V' | 'A';
+          return acc;
+        }, {} as Record<string, 'L' | 'E' | 'V' | 'A'>);
+
+    if (Object.keys(effectiveResults).length === 0) {
+      showAlert('error', 'Selecciona al menos un resultado en el simulador para proyectar ganadores.');
+      return;
+    }
+
     try {
       setLoading(true);
 
       const { data: poolsData, error: poolsErr } = await supabase
         .from('pools')
-        .select(`*, participants(name, alias)`)
+        .select(`id, participant_id, payment_status, score, reference_code, cost, validation_flags, participants(id, name, alias, phone)`)
         .eq('matchday_id', activeMatchday.id)
         .eq('payment_status', 'approved');
 
@@ -4745,13 +4797,13 @@ Mis pronósticos son:
 
       let predsData: any[] = [];
       const poolIds = poolsData.map(p => p.id);
-      const chunkSize = 50;
+      const chunkSize = 100;
       
       for (let i = 0; i < poolIds.length; i += chunkSize) {
         const chunk = poolIds.slice(i, i + chunkSize);
         const { data: chunkPreds, error: predsErr } = await supabase
           .from('predictions')
-          .select('*')
+          .select('pool_id, match_id, selection')
           .in('pool_id', chunk);
 
         if (predsErr) throw predsErr;
@@ -4766,9 +4818,9 @@ Mis pronósticos son:
         const poolPreds = predsData.filter(pr => pr.pool_id === pool.id);
 
         poolPreds.forEach(pred => {
-          const match = matches.find(m => m.id === pred.match_id);
-          if (match && match.result && match.result !== 'A' && pred.selection.includes(match.result)) {
-            score += 1; // 1 punto por acierto (solo L, E, V)
+          const res = effectiveResults[pred.match_id];
+          if (res && res !== 'A' && pred.selection.includes(res)) {
+            score += 1;
           }
         });
         
@@ -4778,8 +4830,42 @@ Mis pronósticos son:
 
       const winners = poolsWithScores.filter(p => p.score === maxScore && p.score > 0);
       
+      const humanWinners = winners.filter(p => {
+        const part = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+        const phone = part?.phone || '';
+        return phone !== 'BOT-0000' && !phone.startsWith('BOT-');
+      });
+
+      const botWinners = winners.filter(p => {
+        const part = Array.isArray(p.participants) ? p.participants[0] : p.participants;
+        const phone = part?.phone || '';
+        return phone === 'BOT-0000' || phone.startsWith('BOT-');
+      });
+
+      // Cálculo de bolsa de premios simulada
+      const pricePerEntry = activeMatchday.price_per_entry || 25;
+      const totalRecaudado = poolsData.reduce((sum, p) => sum + Number(p.cost || pricePerEntry), 0);
+      let total1stPrize = 0;
+      if (activeMatchday.prize_type === 'fixed') {
+        total1stPrize = Number(activeMatchday.fixed_prize_1st || 0);
+      } else {
+        const pct = activeMatchday.prize_percentage !== undefined && activeMatchday.prize_percentage !== null ? Number(activeMatchday.prize_percentage) : 80;
+        total1stPrize = totalRecaudado * (pct / 100);
+      }
+
+      const totalWinnersCount = winners.length;
+      const payoutPerWinner = totalWinnersCount > 0 ? total1stPrize / totalWinnersCount : 0;
+      const isShieldActive = humanWinners.length > 0 && botWinners.length >= humanWinners.length * 3;
+
       setSimulatedWinners(winners);
       setSimulatedMaxScore(maxScore);
+      setSimulatedPodiumStats({
+        humanWinners,
+        botWinners,
+        total1stPrize,
+        payoutPerWinner,
+        isShieldActive
+      });
       setIsSimulatedWinnersModalOpen(true);
 
     } catch (err) {
@@ -8719,112 +8805,215 @@ Mis pronósticos son:
             {/* Resultados y Calificación */}
             {activeMatchday && matches.length > 0 && (
               <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3>{activeMatchday.status === 'inactive' ? 'Partidos de la Quiniela' : 'Calificar Partidos'}</h3>
+                {/* Selector de Pestaña: Oficial vs Simulador (solo cuando jornada está cerrada o calculada) */}
+                {(activeMatchday.status === 'closed' || activeMatchday.status === 'calculated') && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`btn ${activeResultsSubTab === 'official' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setActiveResultsSubTab('official')}
+                      style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Save size={16} /> 🏆 Calificación Oficial (Base de Datos)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${activeResultsSubTab === 'simulator' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setActiveResultsSubTab('simulator')}
+                      style={{ 
+                        padding: '8px 16px', 
+                        fontSize: '0.85rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        background: activeResultsSubTab === 'simulator' ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)' : 'rgba(56, 189, 248, 0.1)',
+                        borderColor: '#38bdf8',
+                        color: activeResultsSubTab === 'simulator' ? '#fff' : '#38bdf8'
+                      }}
+                    >
+                      <Sparkles size={16} /> 🧪 Simulador de Escenarios (Sandbox Aislado)
+                    </button>
+                  </div>
+                )}
+
+                {/* Encabezado según sub-pestaña */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {activeMatchday.status === 'inactive' 
+                        ? 'Partidos de la Quiniela' 
+                        : activeResultsSubTab === 'simulator' 
+                          ? '🧪 Simulador de Resultados (Sandbox Aislado)' 
+                          : '🏆 Calificar Resultados Oficiales'}
+                    </h3>
+                    {(activeMatchday.status === 'closed' || activeMatchday.status === 'calculated') && (
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: activeResultsSubTab === 'simulator' ? '#38bdf8' : 'var(--text-secondary)' }}>
+                        {activeResultsSubTab === 'simulator'
+                          ? '🧪 Las selecciones en este simulador son 100% locales y privadas. No modifican la base de datos ni son visibles para los clientes.'
+                          : '⚠️ Las selecciones marcadas aquí son los resultados oficiales y se guardarán en la base de datos para todos los usuarios.'}
+                      </p>
+                    )}
+                  </div>
+
                   {(activeMatchday.status === 'closed' || activeMatchday.status === 'calculated') && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        className="btn btn-secondary" 
-                        onClick={handleSimulateWinners}
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                        title="Ver ganadores potenciales sin guardar"
-                      >
-                        <Play size={15} /> Simular Ganadores
-                      </button>
-                      <button 
-                        className="btn btn-primary" 
-                        onClick={handleCalculatePoints}
-                      >
-                        <Save size={15} /> Guardar
-                      </button>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {activeResultsSubTab === 'simulator' ? (
+                        <>
+                          <button 
+                            type="button"
+                            className="btn btn-secondary" 
+                            onClick={handleAutofillSimulationWithOdds}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
+                            title="Llenar con los resultados más probables según momios"
+                          >
+                            <Zap size={14} color="#eab308" /> Momios Favoritos
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn btn-secondary" 
+                            onClick={handleClearSimulation}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
+                            title="Limpiar pronósticos del simulador"
+                          >
+                            <RotateCcw size={14} /> Limpiar
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn btn-primary" 
+                            onClick={handleSimulateWinners}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '6px 14px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', borderColor: '#38bdf8' }}
+                            title="Proyectar podio y ganadores con los resultados simulados"
+                          >
+                            <Play size={15} /> Simular Ganadores & Podio
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          type="button"
+                          className="btn btn-primary" 
+                          onClick={handleCalculatePoints}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
+                        >
+                          <Save size={16} /> Guardar Resultados Oficiales
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {sortedMatches.map((match, idx) => (
-                  <div key={match.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
-                    {/* Número y badge */}
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: '36px' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>P{idx + 1}</span>
-                      {match.is_reserve && <span style={{ fontSize: '0.55rem', color: 'var(--primary)', fontWeight: 'bold' }}>EXTRA</span>}
-                    </div>
+                {/* Lista de Partidos */}
+                {sortedMatches.map((match, idx) => {
+                  const isSimMode = activeResultsSubTab === 'simulator' && (activeMatchday?.status === 'closed' || activeMatchday?.status === 'calculated');
+                  const currentSelectedResult = isSimMode ? simulationResults[match.id] : match.result;
 
-                    {/* Nombres de equipos */}
-                    <div style={{ flex: 1, minWidth: '220px', fontSize: '0.82rem', display: 'grid', gridTemplateColumns: '160px 24px 1fr', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                        {getTeamLogo(match, true) ? <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} /> : null}
-                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getTeamName(match, true)}</span>
+                  return (
+                    <div key={match.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
+                      {/* Número y badge */}
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: '36px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>P{idx + 1}</span>
+                        {match.is_reserve && <span style={{ fontSize: '0.55rem', color: 'var(--primary)', fontWeight: 'bold' }}>EXTRA</span>}
                       </div>
-                      
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center' }}>vs</span>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                        {getTeamLogo(match, false) ? <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} /> : null}
-                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getTeamName(match, false)}</span>
+
+                      {/* Nombres de equipos */}
+                      <div style={{ flex: 1, minWidth: '220px', fontSize: '0.82rem', display: 'grid', gridTemplateColumns: '160px 24px 1fr', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          {getTeamLogo(match, true) ? <img src={getTeamLogo(match, true)} alt="Home" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} /> : null}
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getTeamName(match, true)}</span>
+                        </div>
+                        
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center' }}>vs</span>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          {getTeamLogo(match, false) ? <img src={getTeamLogo(match, false)} alt="Away" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} /> : null}
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getTeamName(match, false)}</span>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Botones de orden */}
-                    {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginLeft: 'auto', paddingRight: '8px' }}>
-                        <button 
-                          onClick={() => handleMoveMatchUp(idx)}
-                          disabled={idx === 0 || loading}
-                          style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}
-                        >
-                          ▲
-                        </button>
-                        <button 
-                          onClick={() => handleMoveMatchDown(idx)}
-                          disabled={idx === sortedMatches.length - 1 || loading}
-                          style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === sortedMatches.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === sortedMatches.length - 1 ? 'not-allowed' : 'pointer' }}
-                        >
-                          ▼
-                        </button>
-                      </div>
-                    )}
+                      {/* Botones de orden */}
+                      {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginLeft: 'auto', paddingRight: '8px' }}>
+                          <button 
+                            onClick={() => handleMoveMatchUp(idx)}
+                            disabled={idx === 0 || loading}
+                            style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}
+                          >
+                            ▲
+                          </button>
+                          <button 
+                            onClick={() => handleMoveMatchDown(idx)}
+                            disabled={idx === sortedMatches.length - 1 || loading}
+                            style={{ padding: '0 4px', background: 'transparent', border: 'none', color: idx === sortedMatches.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: idx === sortedMatches.length - 1 ? 'not-allowed' : 'pointer' }}
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      )}
 
-                    {/* Botón para Editar Título Especial (solo inactiva o activa) */}
-                    {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
-                      <button
-                        className="lev-btn"
-                        style={{ background: 'var(--bg-main)', color: 'var(--primary)', borderColor: 'var(--primary)', padding: '4px 8px', width: 'auto', flex: '0 0 auto' }}
-                        title="Editar Título Especial"
-                        onClick={() => {
-                          setEditSpecialTitleInput(getSpecialTitle(match) || '');
-                          setEditingSpecialTitleMatch(match);
-                        }}
-                      >
-                        <Edit2 size={14} style={{ marginRight: '4px' }} /> Título Especial
-                      </button>
-                    )}
-
-                    {/* Botones: solo eliminar si inactiva, calificar si cerrada/calculada */}
-                    {activeMatchday?.status === 'inactive' && (
-                      <button
-                        className="lev-btn"
-                        style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
-                        onClick={() => handleDeleteMatch(match.id)}
-                        title="Eliminar Partido"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    {(activeMatchday?.status === 'closed' || activeMatchday?.status === 'calculated') && (
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        <button className={`lev-btn ${match.result === 'L' ? 'selected-l' : ''}`} onClick={() => handleSetMatchResult(match.id, 'L')}>L</button>
-                        <button className={`lev-btn ${match.result === 'E' ? 'selected-e' : ''}`} onClick={() => handleSetMatchResult(match.id, 'E')}>E</button>
-                        <button className={`lev-btn ${match.result === 'V' ? 'selected-v' : ''}`} onClick={() => handleSetMatchResult(match.id, 'V')}>V</button>
+                      {/* Botón para Editar Título Especial (solo inactiva o activa) */}
+                      {(activeMatchday?.status === 'inactive' || activeMatchday?.status === 'active') && (
                         <button
                           className="lev-btn"
-                          style={{ background: match.result === 'A' ? 'var(--danger)' : 'var(--bg-main)', color: match.result === 'A' ? 'white' : 'var(--danger)', borderColor: 'var(--danger)' }}
-                          onClick={() => setConfirmConfig({ title: 'Anular Partido', message: '¿Anular partido? Solo aplica el partido extra como desempate.', onConfirm: () => { handleSetMatchResult(match.id, 'A'); setConfirmConfig(null); } })}
-                          title="Anular"
-                        >A</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          style={{ background: 'var(--bg-main)', color: 'var(--primary)', borderColor: 'var(--primary)', padding: '4px 8px', width: 'auto', flex: '0 0 auto' }}
+                          title="Editar Título Especial"
+                          onClick={() => {
+                            setEditSpecialTitleInput(getSpecialTitle(match) || '');
+                            setEditingSpecialTitleMatch(match);
+                          }}
+                        >
+                          <Edit2 size={14} style={{ marginRight: '4px' }} /> Título Especial
+                        </button>
+                      )}
+
+                      {/* Botones: solo eliminar si inactiva, calificar si cerrada/calculada */}
+                      {activeMatchday?.status === 'inactive' && (
+                        <button
+                          className="lev-btn"
+                          style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
+                          onClick={() => handleDeleteMatch(match.id)}
+                          title="Eliminar Partido"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                      {(activeMatchday?.status === 'closed' || activeMatchday?.status === 'calculated') && (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          <button 
+                            className={`lev-btn ${currentSelectedResult === 'L' ? 'selected-l' : ''}`} 
+                            onClick={() => isSimMode ? handleSetSimulationMatchResult(match.id, 'L') : handleSetMatchResult(match.id, 'L')}
+                          >
+                            L
+                          </button>
+                          <button 
+                            className={`lev-btn ${currentSelectedResult === 'E' ? 'selected-e' : ''}`} 
+                            onClick={() => isSimMode ? handleSetSimulationMatchResult(match.id, 'E') : handleSetMatchResult(match.id, 'E')}
+                          >
+                            E
+                          </button>
+                          <button 
+                            className={`lev-btn ${currentSelectedResult === 'V' ? 'selected-v' : ''}`} 
+                            onClick={() => isSimMode ? handleSetSimulationMatchResult(match.id, 'V') : handleSetMatchResult(match.id, 'V')}
+                          >
+                            V
+                          </button>
+                          <button
+                            className="lev-btn"
+                            style={{ background: currentSelectedResult === 'A' ? 'var(--danger)' : 'var(--bg-main)', color: currentSelectedResult === 'A' ? 'white' : 'var(--danger)', borderColor: 'var(--danger)' }}
+                            onClick={() => {
+                              if (isSimMode) {
+                                handleSetSimulationMatchResult(match.id, 'A');
+                              } else {
+                                setConfirmConfig({ title: 'Anular Partido', message: '¿Anular partido? Solo aplica el partido extra como desempate.', onConfirm: () => { handleSetMatchResult(match.id, 'A'); setConfirmConfig(null); } });
+                              }
+                            }}
+                            title="Anular"
+                          >
+                            A
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
               </div>
@@ -12200,43 +12389,110 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
         </div>
       </Modal>
 
-      {/* Modal para Simular Ganadores */}
+      {/* Modal para Simular Ganadores Aislado */}
       <Modal
         isOpen={isSimulatedWinnersModalOpen}
         onClose={() => setIsSimulatedWinnersModalOpen(false)}
-        title="Simulación de Ganadores"
+        title="🧪 Resultados de Simulación de Ganadores (Sandbox Aislado)"
       >
         <div style={{ padding: '20px' }}>
-          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-            Basado en los resultados actuales, con una puntuación máxima de <strong>{simulatedMaxScore} aciertos</strong>, los posibles ganadores serían:
-          </p>
+          <div style={{
+            background: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            fontSize: '0.82rem',
+            color: '#e0f2fe',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Sparkles size={18} color="#38bdf8" style={{ flexShrink: 0 }} />
+            <span>
+              <strong>Simulación en Memoria:</strong> Resultados proyectados con una puntuación máxima de <strong>{simulatedMaxScore} aciertos</strong>.
+            </span>
+          </div>
+
+          {/* Desglose de Blindaje y Reparto de Bolsa */}
+          {simulatedWinners.length > 0 && (
+            <div style={{
+              background: simulatedPodiumStats.humanWinners.length > 0 
+                ? (simulatedPodiumStats.isShieldActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(234, 179, 8, 0.12)')
+                : 'rgba(59, 130, 246, 0.12)',
+              border: `1px solid ${simulatedPodiumStats.humanWinners.length > 0 ? (simulatedPodiumStats.isShieldActive ? '#10b981' : 'var(--accent)') : '#3b82f6'}`,
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                <strong style={{ fontSize: '0.92rem', color: simulatedPodiumStats.humanWinners.length > 0 ? (simulatedPodiumStats.isShieldActive ? '#34d399' : '#fbbf24') : '#60a5fa' }}>
+                  {simulatedPodiumStats.humanWinners.length > 0 
+                    ? (simulatedPodiumStats.isShieldActive ? '🛡️ Blindaje 3x Verificado (Podio Protegido)' : '⚠️ Ganador Humano Sin Cobertura Total de Bots')
+                    : '🤖 100% Bolsa Retenida por Bots'}
+                </strong>
+                <span style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '3px 8px', borderRadius: '6px', color: '#fff' }}>
+                  {simulatedWinners.length} Ganador(es) en 1° Lugar
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: '#e2e8f0', lineHeight: 1.5 }}>
+                <div>💰 Premio 1° Lugar: <strong>${simulatedPodiumStats.total1stPrize.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong> (<strong>${simulatedPodiumStats.payoutPerWinner.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong> por boleto ganador).</div>
+                {simulatedPodiumStats.humanWinners.length > 0 && (
+                  <div style={{ marginTop: '4px', color: '#d1fae5' }}>
+                    👥 Reparto Proyectado: <strong>${(simulatedPodiumStats.humanWinners.length * simulatedPodiumStats.payoutPerWinner).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong> a {simulatedPodiumStats.humanWinners.length} cliente(s) real(es) | <strong>${(simulatedPodiumStats.botWinners.length * simulatedPodiumStats.payoutPerWinner).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</strong> a {simulatedPodiumStats.botWinners.length} bot(s).
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           
           {simulatedWinners.length > 0 ? (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {simulatedWinners.map((winner, idx) => (
-                <li key={idx} style={{ 
-                  padding: '12px', 
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: 'var(--bg-main)',
-                  marginBottom: '8px',
-                  borderRadius: '6px'
-                }}>
-                  <div>
-                    <strong style={{ display: 'block', fontSize: '1.05rem' }}>{winner.participants?.name || 'Desconocido'}</strong>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>@{winner.participants?.alias || 'sin-alias'}</span>
-                  </div>
-                  <div style={{ background: 'var(--primary)', color: 'white', padding: '4px 10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    {winner.score} aciertos
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {simulatedWinners.map((winner, idx) => {
+                  const part = Array.isArray(winner.participants) ? winner.participants[0] : winner.participants;
+                  const phone = part?.phone || '';
+                  const isBot = phone === 'BOT-0000' || phone.startsWith('BOT-');
+
+                  return (
+                    <li key={idx} style={{ 
+                      padding: '10px 14px', 
+                      border: '1px solid var(--border-color)',
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      background: isBot ? 'rgba(16, 185, 129, 0.06)' : 'rgba(234, 179, 8, 0.08)',
+                      borderRadius: '8px'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <strong style={{ fontSize: '0.92rem', color: '#fff' }}>{part?.name || 'Desconocido'}</strong>
+                          <span style={{ 
+                            fontSize: '0.68rem', 
+                            padding: '2px 6px', 
+                            borderRadius: '4px', 
+                            fontWeight: 'bold',
+                            background: isBot ? 'rgba(16, 185, 129, 0.25)' : 'rgba(234, 179, 8, 0.25)',
+                            color: isBot ? '#34d399' : '#fbbf24',
+                            border: `1px solid ${isBot ? '#10b981' : 'var(--accent)'}`
+                          }}>
+                            {isBot ? '🤖 Bot Protegido' : '👤 Cliente Real'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>@{part?.alias || 'sin-alias'} | Folio: <code>{winner.reference_code || 'N/A'}</code></span>
+                      </div>
+                      <div style={{ background: 'var(--primary)', color: 'white', padding: '4px 10px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        {winner.score} aciertos
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ) : (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              Nadie tiene aciertos aún con esta configuración.
+              Nadie tiene aciertos con esta configuración simulada.
             </div>
           )}
           
