@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Trophy, 
   User, 
+  UserPlus,
   Lock, 
   CheckCircle, 
   AlertCircle, 
@@ -435,6 +436,15 @@ export default function App() {
   const [manualPoolCount, setManualPoolCount] = useState<number>(1);
   const [manualPoolSearch, setManualPoolSearch] = useState<string>('');
   const [isSavingManualPool, setIsSavingManualPool] = useState<boolean>(false);
+
+  // Admin Manual Create Participant State
+  const [isCreateParticipantModalOpen, setIsCreateParticipantModalOpen] = useState<boolean>(false);
+  const [newPartName, setNewPartName] = useState<string>('');
+  const [newPartAlias, setNewPartAlias] = useState<string>('');
+  const [newPartPhone, setNewPartPhone] = useState<string>('');
+  const [newPartPin, setNewPartPin] = useState<string>('');
+  const [isSavingParticipant, setIsSavingParticipant] = useState<boolean>(false);
+  const [createParticipantOrigin, setCreateParticipantOrigin] = useState<'directory' | 'add-pool'>('directory');
 
   // --- Estados Generador Bots ---
   const [botInputText, setBotInputText] = useState('');
@@ -3676,6 +3686,79 @@ Mis pronósticos son:
       showAlert('error', err.message || 'Error al guardar la quiniela.');
     } finally {
       setIsSavingManualPool(false);
+    }
+  };
+
+  // --- Manejo de Creación Manual de Participantes ---
+  const openCreateParticipantModal = (origin: 'directory' | 'add-pool' = 'directory', initialName: string = '') => {
+    setCreateParticipantOrigin(origin);
+    setNewPartName(initialName);
+    const suggestedAlias = initialName ? initialName.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+    setNewPartAlias(suggestedAlias);
+    setNewPartPhone('');
+    setNewPartPin(Math.floor(1000 + Math.random() * 9000).toString());
+    setIsCreateParticipantModalOpen(true);
+  };
+
+  const handleCreateManualParticipant = async () => {
+    const trimmedName = newPartName.trim();
+    const trimmedAlias = newPartAlias.trim();
+    const trimmedPhone = newPartPhone.trim();
+    const pin = newPartPin.trim() || Math.floor(1000 + Math.random() * 9000).toString();
+
+    if (!trimmedName) {
+      showAlert('error', 'El nombre del participante es obligatorio.');
+      return;
+    }
+    if (!trimmedAlias) {
+      showAlert('error', 'El alias es obligatorio.');
+      return;
+    }
+
+    // Check duplicates
+    const duplicate = participants.find(p => 
+      p.name.toLowerCase() === trimmedName.toLowerCase() || 
+      p.alias.toLowerCase() === trimmedAlias.toLowerCase()
+    );
+    if (duplicate) {
+      showAlert('error', `Ya existe un participante con el nombre "${duplicate.name}" o alias "@${duplicate.alias}".`);
+      return;
+    }
+
+    try {
+      setIsSavingParticipant(true);
+      const { data: createdPart, error } = await supabase
+        .from('participants')
+        .insert([{
+          name: trimmedName,
+          alias: trimmedAlias,
+          phone: trimmedPhone || '',
+          pin: pin,
+          role: 'user'
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      showAlert('success', `¡Participante ${trimmedName} registrado exitosamente!`);
+      setIsCreateParticipantModalOpen(false);
+      setNewPartName('');
+      setNewPartAlias('');
+      setNewPartPhone('');
+      setNewPartPin('');
+
+      await loadParticipants();
+
+      // Si se originó desde el modal de agregar quiniela, seleccionarlo automáticamente
+      if (createParticipantOrigin === 'add-pool' && createdPart) {
+        setAddPoolParticipant(createdPart);
+      }
+    } catch (err: any) {
+      console.error('Error al registrar participante:', err);
+      showAlert('error', err.message || 'Error al guardar el participante.');
+    } finally {
+      setIsSavingParticipant(false);
     }
   };
 
@@ -9115,8 +9198,16 @@ Mis pronósticos son:
 
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h3 style={{ margin: 0 }}>Participantes Registrados ({participants.length})</h3>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => openCreateParticipantModal('directory')}
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid #38bdf8', fontWeight: 'bold' }}
+                    title="Dar de alta un nuevo participante en la base de datos"
+                  >
+                    <UserPlus size={14} /> 👤➕ Nuevo Participante
+                  </button>
                   <button 
                     className="btn btn-primary" 
                     onClick={() => openAddPoolModal()}
@@ -10766,14 +10857,25 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
               </div>
             ) : (
               <div>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Buscar usuario por nombre, alias o teléfono..." 
-                  value={manualPoolSearch}
-                  onChange={e => setManualPoolSearch(e.target.value)}
-                  style={{ marginBottom: '8px' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Buscar usuario por nombre, alias o teléfono..." 
+                    value={manualPoolSearch}
+                    onChange={e => setManualPoolSearch(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid #38bdf8', fontWeight: 'bold' }}
+                    onClick={() => openCreateParticipantModal('add-pool', manualPoolSearch)}
+                    title="Crear un nuevo participante al vuelo"
+                  >
+                    <UserPlus size={14} /> + Crear Nuevo
+                  </button>
+                </div>
                 <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px', background: 'rgba(0,0,0,0.2)' }}>
                   {participants
                     .filter(p => 
@@ -10806,7 +10908,14 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                     ))}
                   {participants.filter(p => !manualPoolSearch.trim() || p.name.toLowerCase().includes(manualPoolSearch.toLowerCase()) || p.alias.toLowerCase().includes(manualPoolSearch.toLowerCase())).length === 0 && (
                     <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      No se encontraron participantes.
+                      <span>No se encontraron participantes. </span>
+                      <button 
+                        type="button" 
+                        onClick={() => openCreateParticipantModal('add-pool', manualPoolSearch)}
+                        style={{ background: 'none', border: 'none', color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold', marginLeft: '4px' }}
+                      >
+                        ¿Deseas registrar a "{manualPoolSearch}"?
+                      </button>
                     </div>
                   )}
                 </div>
@@ -11045,6 +11154,118 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
             </div>
           </div>
 
+        </div>
+      </Modal>
+
+      {/* Modal para Crear Participante Manualmente */}
+      <Modal
+        isOpen={isCreateParticipantModalOpen}
+        onClose={() => {
+          if (!isSavingParticipant) {
+            setIsCreateParticipantModalOpen(false);
+          }
+        }}
+        title="👤➕ Registrar Nuevo Participante"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+              Nombre Completo *
+            </label>
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Ej. Juan Carlos Pérez" 
+              value={newPartName}
+              onChange={e => {
+                const val = e.target.value;
+                setNewPartName(val);
+                const clean = val.toLowerCase().replace(/[^a-z0-9]/g, '');
+                setNewPartAlias(clean);
+              }}
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+              Alias / Apodo Único *
+            </label>
+            <div>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Ej. juanperez" 
+                value={newPartAlias}
+                onChange={e => setNewPartAlias(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              />
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Se usará para identificar al participante en la tabla general (@{newPartAlias || 'alias'}).
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+              Teléfono / WhatsApp (10 Dígitos)
+            </label>
+            <input 
+              type="tel" 
+              className="form-control" 
+              placeholder="Ej. 9611234567 (opcional)" 
+              value={newPartPhone}
+              onChange={e => setNewPartPhone(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+              PIN de Acceso (4 Dígitos)
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                maxLength={4}
+                className="form-control" 
+                placeholder="1234" 
+                value={newPartPin}
+                onChange={e => setNewPartPin(e.target.value.replace(/[^0-9]/g, ''))}
+                style={{ letterSpacing: '4px', fontWeight: 'bold', width: '120px' }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                onClick={() => setNewPartPin(Math.floor(1000 + Math.random() * 9000).toString())}
+              >
+                🎲 Generar PIN
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setIsCreateParticipantModalOpen(false)}
+              disabled={isSavingParticipant}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary" 
+              onClick={handleCreateManualParticipant}
+              disabled={isSavingParticipant || !newPartName.trim() || !newPartAlias.trim()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {isSavingParticipant ? (
+                <>Guardando...</>
+              ) : (
+                <><Check size={16} /> Guardar Participante</>
+              )}
+            </button>
+          </div>
         </div>
       </Modal>
 
