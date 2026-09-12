@@ -1,22 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import CarmelitoAssistant from './CarmelitoAssistant';
-// Dynamic Lazy Loaders para código comprimido inicial (Code Splitting)
+// Dynamic Lazy Loaders para código comprimido inicial (Code Splitting con auto-recuperación ante nuevos despliegues)
+const handleChunkLoadError = (err: any) => {
+  console.warn('Detectado chunk desactualizado o error de importación dinámica:', err);
+  if (
+    err?.message?.includes('Failed to fetch dynamically imported module') ||
+    err?.message?.includes('error loading dynamically imported module') ||
+    err?.name === 'TypeError'
+  ) {
+    window.location.reload();
+  }
+};
+
 const compressImageLazy = async (file: File, options: any) => {
-  const { default: imageCompression } = await import('browser-image-compression');
-  return imageCompression(file, options);
+  try {
+    const { default: imageCompression } = await import('browser-image-compression');
+    return imageCompression(file, options);
+  } catch (err) {
+    handleChunkLoadError(err);
+    throw err;
+  }
 };
 
 const createTesseractWorkerLazy = async (lang: string) => {
-  const { default: Tesseract } = await import('tesseract.js');
-  return Tesseract.createWorker(lang);
+  try {
+    const { default: Tesseract } = await import('tesseract.js');
+    return Tesseract.createWorker(lang);
+  } catch (err) {
+    handleChunkLoadError(err);
+    throw err;
+  }
 };
 
 const createJsPDFDocLazy = async (options?: any) => {
-  const { jsPDF } = await import('jspdf');
-  const { applyPlugin } = await import('jspdf-autotable');
-  applyPlugin(jsPDF);
-  return new jsPDF(options);
+  try {
+    const { jsPDF } = await import('jspdf');
+    const { applyPlugin } = await import('jspdf-autotable');
+    applyPlugin(jsPDF);
+    return new jsPDF(options);
+  } catch (err) {
+    handleChunkLoadError(err);
+    throw err;
+  }
 };
 
 import { requestAdminPushPermission, sendLocalPushNotification, registerServiceWorker } from './utils/pushNotifications';
