@@ -450,6 +450,7 @@ export default function App() {
   const [botInputText, setBotInputText] = useState('');
   const [isGeneratingBots, setIsGeneratingBots] = useState(false);
   const [botSearchQuery, setBotSearchQuery] = useState('');
+  const [targetPrizePoolInput, setTargetPrizePoolInput] = useState<number>(5000);
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -609,10 +610,24 @@ export default function App() {
     loading: boolean;
     cloneOf?: string | null;
     sourceRef?: string | null;
+    cloneCopy?: string | null;
+    isCamouflage?: boolean;
+    camouflageNum?: string | null;
     predictions: Record<string, string>;
-  }>({ isOpen: false, botName: '', refCode: '', poolId: '', score: 0, rank: 0, loading: false, cloneOf: null, sourceRef: null, predictions: {} });
+  }>({ isOpen: false, botName: '', refCode: '', poolId: '', score: 0, rank: 0, loading: false, cloneOf: null, sourceRef: null, cloneCopy: null, isCamouflage: false, camouflageNum: null, predictions: {} });
 
-  const handleOpenBotPredictionsModal = async (poolId: string, botName: string, refCode: string, score: number, rank: number, cloneOf?: string | null, sourceRef?: string | null) => {
+  const handleOpenBotPredictionsModal = async (
+    poolId: string, 
+    botName: string, 
+    refCode: string, 
+    score: number, 
+    rank: number, 
+    cloneOf?: string | null, 
+    sourceRef?: string | null,
+    cloneCopy?: string | null,
+    isCamouflage?: boolean,
+    camouflageNum?: string | null
+  ) => {
     setViewBotModal({
       isOpen: true,
       botName,
@@ -622,6 +637,9 @@ export default function App() {
       rank,
       cloneOf: cloneOf || null,
       sourceRef: sourceRef || null,
+      cloneCopy: cloneCopy || null,
+      isCamouflage: !!isCamouflage,
+      camouflageNum: camouflageNum || null,
       loading: true,
       predictions: {}
     });
@@ -3225,6 +3243,336 @@ Mis pronósticos son:
     } catch (err: any) {
       console.error(err);
       showAlert('error', err.message || 'Error al generar bots');
+    } finally {
+      setIsGeneratingBots(false);
+    }
+  };
+
+  // Algoritmo de Blindaje 3x con Camuflaje Natural y Superación de Bolsa Estimada ($5,000+)
+  const handleGenerateTripleBlindageBots = async () => {
+    if (!activeMatchday) {
+      showAlert('error', 'No hay jornada activa.');
+      return;
+    }
+
+    setIsGeneratingBots(true);
+
+    try {
+      // 1. Filtrar participantes humanos (no bots)
+      const humanParticipantIds = new Set(
+        participants
+          .filter(p => p.phone !== 'BOT-0000' && !p.phone.startsWith('BOT-'))
+          .map(p => p.id)
+      );
+
+      const humanPools = allPoolsForMatchday.filter(p => humanParticipantIds.has(p.participant_id) && p.payment_status === 'approved');
+      const humanPoolIds = humanPools.map(p => p.id);
+
+      if (humanPoolIds.length === 0) {
+        showAlert('info', 'No se encontraron quinielas de usuarios reales aprobadas en la jornada actual para realizar el blindaje 3x.');
+        setIsGeneratingBots(false);
+        return;
+      }
+
+      // 2. Extraer combinaciones completas de los participantes humanos
+      const { data: humanPredsData, error: predsFetchErr } = await supabase
+        .from('predictions')
+        .select('pool_id, match_id, selection')
+        .in('pool_id', humanPoolIds);
+
+      if (predsFetchErr) throw predsFetchErr;
+
+      const predsByPoolId: Record<string, Record<string, 'L' | 'E' | 'V'>> = {};
+      (humanPredsData || []).forEach((pr: any) => {
+        if (!predsByPoolId[pr.pool_id]) {
+          predsByPoolId[pr.pool_id] = {};
+        }
+        predsByPoolId[pr.pool_id][pr.match_id] = pr.selection;
+      });
+
+      interface HumanComboItem {
+        picks: Record<string, 'L' | 'E' | 'V'>;
+        ownerName: string;
+        ownerAlias: string;
+        refCode: string;
+      }
+
+      const humanCombinations: HumanComboItem[] = [];
+      humanPools.forEach(hPool => {
+        const combo = predsByPoolId[hPool.id];
+        if (combo && matches.length > 0 && matches.every(m => combo[m.id])) {
+          const part = participants.find(p => p.id === hPool.participant_id);
+          humanCombinations.push({
+            picks: combo,
+            ownerName: part?.name || 'Usuario Real',
+            ownerAlias: part?.alias || 'humano',
+            refCode: hPool.reference_code || ''
+          });
+        }
+      });
+
+      if (humanCombinations.length === 0) {
+        showAlert('error', 'Las quinielas de usuarios reales no tienen sus pronósticos completos.');
+        setIsGeneratingBots(false);
+        return;
+      }
+
+      // Cargar datos de momios para generar pronósticos ultra-realistas
+      let scrapedOddsData: any = null;
+      try {
+        const res = await fetch('/odds_liga_mx.json');
+        if (res.ok) {
+          scrapedOddsData = await res.json();
+        }
+      } catch (e) {
+        console.log('Usando probabilidades base para camuflaje');
+      }
+
+      const generateOddsPicks = (): Record<string, 'L' | 'E' | 'V'> => {
+        const camouPicks: Record<string, 'L' | 'E' | 'V'> = {};
+        matches.forEach(match => {
+          let pL = 0.50;
+          let pE = 0.28;
+          let pV = 0.22;
+
+          if (scrapedOddsData?.matches) {
+            const homeName = match.home_team || '';
+            const awayName = match.away_team || '';
+            const scrapedMatch = scrapedOddsData.matches.find((sm: any) => {
+              return matchTeamNames(homeName, sm.home_team || '') && matchTeamNames(awayName, sm.away_team || '');
+            });
+
+            if (scrapedMatch?.probabilities) {
+              pL = Number(scrapedMatch.probabilities.prob_l || 50) / 100;
+              pE = Number(scrapedMatch.probabilities.prob_e || 28) / 100;
+              pV = Number(scrapedMatch.probabilities.prob_v || 22) / 100;
+            }
+          }
+
+          const rand = Math.random();
+          let choice: 'L' | 'E' | 'V';
+          if (pL >= pV && pL >= pE) {
+            choice = rand < 0.68 ? 'L' : rand < 0.86 ? 'E' : 'V';
+          } else if (pV >= pL && pV >= pE) {
+            choice = rand < 0.66 ? 'V' : rand < 0.85 ? 'E' : 'L';
+          } else {
+            choice = rand < 0.40 ? 'L' : rand < 0.75 ? 'E' : 'V';
+          }
+          camouPicks[match.id] = choice;
+        });
+        return camouPicks;
+      };
+
+      const H = humanCombinations.length;
+      const blindageBotsCount = H * 3; // 3 bots por combinación humana
+
+      const existingNamesLower = new Set(participants.map((p: any) => p.name?.toLowerCase()));
+      const botNamesSet = new Set<string>();
+
+      const createBotData = () => {
+        let name = '';
+        let attempts = 0;
+        while (attempts < 100) {
+          attempts++;
+          const isFemale = Math.random() < 0.35;
+          const namesPool = isFemale ? MEXICAN_FEMALE_NAMES : MEXICAN_MALE_NAMES;
+          const fn = namesPool[Math.floor(Math.random() * namesPool.length)];
+          const ln1 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
+          const hasSecondLastName = Math.random() < 0.40;
+          if (hasSecondLastName) {
+            let ln2 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
+            while (ln2 === ln1) {
+              ln2 = MEXICAN_SURNAMES[Math.floor(Math.random() * MEXICAN_SURNAMES.length)];
+            }
+            name = `${fn} ${ln1} ${ln2}`;
+          } else {
+            name = `${fn} ${ln1}`;
+          }
+
+          if (!existingNamesLower.has(name.toLowerCase()) && !botNamesSet.has(name.toLowerCase())) {
+            break;
+          }
+        }
+
+        botNamesSet.add(name.toLowerCase());
+        const alias = name.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
+        return {
+          name,
+          alias,
+          phone: 'BOT-0000',
+          pin: Math.floor(1000 + Math.random() * 9000).toString(),
+          role: 'user'
+        };
+      };
+
+      // 3. FASE 1: Preparar datos para los 3*H bots de Blindaje 3x
+      const newParticipantsToCreate: any[] = [];
+      for (let i = 0; i < blindageBotsCount; i++) {
+        newParticipantsToCreate.push(createBotData());
+      }
+
+      interface BotPoolPlan {
+        botName: string;
+        batchRefCode: string;
+        isClone: boolean;
+        cloneCopyNum?: number;
+        cloneOfName?: string;
+        cloneOfAlias?: string;
+        sourceRef?: string;
+        picks: Record<string, 'L' | 'E' | 'V'>;
+        validationFlags: string[];
+      }
+
+      const botPoolPlans: BotPoolPlan[] = [];
+
+      let botIdx = 0;
+      for (let hIdx = 0; hIdx < H; hIdx++) {
+        const humanCombo = humanCombinations[hIdx];
+
+        // Para esta combinación humana, asignamos 3 bots (Copia 1/3, 2/3, 3/3)
+        for (let copyNum = 1; copyNum <= 3; copyNum++) {
+          const botPartData = newParticipantsToCreate[botIdx];
+          botIdx++;
+
+          const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+          // A) Quiniela Clon (1° Lugar garantizado compartido si el humano gana)
+          botPoolPlans.push({
+            botName: botPartData.name,
+            batchRefCode,
+            isClone: true,
+            cloneCopyNum: copyNum,
+            cloneOfName: humanCombo.ownerName,
+            cloneOfAlias: humanCombo.ownerAlias,
+            sourceRef: humanCombo.refCode,
+            picks: humanCombo.picks,
+            validationFlags: [
+              `[CLONE_OF:${humanCombo.ownerName} (@${humanCombo.ownerAlias})]`,
+              `[SOURCE_REF:${humanCombo.refCode || 'N/A'}]`,
+              `[CLONE_COPY:${copyNum}/3]`
+            ]
+          });
+
+          // B) Quinielas adicionales de camuflaje natural (entre 3 y 8 adicionales)
+          const extraCount = Math.floor(Math.random() * 6) + 3; // 3 a 8 inclusive
+          for (let e = 1; e <= extraCount; e++) {
+            botPoolPlans.push({
+              botName: botPartData.name,
+              batchRefCode,
+              isClone: false,
+              picks: generateOddsPicks(),
+              validationFlags: [
+                `[GEN_TYPE:CAMOUFLAGE_EXTRA]`,
+                `[CAMOUFLAGE_NUM:${e}/${extraCount}]`
+              ]
+            });
+          }
+        }
+      }
+
+      // 4. FASE 2: Superación de Bolsa Estimada ($5,000.00 MXN o valor configurado)
+      const pricePerEntry = Number(activeMatchday.price_per_entry) || 25;
+      const targetPrizePool = Number(targetPrizePoolInput) || 5000;
+      const minPoolsToBreakEven = Math.ceil(targetPrizePool / pricePerEntry);
+      const safetyBuffer = Math.floor(Math.random() * 8) + 6; // 6 a 13 boletos extra para superar con holgura
+      const desiredTotalPools = minPoolsToBreakEven + safetyBuffer; // ej. 200 + 8 = 208 quinielas
+
+      const currentApprovedCount = allPoolsForMatchday.filter(p => p.payment_status === 'approved').length;
+      let totalProjectedPools = currentApprovedCount + botPoolPlans.length;
+      let additionalVolumeBotsCount = 0;
+
+      while (totalProjectedPools < desiredTotalPools) {
+        const remainingNeeded = desiredTotalPools - totalProjectedPools;
+        // Cada bot de volumen compra un paquete natural de entre 3 y 8 quinielas
+        const bundleSize = remainingNeeded >= 3 
+          ? Math.min(remainingNeeded, Math.floor(Math.random() * 6) + 3)
+          : Math.min(remainingNeeded, 3);
+
+        const volBotData = createBotData();
+        newParticipantsToCreate.push(volBotData);
+        additionalVolumeBotsCount++;
+
+        const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        for (let b = 1; b <= bundleSize; b++) {
+          botPoolPlans.push({
+            botName: volBotData.name,
+            batchRefCode,
+            isClone: false,
+            picks: generateOddsPicks(),
+            validationFlags: [
+              `[GEN_TYPE:VOLUME_EXTRA]`,
+              `[VOLUME_NUM:${b}/${bundleSize}]`
+            ]
+          });
+        }
+        totalProjectedPools += bundleSize;
+      }
+
+      // 5. Insertar todos los participantes bot en Supabase
+      let finalParticipantsList = [...participants];
+      if (newParticipantsToCreate.length > 0) {
+        const { data: insertedParts, error: errParts } = await supabase.from('participants').insert(newParticipantsToCreate).select();
+        if (errParts) throw errParts;
+        if (insertedParts) {
+          finalParticipantsList = [...finalParticipantsList, ...insertedParts];
+        }
+      }
+
+      // 6. Mapear participante_id e insertar pools en Supabase
+      const poolsToInsert = botPoolPlans.map(plan => {
+        const part = finalParticipantsList.find(p => p.name.toLowerCase() === plan.botName.toLowerCase());
+        return {
+          participant_id: part?.id,
+          matchday_id: activeMatchday.id,
+          payment_status: 'approved',
+          cost: pricePerEntry,
+          score: 0,
+          reference_code: plan.batchRefCode,
+          validation_flags: plan.validationFlags
+        };
+      }).filter(p => p.participant_id);
+
+      const { data: insertedPools, error: errPools } = await supabase.from('pools').insert(poolsToInsert).select();
+      if (errPools) throw errPools;
+
+      // 7. Insertar pronósticos en lotes de 500
+      const options: ('L' | 'E' | 'V')[] = ['L', 'E', 'V'];
+      if (insertedPools && insertedPools.length > 0) {
+        const predictionsToInsert: any[] = [];
+        insertedPools.forEach((pool, pIdx) => {
+          const plan = botPoolPlans[pIdx];
+          if (plan) {
+            matches.forEach(match => {
+              predictionsToInsert.push({
+                pool_id: pool.id,
+                match_id: match.id,
+                selection: plan.picks[match.id] || options[Math.floor(Math.random() * options.length)]
+              });
+            });
+          }
+        });
+
+        const chunkSize = 500;
+        for (let i = 0; i < predictionsToInsert.length; i += chunkSize) {
+          const chunk = predictionsToInsert.slice(i, i + chunkSize);
+          const { error: errPreds } = await supabase.from('predictions').insert(chunk);
+          if (errPreds) throw errPreds;
+        }
+      }
+
+      const totalGrandPools = currentApprovedCount + poolsToInsert.length;
+      const totalRecaudado = totalGrandPools * pricePerEntry;
+
+      showAlert('success', `🛡️ ¡Blindaje 3x y Bolsa Superada con Éxito! Se generaron ${newParticipantsToCreate.length} bots (${blindageBotsCount} blindaje 3x + ${additionalVolumeBotsCount} volumen orgánico) sumando ${poolsToInsert.length} nuevas quinielas. Total en jornada: ${totalGrandPools} quinielas ($${totalRecaudado.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados, superando la bolsa de $${targetPrizePool.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN).`);
+
+      await loadInitialData();
+      await loadParticipants();
+      await loadAllPoolsForMatchday();
+      await loadLeaderboard();
+
+    } catch (err: any) {
+      console.error(err);
+      showAlert('error', err.message || 'Error al ejecutar Blindaje 3x y superación de bolsa.');
     } finally {
       setIsGeneratingBots(false);
     }
@@ -9638,10 +9986,162 @@ Mis pronósticos son:
 
                 <div className="card">
                   <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Zap size={20} color="var(--primary)" /> Generador Inteligente 1-Clic
+                    <ShieldCheck size={20} color="var(--primary)" /> Blindaje 3x & Generadores Inteligentes 1-Clic
                   </h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    Genera quinielas automáticas con folios discretos (<code>BT-XXXXXX</code>) y estrategias matemáticas sin entrada manual:
+
+                  {/* Tarjeta Destacada: Blindaje 3x con Camuflaje Natural y Superación de Bolsa */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(234, 179, 8, 0.12) 100%)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.45)',
+                    borderRadius: '10px',
+                    padding: '18px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.25rem' }}>🛡️</span>
+                        <strong style={{ fontSize: '1rem', color: '#10b981' }}>
+                          Blindaje 3x con Superación de Bolsa Estimada
+                        </strong>
+                      </div>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        color: '#34d399',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(16, 185, 129, 0.4)'
+                      }}>
+                        🧬 {humanPoolsCount} Combinaciones Humanas Detectadas
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.82rem', color: '#d1fae5', margin: '0 0 14px 0', lineHeight: 1.45 }}>
+                      1. <strong>Blindaje 3x:</strong> Asigna 3 bots únicos por cada humano (1 clon + 3 a 8 quinielas de camuflaje c/u).<br />
+                      2. <strong>Superación de Bolsa ($5,000+):</strong> Inyecta automáticamente bots adicionales con paquetes de compra realistas (3 a 8 quinielas) hasta garantizar que la recaudación total supere con holgura la bolsa estimada del premio.
+                    </p>
+
+                    {/* Selector / Ajuste de Bolsa Estimada Objetivo */}
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      marginBottom: '14px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '12px',
+                      alignItems: 'center'
+                    }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                          💰 Bolsa Estimada Objetivo ($ MXN):
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input
+                            type="number"
+                            min="500"
+                            step="500"
+                            value={targetPrizePoolInput}
+                            onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
+                            className="input-field"
+                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '130px', color: '#eab308' }}
+                          />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setTargetPrizePoolInput(5000)}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.72rem',
+                                borderRadius: '4px',
+                                background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              $5,000
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTargetPrizePoolInput(10000)}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.72rem',
+                                borderRadius: '4px',
+                                background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              $10,000
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.78rem', color: '#e2e8f0', borderLeft: '2px solid rgba(16, 185, 129, 0.4)', paddingLeft: '10px' }}>
+                        <div>🎯 Meta Mínima: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} quinielas</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
+                        <div style={{ marginTop: '2px', color: '#34d399' }}>
+                          📊 Actuales en jornada: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ 
+                      background: 'rgba(0, 0, 0, 0.4)', 
+                      borderRadius: '6px', 
+                      padding: '10px 12px', 
+                      marginBottom: '14px',
+                      fontSize: '0.78rem',
+                      color: '#e2e8f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <Sparkles size={16} color="#eab308" style={{ flexShrink: 0 }} />
+                      <span>
+                        Proyección: <strong>{humanPoolsCount * 3} bots blindaje</strong> + volumen orgánico necesario para alcanzar <strong>{Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8)} quinielas</strong> (~${(Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8) * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados).
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={isGeneratingBots || humanPoolsCount === 0}
+                      onClick={handleGenerateTripleBlindageBots}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        background: humanPoolsCount > 0 ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'rgba(255,255,255,0.08)',
+                        borderColor: '#10b981',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        fontSize: '0.92rem',
+                        boxShadow: humanPoolsCount > 0 ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
+                        cursor: humanPoolsCount === 0 || isGeneratingBots ? 'not-allowed' : 'pointer',
+                        opacity: humanPoolsCount === 0 ? 0.6 : 1
+                      }}
+                    >
+                      <ShieldCheck size={18} />
+                      {isGeneratingBots 
+                        ? 'Generando Blindaje 3x y Volumen para Superar Bolsa...' 
+                        : humanPoolsCount > 0 
+                          ? `🛡️ Ejecutar Blindaje 3x + Superar Bolsa ($${targetPrizePoolInput.toLocaleString('es-MX')} MXN)`
+                          : '🛡️ Sin Combinaciones Humanas para Blindar'}
+                    </button>
+                  </div>
+
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                    Otros generadores automáticos de quinielas con estrategias matemáticas:
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
@@ -9799,12 +10299,25 @@ Mis pronósticos son:
                       const validationFlags = pool.validation_flags || [];
                       let cloneOf = null;
                       let sourceRef = null;
+                      let cloneCopy = null;
+                      let isCamouflage = false;
+                      let camouflageNum = null;
+
                       validationFlags.forEach((f: string) => {
                         if (f.startsWith('[CLONE_OF:')) {
                           cloneOf = f.replace('[CLONE_OF:', '').replace(']', '');
                         }
                         if (f.startsWith('[SOURCE_REF:')) {
                           sourceRef = f.replace('[SOURCE_REF:', '').replace(']', '');
+                        }
+                        if (f.startsWith('[CLONE_COPY:')) {
+                          cloneCopy = f.replace('[CLONE_COPY:', '').replace(']', '');
+                        }
+                        if (f === '[GEN_TYPE:CAMOUFLAGE_EXTRA]' || f.startsWith('[GEN_TYPE:CAMOUFLAGE')) {
+                          isCamouflage = true;
+                        }
+                        if (f.startsWith('[CAMOUFLAGE_NUM:')) {
+                          camouflageNum = f.replace('[CAMOUFLAGE_NUM:', '').replace(']', '');
                         }
                       });
 
@@ -9821,7 +10334,10 @@ Mis pronósticos son:
                         created_at: pool.created_at,
                         isBot,
                         cloneOf,
-                        sourceRef
+                        sourceRef,
+                        cloneCopy,
+                        isCamouflage,
+                        camouflageNum
                       };
                     })
                     .filter(item => item.isBot);
@@ -9916,7 +10432,11 @@ Mis pronósticos son:
                                 <td style={{ padding: '10px 12px' }}>
                                   {b.cloneOf ? (
                                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.35)', color: '#4ade80', padding: '3px 8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold' }}>
-                                      <Copy size={12} /> Clon de: {b.cloneOf}
+                                      <Copy size={12} /> {b.cloneCopy ? `[${b.cloneCopy}] ` : ''}Clon de: {b.cloneOf}
+                                    </div>
+                                  ) : b.isCamouflage ? (
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '3px 8px', borderRadius: '6px', fontSize: '0.78rem' }}>
+                                      <Dices size={12} /> Camuflaje Natural {b.camouflageNum ? `(${b.camouflageNum})` : ''}
                                     </div>
                                   ) : (
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>🤖 Probabilístico / Momios</span>
@@ -9930,7 +10450,7 @@ Mis pronósticos son:
                                     <button
                                       type="button"
                                       className="btn btn-secondary"
-                                      onClick={() => handleOpenBotPredictionsModal(b.poolId, b.name, b.refCode, b.score, b.rank, b.cloneOf, b.sourceRef)}
+                                      onClick={() => handleOpenBotPredictionsModal(b.poolId, b.name, b.refCode, b.score, b.rank, b.cloneOf, b.sourceRef, b.cloneCopy, b.isCamouflage, b.camouflageNum)}
                                       style={{
                                         padding: '4px 10px',
                                         fontSize: '0.75rem',
@@ -11999,7 +12519,7 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
               </button>
             </div>
 
-            {/* Banner de Verificación de Clon */}
+            {/* Banner de Verificación de Clon / Camuflaje */}
             {viewBotModal.cloneOf ? (
               <div style={{
                 background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)',
@@ -12017,7 +12537,7 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                   <span style={{ fontSize: '1.5rem' }}>🧬</span>
                   <div>
                     <div style={{ fontWeight: 'bold', color: '#10b981', fontSize: '0.92rem' }}>
-                      Clon Idéntico Verificado
+                      Clon Idéntico Verificado {viewBotModal.cloneCopy ? `(Copia ${viewBotModal.cloneCopy})` : ''}
                     </div>
                     <div style={{ fontSize: '0.82rem', color: '#d1fae5' }}>
                       Copia exacta de los pronósticos de: <strong>{viewBotModal.cloneOf}</strong>
@@ -12027,6 +12547,34 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                 </div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 'bold', background: '#10b981', color: '#000', padding: '4px 10px', borderRadius: '12px' }}>
                   ✓ 100% Coincidencia
+                </div>
+              </div>
+            ) : viewBotModal.isCamouflage ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(14, 165, 233, 0.2) 100%)',
+                border: '1px solid #38bdf8',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>🎲</span>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#38bdf8', fontSize: '0.92rem' }}>
+                      Quiniela Adicional de Camuflaje Natural {viewBotModal.camouflageNum ? `(Boleto ${viewBotModal.camouflageNum})` : ''}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#e0f2fe' }}>
+                      Generada automáticamente con probabilidades de momios para otorgar un perfil de compra orgánico y realista.
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', background: 'rgba(56, 189, 248, 0.25)', color: '#38bdf8', padding: '4px 10px', borderRadius: '12px', border: '1px solid #38bdf8' }}>
+                  🎲 Camuflaje
                 </div>
               </div>
             ) : (
