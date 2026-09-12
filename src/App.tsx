@@ -607,10 +607,12 @@ export default function App() {
     score: number;
     rank: number;
     loading: boolean;
+    cloneOf?: string | null;
+    sourceRef?: string | null;
     predictions: Record<string, string>;
-  }>({ isOpen: false, botName: '', refCode: '', poolId: '', score: 0, rank: 0, loading: false, predictions: {} });
+  }>({ isOpen: false, botName: '', refCode: '', poolId: '', score: 0, rank: 0, loading: false, cloneOf: null, sourceRef: null, predictions: {} });
 
-  const handleOpenBotPredictionsModal = async (poolId: string, botName: string, refCode: string, score: number, rank: number) => {
+  const handleOpenBotPredictionsModal = async (poolId: string, botName: string, refCode: string, score: number, rank: number, cloneOf?: string | null, sourceRef?: string | null) => {
     setViewBotModal({
       isOpen: true,
       botName,
@@ -618,6 +620,8 @@ export default function App() {
       poolId,
       score,
       rank,
+      cloneOf: cloneOf || null,
+      sourceRef: sourceRef || null,
       loading: true,
       predictions: {}
     });
@@ -3013,7 +3017,7 @@ Mis pronósticos son:
 
   // --- Acciones de Administrador ---
 
-  // Aprobar / Rechazar Pagos
+  // Aprobar / Rechazar Pagos -> Generación de Bots Manuales con Algoritmo de Duplicación y Distribución de Humanos
   const handleGenerateBots = async () => {
     if (!activeMatchday) {
       showAlert('error', 'No hay jornada activa.');
@@ -3035,8 +3039,7 @@ Mis pronósticos son:
         const parts = line.split(',');
         if (parts.length >= 1) {
           const name = parts[0].trim();
-          // Forzar mínimo 2 quinielas por bot
-          const count = Math.max(2, parseInt((parts[1] || '2').trim(), 10) || 2);
+          const count = Math.max(1, parseInt((parts[1] || '2').trim(), 10) || 1);
           botConfigs.push({ name, count });
           
           const exists = participants.find(p => p.name.toLowerCase() === name.toLowerCase());
@@ -3062,20 +3065,117 @@ Mis pronósticos son:
         }
       }
 
-      const options = ['L', 'E', 'V'];
+      // --- ALGORITMO: Extracción de combinaciones de participantes humanos (no bots) ---
+      const humanParticipantIds = new Set(
+        participants
+          .filter(p => p.phone !== 'BOT-0000' && !p.phone.startsWith('BOT-'))
+          .map(p => p.id)
+      );
+
+      const humanPools = allPoolsForMatchday.filter(p => humanParticipantIds.has(p.participant_id));
+      const humanPoolIds = humanPools.map(p => p.id);
+
+      interface HumanComboItem {
+        picks: Record<string, 'L' | 'E' | 'V'>;
+        ownerName: string;
+        ownerAlias: string;
+        refCode: string;
+      }
+
+      let humanCombinations: HumanComboItem[] = [];
+
+      if (humanPoolIds.length > 0) {
+        const { data: humanPredsData, error: predsFetchErr } = await supabase
+          .from('predictions')
+          .select('pool_id, match_id, selection')
+          .in('pool_id', humanPoolIds);
+
+        if (!predsFetchErr && humanPredsData) {
+          const predsByPoolId: Record<string, Record<string, 'L' | 'E' | 'V'>> = {};
+          humanPredsData.forEach((pr: any) => {
+            if (!predsByPoolId[pr.pool_id]) {
+              predsByPoolId[pr.pool_id] = {};
+            }
+            predsByPoolId[pr.pool_id][pr.match_id] = pr.selection;
+          });
+
+          humanPools.forEach(hPool => {
+            const combo = predsByPoolId[hPool.id];
+            if (combo && matches.length > 0 && matches.every(m => combo[m.id])) {
+              const part = participants.find(p => p.id === hPool.participant_id);
+              humanCombinations.push({
+                picks: combo,
+                ownerName: part?.name || 'Usuario Real',
+                ownerAlias: part?.alias || 'humano',
+                refCode: hPool.reference_code || ''
+              });
+            }
+          });
+        }
+      }
+
+      // Función de barajado (Fisher-Yates)
+      const shuffleArray = <T,>(arr: T[]): T[] => {
+        const copy = [...arr];
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      };
+
+      // Preparar asignación de combinaciones para cada una de las quinielas a insertar
+      const assignedCombinations: Record<string, 'L' | 'E' | 'V'>[] = [];
+      const options: ('L' | 'E' | 'V')[] = ['L', 'E', 'V'];
+
+      let poolOfCombos: HumanComboItem[] = [];
+      if (humanCombinations.length > 0) {
+        let neededCombos = 0;
+        botConfigs.forEach(c => neededCombos += c.count);
+        while (poolOfCombos.length < neededCombos) {
+          poolOfCombos = poolOfCombos.concat(shuffleArray(humanCombinations));
+        }
+      }
+
       let poolsToInsert: any[] = [];
       let totalQuinielas = 0;
+      let comboCursor = 0;
       
       for (const config of botConfigs) {
         const participant = finalParticipantsList.find(p => p.name.toLowerCase() === config.name.toLowerCase());
         if (participant) {
           const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
           for (let i = 0; i < config.count; i++) {
+            let comboItem = humanCombinations.length > 0 ? poolOfCombos[comboCursor % poolOfCombos.length] : null;
+            comboCursor++;
+
+            let picksToUse: Record<string, 'L' | 'E' | 'V'>;
+            let validationFlags: string[] = [];
+
+            if (comboItem) {
+              picksToUse = comboItem.picks;
+              validationFlags = [
+                `[CLONE_OF:${comboItem.ownerName} (@${comboItem.ownerAlias})]`,
+                `[SOURCE_REF:${comboItem.refCode || 'N/A'}]`
+              ];
+            } else {
+              picksToUse = {};
+              matches.forEach(m => {
+                picksToUse[m.id] = options[Math.floor(Math.random() * options.length)];
+              });
+              validationFlags = [`[GEN_TYPE:RANDOM_FALLBACK]`];
+            }
+
+            assignedCombinations.push(picksToUse);
+
             poolsToInsert.push({
               participant_id: participant.id,
               matchday_id: activeMatchday.id,
               payment_status: 'approved',
-              reference_code: batchRefCode
+              cost: activeMatchday.price_per_entry || 25,
+              score: 0,
+              reference_code: batchRefCode,
+              validation_flags: validationFlags
             });
             totalQuinielas++;
           }
@@ -3092,13 +3192,13 @@ Mis pronósticos son:
 
       if (insertedPools && insertedPools.length > 0) {
         const predictionsToInsert: any[] = [];
-        insertedPools.forEach(pool => {
+        insertedPools.forEach((pool, poolIdx) => {
+          const assignedCombo = assignedCombinations[poolIdx] || {};
           matches.forEach(match => {
-            const randomChoice = options[Math.floor(Math.random() * options.length)];
             predictionsToInsert.push({
               pool_id: pool.id,
               match_id: match.id,
-              selection: randomChoice
+              selection: assignedCombo[match.id] || options[Math.floor(Math.random() * options.length)]
             });
           });
         });
@@ -3111,7 +3211,12 @@ Mis pronósticos son:
         }
       }
 
-      showAlert('success', `¡Se generaron exitosamente ${totalQuinielas} quinielas bot!`);
+      if (humanCombinations.length > 0) {
+        showAlert('success', `¡Se generaron ${totalQuinielas} quinielas bot duplicando y distribuyendo ${humanCombinations.length} combinaciones de participantes reales!`);
+      } else {
+        showAlert('success', `¡Se generaron exitosamente ${totalQuinielas} quinielas bot! (Modo aleatorio por ausencia de combinaciones humanas en la jornada)`);
+      }
+
       setBotInputText('');
       await loadParticipants();
       await loadAllPoolsForMatchday();
@@ -9436,6 +9541,13 @@ Mis pronósticos son:
           const approvedPoolsCount = allPoolsForMatchday.filter(p => p.payment_status === 'approved').length;
           const coverageProbability = totalCombinations > 0 ? (approvedPoolsCount / totalCombinations) * 100 : 0;
           
+          const humanParticipantIds = new Set(
+            participants
+              .filter(p => p.phone !== 'BOT-0000' && !p.phone.startsWith('BOT-'))
+              .map(p => p.id)
+          );
+          const humanPoolsCount = allPoolsForMatchday.filter(p => humanParticipantIds.has(p.participant_id)).length;
+
           return (
             <div>
               <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -9579,10 +9691,28 @@ Mis pronósticos son:
                   <hr style={{ borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
 
                   <details style={{ cursor: 'pointer' }}>
-                    <summary style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                      📝 Modo Manual Personalizado (Ingreso por texto)
+                    <summary style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>📝 Modo Manual Personalizado (Duplicar Combinaciones Reales)</span>
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', border: '1px solid #38bdf8' }}>
+                        🧬 {humanPoolsCount} Combinaciones Reales
+                      </span>
                     </summary>
                     <div style={{ marginTop: '12px' }}>
+                      <div style={{ 
+                        background: 'rgba(56, 189, 248, 0.08)', 
+                        border: '1px solid rgba(56, 189, 248, 0.25)', 
+                        borderRadius: '6px', 
+                        padding: '10px 12px', 
+                        marginBottom: '12px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px' 
+                      }}>
+                        <Copy size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
+                        <div style={{ fontSize: '0.8rem', color: '#e0f2fe' }}>
+                          <strong>Algoritmo de Duplicación Humana:</strong> Se detectaron <strong>{humanPoolsCount}</strong> quinielas de participantes reales en la jornada {activeMatchday?.number}. Al generar los bots manuales, todas estas combinaciones se clonarán y distribuirán equitativamente entre los bots ingresados.
+                        </div>
+                      </div>
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
                         Ingresa <code>Nombre Bot, Cantidad</code> (Un bot por línea):
                       </p>
@@ -9599,9 +9729,9 @@ Mis pronósticos son:
                         className="btn btn-secondary" 
                         onClick={handleGenerateBots}
                         disabled={isGeneratingBots}
-                        style={{ padding: '10px', fontSize: '0.9rem', width: '100%', marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                        style={{ padding: '10px', fontSize: '0.9rem', width: '100%', marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '8px', background: 'rgba(56, 189, 248, 0.15)', borderColor: '#38bdf8', color: '#38bdf8', fontWeight: 'bold' }}
                       >
-                        <Play size={16} /> Generar Lote Personalizado
+                        <Play size={16} /> Generar Lote y Duplicar Combinaciones Humanas
                       </button>
                     </div>
                   </details>
@@ -9664,7 +9794,19 @@ Mis pronósticos son:
                       const phone = partObj?.phone || '';
                       const refCode = pool.reference_code || '';
                       const name = (partObj?.name || 'Desconocido').trim();
-                      const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && (refCode.startsWith('BOT-') || refCode.startsWith('BT-')));
+                      const isBot = phone === 'BOT-0000' || (typeof refCode === 'string' && (refCode.startsWith('BOT-') || refCode.startsWith('BT-') || refCode.startsWith('REF-')));
+
+                      const validationFlags = pool.validation_flags || [];
+                      let cloneOf = null;
+                      let sourceRef = null;
+                      validationFlags.forEach((f: string) => {
+                        if (f.startsWith('[CLONE_OF:')) {
+                          cloneOf = f.replace('[CLONE_OF:', '').replace(']', '');
+                        }
+                        if (f.startsWith('[SOURCE_REF:')) {
+                          sourceRef = f.replace('[SOURCE_REF:', '').replace(']', '');
+                        }
+                      });
 
                       return {
                         rank: idx + 1,
@@ -9677,14 +9819,17 @@ Mis pronósticos son:
                         score: pool.score || 0,
                         status: pool.payment_status,
                         created_at: pool.created_at,
-                        isBot
+                        isBot,
+                        cloneOf,
+                        sourceRef
                       };
                     })
                     .filter(item => item.isBot);
 
                   const filteredBots = rankedBots.filter(b => 
                     b.name.toLowerCase().includes(botSearchQuery.toLowerCase()) ||
-                    b.refCode.toLowerCase().includes(botSearchQuery.toLowerCase())
+                    b.refCode.toLowerCase().includes(botSearchQuery.toLowerCase()) ||
+                    (b.cloneOf && b.cloneOf.toLowerCase().includes(botSearchQuery.toLowerCase()))
                   );
 
                   const topBot = rankedBots[0];
@@ -9725,9 +9870,10 @@ Mis pronósticos son:
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                           <thead>
                             <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
-                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '100px' }}>Ranking</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '90px' }}>Ranking</th>
                               <th style={{ padding: '10px 12px' }}>Bot / Folio</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '110px' }}>Puntuación</th>
+                              <th style={{ padding: '10px 12px' }}>Procedencia / Clon</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center', width: '100px' }}>Puntuación</th>
                               <th style={{ padding: '10px 12px', textAlign: 'center', width: '210px' }}>Acción</th>
                             </tr>
                           </thead>
@@ -9767,6 +9913,15 @@ Mis pronósticos son:
                                     </div>
                                   </div>
                                 </td>
+                                <td style={{ padding: '10px 12px' }}>
+                                  {b.cloneOf ? (
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.35)', color: '#4ade80', padding: '3px 8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold' }}>
+                                      <Copy size={12} /> Clon de: {b.cloneOf}
+                                    </div>
+                                  ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>🤖 Probabilístico / Momios</span>
+                                  )}
+                                </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>
                                   {b.score} pts
                                 </td>
@@ -9775,7 +9930,7 @@ Mis pronósticos son:
                                     <button
                                       type="button"
                                       className="btn btn-secondary"
-                                      onClick={() => handleOpenBotPredictionsModal(b.poolId, b.name, b.refCode, b.score, b.rank)}
+                                      onClick={() => handleOpenBotPredictionsModal(b.poolId, b.name, b.refCode, b.score, b.rank, b.cloneOf, b.sourceRef)}
                                       style={{
                                         padding: '4px 10px',
                                         fontSize: '0.75rem',
@@ -11843,6 +11998,50 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                 <X size={16} /> Cerrar
               </button>
             </div>
+
+            {/* Banner de Verificación de Clon */}
+            {viewBotModal.cloneOf ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)',
+                border: '1px solid #10b981',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>🧬</span>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#10b981', fontSize: '0.92rem' }}>
+                      Clon Idéntico Verificado
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#d1fae5' }}>
+                      Copia exacta de los pronósticos de: <strong>{viewBotModal.cloneOf}</strong>
+                      {viewBotModal.sourceRef && viewBotModal.sourceRef !== 'N/A' ? ` (Folio original: ${viewBotModal.sourceRef})` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', background: '#10b981', color: '#000', padding: '4px 10px', borderRadius: '12px' }}>
+                  ✓ 100% Coincidencia
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                fontSize: '0.82rem',
+                color: '#bfdbfe'
+              }}>
+                🤖 Generado mediante matriz probabilística de momios y favoritos.
+              </div>
+            )}
 
             {/* Leyenda de Colores */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.78rem' }}>
