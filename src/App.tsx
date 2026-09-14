@@ -10176,116 +10176,117 @@ Mis pronósticos son:
               </h2>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <BarChart2 size={20} color="var(--primary)" /> Tendencias & Probabilidades
-                  </h3>
-
-                  {/* Barra compacta de Métricas de Jornada */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                    gap: '10px',
-                    marginBottom: '14px'
-                  }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--primary)' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Partidos / Comb.</span>
-                      <strong style={{ fontSize: '0.95rem', color: '#fff' }}>{mainMatchesCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({totalCombinations.toLocaleString()} comb.)</span></strong>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <h3 style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
+                        <BarChart2 size={18} /> Tendencias de Clientes
+                      </h3>
+                      {humanPoolsCount > 0 ? (
+                        <span style={{ fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 5px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                          👥 {humanPoolsCount}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.68rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 5px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
+                          🎲 Momios
+                        </span>
+                      )}
                     </div>
-
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Quinielas Aprobadas</span>
-                      <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>{approvedPoolsCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({coverageProbability.toFixed(1)}% cob.)</span></strong>
-                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={isRefreshingTendencies}
+                      onClick={loadHumanTendencies}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        borderColor: 'rgba(16, 185, 129, 0.4)'
+                      }}
+                    >
+                      <RefreshCw size={11} className={isRefreshingTendencies ? 'animate-spin' : ''} />
+                      {isRefreshingTendencies ? '...' : 'Actualizar'}
+                    </button>
                   </div>
 
-                  {/* Matriz de Tendencias Reales (Selección de Clientes Humanos) */}
+                  {/* Matriz de Tendencias Ultra-Compacta con Logos (0 Scroll) */}
                   <div style={{
                     background: 'rgba(0,0,0,0.3)',
-                    padding: '14px',
+                    padding: '6px 8px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column'
+                    border: '1px solid rgba(255,255,255,0.08)'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
-                          <BarChart2 size={16} /> Matriz de Tendencias
-                        </h4>
-                        {humanPoolsCount > 0 ? (
-                          <span style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                            👥 {humanPoolsCount} Clientes Reales
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.7rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
-                            🎲 Base Momios (0 Clientes)
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={isRefreshingTendencies}
-                        onClick={loadHumanTendencies}
-                        style={{
-                          padding: '4px 10px',
-                          fontSize: '0.72rem',
-                          fontWeight: 'bold',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10b981',
-                          borderColor: 'rgba(16, 185, 129, 0.4)'
-                        }}
-                      >
-                        <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
-                        {isRefreshingTendencies ? 'Actualizando...' : 'Actualizar'}
-                      </button>
-                    </div>
+                    <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          <th style={{ width: '46%', padding: '4px 4px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
+                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
+                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
+                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {matches.map((m, i) => {
+                          const stat = humanTendencyStats[m.id] || (() => {
+                            const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                            return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
+                          })();
 
-                    <div style={{ maxHeight: '520px', overflowY: 'auto', flex: 1 }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                        <thead>
-                          <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', position: 'sticky', top: 0, zIndex: 1 }}>
-                            <th style={{ padding: '8px 10px' }}>Partido</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Local %</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Empate %</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Visita %</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {matches.map((m, i) => {
-                            const stat = humanTendencyStats[m.id] || (() => {
-                              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-                              return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
-                            })();
+                          const { probL, probE, probV } = stat;
+                          const maxP = Math.max(probL, probE, probV);
+                          const homeLogo = getTeamLogo(m, true);
+                          const awayLogo = getTeamLogo(m, false);
+                          const homeName = getTeamName(m, true);
+                          const awayName = getTeamName(m, false);
 
-                            const { probL, probE, probV, countL, countE, countV, source, totalVotes } = stat;
-                            const maxP = Math.max(probL, probE, probV);
-                            return (
-                              <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', height: '40px' }}>
-                                <td style={{ padding: '8px 10px', fontWeight: '500' }}>
-                                  P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
-                                  {m.is_reserve && <span style={{ marginLeft: '6px', fontSize: '0.68rem', color: '#fbbf24', background: 'rgba(234,179,8,0.15)', padding: '1px 5px', borderRadius: '3px' }}>Desempate</span>}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
-                                  {probL}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countL})</span> : ''}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
-                                  {probE}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countE})</span> : ''}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
-                                  {probV}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countV})</span> : ''}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                          return (
+                            <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
+                              <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '16px' }}>
+                                    P{i + 1}
+                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
+                                    {homeLogo ? (
+                                      <img src={homeLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
+                                    ) : null}
+                                    <span style={{ fontSize: '0.7rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={homeName}>
+                                      {homeName.split(' ')[0]}
+                                    </span>
+                                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', flexShrink: 0 }}>v</span>
+                                    {awayLogo ? (
+                                      <img src={awayLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
+                                    ) : null}
+                                    <span style={{ fontSize: '0.7rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={awayName}>
+                                      {awayName.split(' ')[0]}
+                                    </span>
+                                  </div>
+                                  {m.is_reserve && (
+                                    <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
+                                      D
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                {probL}%
+                              </td>
+                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                {probE}%
+                              </td>
+                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                {probV}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
