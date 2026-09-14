@@ -10176,99 +10176,115 @@ Mis pronósticos son:
               </h2>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                <div className="card">
-                  <h3 style={{ marginBottom: '16px' }}>Calculadora de Probabilidades</h3>
-                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
-                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Partidos activos (sin reserva): <strong>{mainMatchesCount}</strong></p>
-                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Combinaciones posibles totales: <strong>{totalCombinations.toLocaleString()}</strong></p>
-                    <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>Quinielas Activas (Aprobadas): <strong>{approvedPoolsCount.toLocaleString()}</strong></p>
-                    
-                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '6px', borderLeft: '3px solid var(--primary)' }}>
-                      <p style={{ margin: 0, fontWeight: 'bold' }}>Cobertura Teórica: <span style={{ color: 'var(--primary)', fontSize: '1.2rem' }}>{coverageProbability.toFixed(2)}%</span></p>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart2 size={20} color="var(--primary)" /> Tendencias & Probabilidades
+                  </h3>
+
+                  {/* Barra compacta de Métricas de Jornada */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                    gap: '10px',
+                    marginBottom: '14px'
+                  }}>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--primary)' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Partidos / Comb.</span>
+                      <strong style={{ fontSize: '0.95rem', color: '#fff' }}>{mainMatchesCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({totalCombinations.toLocaleString()} comb.)</span></strong>
                     </div>
 
-                    <hr style={{ borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
-                    <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>
-                      <em>La cobertura teórica asume que las quinielas se distribuyen de forma uniforme sobre las {totalCombinations.toLocaleString()} combinaciones. Matemáticamente aumenta tu probabilidad de obtener la quiniela perfecta.</em>
-                    </p>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>Quinielas Aprobadas</span>
+                      <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>{approvedPoolsCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({coverageProbability.toFixed(1)}% cob.)</span></strong>
+                    </div>
+                  </div>
 
-                    {/* Matriz de Tendencias Reales (Selección de Clientes Humanos) */}
-                    <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <h4 style={{ margin: 0, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
-                            <BarChart2 size={16} /> Matriz de Tendencias (Selección de Clientes)
-                          </h4>
-                          {humanPoolsCount > 0 ? (
-                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                              👥 {humanPoolsCount} Clientes Reales
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.7rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
-                              🎲 Base Momios (0 Clientes)
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={isRefreshingTendencies}
-                          onClick={loadHumanTendencies}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: '0.72rem',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10b981',
-                            borderColor: 'rgba(16, 185, 129, 0.4)'
-                          }}
-                        >
-                          <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
-                          {isRefreshingTendencies ? 'Actualizando...' : 'Actualizar Tendencias'}
-                        </button>
+                  {/* Matriz de Tendencias Reales (Selección de Clientes Humanos) */}
+                  <div style={{
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
+                          <BarChart2 size={16} /> Matriz de Tendencias
+                        </h4>
+                        {humanPoolsCount > 0 ? (
+                          <span style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                            👥 {humanPoolsCount} Clientes Reales
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
+                            🎲 Base Momios (0 Clientes)
+                          </span>
+                        )}
                       </div>
-                      <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                          <thead>
-                            <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                              <th style={{ padding: '6px 8px' }}>Partido</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Local %</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Empate %</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'center' }}>Visita %</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {matches.map((m, i) => {
-                              const stat = humanTendencyStats[m.id] || (() => {
-                                const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-                                return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
-                              })();
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={isRefreshingTendencies}
+                        onClick={loadHumanTendencies}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '0.72rem',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          borderColor: 'rgba(16, 185, 129, 0.4)'
+                        }}
+                      >
+                        <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
+                        {isRefreshingTendencies ? 'Actualizando...' : 'Actualizar'}
+                      </button>
+                    </div>
 
-                              const { probL, probE, probV, countL, countE, countV, source, totalVotes } = stat;
-                              const maxP = Math.max(probL, probE, probV);
-                              return (
-                                <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <td style={{ padding: '6px 8px', fontWeight: '500' }}>
-                                    P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
-                                  </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit' }}>
-                                    {probL}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countL})</span> : ''}
-                                  </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit' }}>
-                                    {probE}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countE})</span> : ''}
-                                  </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit' }}>
-                                    {probV}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countV})</span> : ''}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                    <div style={{ maxHeight: '520px', overflowY: 'auto', flex: 1 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <th style={{ padding: '8px 10px' }}>Partido</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Local %</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Empate %</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Visita %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map((m, i) => {
+                            const stat = humanTendencyStats[m.id] || (() => {
+                              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                              return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
+                            })();
+
+                            const { probL, probE, probV, countL, countE, countV, source, totalVotes } = stat;
+                            const maxP = Math.max(probL, probE, probV);
+                            return (
+                              <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', height: '40px' }}>
+                                <td style={{ padding: '8px 10px', fontWeight: '500' }}>
+                                  P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
+                                  {m.is_reserve && <span style={{ marginLeft: '6px', fontSize: '0.68rem', color: '#fbbf24', background: 'rgba(234,179,8,0.15)', padding: '1px 5px', borderRadius: '3px' }}>Desempate</span>}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
+                                  {probL}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countL})</span> : ''}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
+                                  {probE}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countE})</span> : ''}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
+                                  {probV}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countV})</span> : ''}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
