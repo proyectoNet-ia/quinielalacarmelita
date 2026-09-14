@@ -49,6 +49,7 @@ import { requestAdminPushPermission, sendLocalPushNotification, registerServiceW
 import { triggerPatrioticConfetti, triggerFullScreenConfetti } from './utils/confettiEffect';
 import { MEXICAN_MALE_NAMES, MEXICAN_FEMALE_NAMES, MEXICAN_SURNAMES } from './data/mexicanNamesData';
 import { matchTeamNames } from './utils/teamNormalizer';
+import { fetchLiveOddsFromApi } from './utils/oddsService';
 
 import { 
   Bell,
@@ -488,6 +489,7 @@ export default function App() {
   const [targetPrizePoolInput, setTargetPrizePoolInput] = useState<number>(5000);
   const [cloneMultiplierInput, setCloneMultiplierInput] = useState<number>(3);
   const [cloneStrategyInput, setCloneStrategyInput] = useState<'organic60_40' | 'exact100'>('organic60_40');
+  const [botManualStrategy, setBotManualStrategy] = useState<'odds_weighted' | 'favorites' | 'organic_tendencies' | 'pure_random'>('odds_weighted');
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -806,15 +808,13 @@ export default function App() {
               const probV = Math.max(0, 100 - probL - probE);
               tendencies[m.id] = { probL, probE, probV, countL, countE, countV, totalVotes, source: 'human' };
             } else {
-              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-              tendencies[m.id] = { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' };
+              tendencies[m.id] = { probL: 0, probE: 0, probV: 0, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'human' };
             }
           });
         }
       } else {
         matches.forEach(m => {
-          const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-          tendencies[m.id] = { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' };
+          tendencies[m.id] = { probL: 0, probE: 0, probV: 0, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'human' };
         });
       }
 
@@ -836,29 +836,40 @@ export default function App() {
 
     try {
       setIsSyncingOdds(true);
-      showAlert('info', 'Sincronizando momios y calculando probabilidades para la jornada...');
+      showAlert('info', 'Consultando momios oficiales en tiempo real desde The Odds API...');
 
-      const res = await fetch(`/odds_liga_mx.json?t=${Date.now()}`);
-      let freshData = oddsData;
-      if (res.ok) {
-        freshData = await res.json();
-        setOddsData(freshData);
+      // Consultar en vivo desde The Odds API
+      const liveData = await fetchLiveOddsFromApi();
+      if (liveData?.matches?.length > 0) {
+        setOddsData(liveData);
       }
 
       let matchedCount = 0;
       matches.forEach(m => {
         const rawHome = (m.home_team || '').split('||special::')[0].trim();
         const rawAway = (m.away_team || '').split('||special::')[0].trim();
-        if (freshData?.matches) {
-          const found = freshData.matches.some((sm: any) => matchTeamNames(rawHome, sm.home_team || '') && matchTeamNames(rawAway, sm.away_team || ''));
+        if (liveData?.matches) {
+          const found = liveData.matches.some((sm: any) => matchTeamNames(rawHome, sm.home_team || '') && matchTeamNames(rawAway, sm.away_team || ''));
           if (found) matchedCount++;
         }
       });
 
-      showAlert('success', `¡Momios sincronizados con éxito! ${matches.length} partidos procesados (${matchedCount} con cuotas directas de fuentes).`);
+      showAlert('success', `¡Momios actualizados con éxito! ${matchedCount}/${matches.length} partidos vinculados con cuotas reales.`);
     } catch (err: any) {
-      console.error('Error sincronizando momios:', err);
-      showAlert('error', 'No se pudieron sincronizar los momios.');
+      console.error('Error sincronizando momios desde The Odds API:', err);
+      // Fallback a archivo local si la red falla
+      try {
+        const res = await fetch(`/odds_liga_mx.json?t=${Date.now()}`);
+        if (res.ok) {
+          const localData = await res.json();
+          setOddsData(localData);
+          showAlert('warning', 'Se cargaron los momios de respaldo local.');
+        } else {
+          showAlert('error', 'No se pudieron sincronizar los momios.');
+        }
+      } catch (e) {
+        showAlert('error', 'No se pudieron sincronizar los momios.');
+      }
     } finally {
       setIsSyncingOdds(false);
     }
@@ -3201,6 +3212,52 @@ Mis pronósticos son:
       const assignedCombinations: Record<string, 'L' | 'E' | 'V'>[] = [];
       let poolsToInsert: any[] = [];
       let totalQuinielas = 0;
+
+      const generateManualBotPick = (m: Match): 'L' | 'E' | 'V' => {
+        if (botManualStrategy === 'pure_random') {
+          return options[Math.floor(Math.random() * options.length)];
+        }
+
+        if (botManualStrategy === 'organic_tendencies') {
+          const stats = humanTendencyStats[m.id];
+          if (stats && stats.totalVotes > 0) {
+            const r = Math.random() * 100;
+            if (r < stats.probL) return 'L';
+            if (r < stats.probL + stats.probE) return 'E';
+            return 'V';
+          }
+        }
+
+        // Obtener probabilidades desde The Odds API (o fallback por fortaleza)
+        const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+
+        if (botManualStrategy === 'favorites') {
+          const maxProb = Math.max(probL, probE, probV);
+          let fav: 'L' | 'E' | 'V' = 'L';
+          let others: ('L' | 'E' | 'V')[] = ['E', 'V'];
+
+          if (probL === maxProb) {
+            fav = 'L'; others = ['E', 'V'];
+          } else if (probV === maxProb) {
+            fav = 'V'; others = ['L', 'E'];
+          } else {
+            fav = 'E'; others = ['L', 'V'];
+          }
+
+          // 80% al favorito de mercado, 20% sorpresa calculada
+          if (Math.random() < 0.80) {
+            return fav;
+          } else {
+            return others[Math.floor(Math.random() * others.length)];
+          }
+        }
+
+        // Estrategia por defecto: 'odds_weighted' (Monte Carlo con momios reales)
+        const rand100 = Math.random() * 100;
+        if (rand100 < probL) return 'L';
+        if (rand100 < probL + probE) return 'E';
+        return 'V';
+      };
       
       for (const config of botConfigs) {
         const participant = finalParticipantsList.find(p => p.name.toLowerCase() === config.name.toLowerCase());
@@ -3209,7 +3266,7 @@ Mis pronósticos son:
           for (let i = 0; i < config.count; i++) {
             const picksToUse: Record<string, 'L' | 'E' | 'V'> = {};
             matches.forEach(m => {
-              picksToUse[m.id] = options[Math.floor(Math.random() * options.length)];
+              picksToUse[m.id] = generateManualBotPick(m);
             });
 
             assignedCombinations.push(picksToUse);
@@ -3222,7 +3279,8 @@ Mis pronósticos son:
               score: 0,
               reference_code: batchRefCode,
               validation_flags: [
-                `[GEN_TYPE:MANUAL_RANDOM]`,
+                `[GEN_TYPE:MANUAL_${botManualStrategy.toUpperCase()}]`,
+                `[STRATEGY:${botManualStrategy}]`,
                 `[MANUAL_BOT:${participant.name}]`
               ]
             });
@@ -3247,7 +3305,7 @@ Mis pronósticos son:
             predictionsToInsert.push({
               pool_id: pool.id,
               match_id: match.id,
-              selection: assignedCombo[match.id] || options[Math.floor(Math.random() * options.length)]
+              selection: assignedCombo[match.id] || generateManualBotPick(match)
             });
           });
         });
@@ -3260,7 +3318,14 @@ Mis pronósticos son:
         }
       }
 
-      showAlert('success', `🎲 ¡Se generaron exitosamente ${totalQuinielas} quinielas bot con pronósticos al azar!`);
+      const strategyLabels: Record<string, string> = {
+        odds_weighted: 'The Odds API (Monte Carlo Ponderado)',
+        favorites: 'Favoritos de Mercado',
+        organic_tendencies: 'Tendencia de Clientes Orgánicos',
+        pure_random: 'Puro Azar'
+      };
+
+      showAlert('success', `🤖 ¡Se generaron exitosamente ${totalQuinielas} quinielas bot con estrategia "${strategyLabels[botManualStrategy]}"!`);
 
       setBotInputText('');
       await loadParticipants();
@@ -10176,125 +10241,225 @@ Mis pronósticos son:
               </h2>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 style={{ margin: 0, fontSize: '0.96rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
-                        <BarChart2 size={18} /> Tendencias de Clientes
-                      </h3>
-                      {humanPoolsCount > 0 ? (
-                        <span style={{ fontSize: '0.72rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                          👥 {humanPoolsCount} participantes
+                {/* 1. Sección de Tendencias: 2 Bloques Idénticos (Casas de Apuestas vs Clientes Orgánicos) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'start' }}>
+                  
+                  {/* Bloque 1: Casas de Apuestas (Momios Oficiales) */}
+                  <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '10px', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '5px', color: '#fbbf24', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          <BarChart2 size={16} /> Casas de Apuestas
+                        </h3>
+                        <span style={{ fontSize: '0.68rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)', whiteSpace: 'nowrap' }}>
+                          🎲 Momios
                         </span>
-                      ) : (
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
-                          🎲 Basado en Momios Oficiales
-                        </span>
-                      )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isSyncingOdds}
+                        onClick={handleSyncOddsForActiveMatchday}
+                        title="Actualizar momios oficiales en vivo con The Odds API"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          fontSize: '0.68rem',
+                          fontWeight: 'bold',
+                          background: 'rgba(234, 179, 8, 0.15)',
+                          color: '#fbbf24',
+                          border: '1px solid rgba(234, 179, 8, 0.4)',
+                          borderRadius: '4px',
+                          cursor: isSyncingOdds ? 'wait' : 'pointer',
+                          width: 'auto',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        <RefreshCw size={11} className={isSyncingOdds ? 'animate-spin' : ''} />
+                        <span>{isSyncingOdds ? '...' : 'Actualizar'}</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={isRefreshingTendencies}
-                      onClick={loadHumanTendencies}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: '0.74rem',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: '#10b981',
-                        borderColor: 'rgba(16, 185, 129, 0.4)'
-                      }}
-                    >
-                      <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
-                      {isRefreshingTendencies ? '...' : 'Actualizar Tendencias'}
-                    </button>
+
+                    {/* Matriz Bloque 1 */}
+                    <div style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      padding: '6px 8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.08)'
+                    }}>
+                      <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <th style={{ width: '37%', padding: '4px 4px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map((m, i) => {
+                            const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                            const maxP = Math.max(probL, probE, probV);
+                            const homeLogo = getTeamLogo(m, true);
+                            const awayLogo = getTeamLogo(m, false);
+                            const homeName = getTeamName(m, true);
+                            const awayName = getTeamName(m, false);
+
+                            return (
+                              <tr key={`odds-${m.id}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
+                                <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '18px' }}>
+                                      P{i + 1}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0, justifyContent: 'flex-start' }}>
+                                      {homeLogo ? (
+                                        <img src={homeLogo} alt={homeName} title={homeName} style={{ width: '18px', height: '18px', objectFit: 'contain', flexShrink: 0 }} />
+                                      ) : (
+                                        <span style={{ fontSize: '0.64rem', fontWeight: 'bold', color: '#cbd5e1' }} title={homeName}>{homeName.slice(0, 3).toUpperCase()}</span>
+                                      )}
+                                      <span style={{ fontSize: '0.56rem', color: 'var(--text-muted)', flexShrink: 0, margin: '0 1px' }}>vs</span>
+                                      {awayLogo ? (
+                                        <img src={awayLogo} alt={awayName} title={awayName} style={{ width: '18px', height: '18px', objectFit: 'contain', flexShrink: 0 }} />
+                                      ) : (
+                                        <span style={{ fontSize: '0.64rem', fontWeight: 'bold', color: '#cbd5e1' }} title={awayName}>{awayName.slice(0, 3).toUpperCase()}</span>
+                                      )}
+                                    </div>
+                                    {m.is_reserve && (
+                                      <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
+                                        D
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#eab308' : 'inherit', background: probL === maxP ? 'rgba(234, 179, 8, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {probL}%
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#eab308' : 'inherit', background: probE === maxP ? 'rgba(234, 179, 8, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {probE}%
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#eab308' : 'inherit', background: probV === maxP ? 'rgba(234, 179, 8, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {probV}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  {/* Matriz de Tendencias en 2 Sub-Columnas (P1-P6 y P7-P11) con Logos (0 Scroll) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
-                    {[matches.slice(0, Math.ceil(matches.length / 2)), matches.slice(Math.ceil(matches.length / 2))].map((matchGroup, groupIdx) => {
-                      const offset = groupIdx === 0 ? 0 : Math.ceil(matches.length / 2);
-                      return (
-                        <div key={groupIdx} style={{
-                          background: 'rgba(0,0,0,0.3)',
-                          padding: '6px 8px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(255,255,255,0.08)'
-                        }}>
-                          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                            <thead>
-                              <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                <th style={{ width: '46%', padding: '4px 6px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
-                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
-                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
-                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
+                  {/* Bloque 2: Clientes Orgánicos (Comunidad Real) */}
+                  <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '10px', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          <BarChart2 size={16} /> Clientes Orgánicos
+                        </h3>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 'bold', background: humanPoolsCount > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)', color: humanPoolsCount > 0 ? '#34d399' : 'var(--text-secondary)', padding: '1px 6px', borderRadius: '4px', border: humanPoolsCount > 0 ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>
+                          👥 {humanPoolsCount}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isRefreshingTendencies}
+                        onClick={loadHumanTendencies}
+                        title="Actualizar votos de clientes"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          fontSize: '0.68rem',
+                          fontWeight: 'bold',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                          borderRadius: '4px',
+                          cursor: isRefreshingTendencies ? 'wait' : 'pointer',
+                          width: 'auto',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        <RefreshCw size={11} className={isRefreshingTendencies ? 'animate-spin' : ''} />
+                        <span>{isRefreshingTendencies ? '...' : 'Actualizar'}</span>
+                      </button>
+                    </div>
+
+                    {/* Matriz Bloque 2 */}
+                    <div style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      padding: '6px 8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.08)'
+                    }}>
+                      <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <th style={{ width: '37%', padding: '4px 4px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
+                            <th style={{ width: '21%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map((m, i) => {
+                            const stat = humanTendencyStats[m.id];
+                            const hasVotes = stat && stat.totalVotes > 0;
+                            const probL = hasVotes ? stat.probL : 0;
+                            const probE = hasVotes ? stat.probE : 0;
+                            const probV = hasVotes ? stat.probV : 0;
+                            const maxP = hasVotes ? Math.max(probL, probE, probV) : -1;
+                            const homeLogo = getTeamLogo(m, true);
+                            const awayLogo = getTeamLogo(m, false);
+                            const homeName = getTeamName(m, true);
+                            const awayName = getTeamName(m, false);
+
+                            return (
+                              <tr key={`human-${m.id}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
+                                <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '18px' }}>
+                                      P{i + 1}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0, justifyContent: 'flex-start' }}>
+                                      {homeLogo ? (
+                                        <img src={homeLogo} alt={homeName} title={homeName} style={{ width: '18px', height: '18px', objectFit: 'contain', flexShrink: 0 }} />
+                                      ) : (
+                                        <span style={{ fontSize: '0.64rem', fontWeight: 'bold', color: '#cbd5e1' }} title={homeName}>{homeName.slice(0, 3).toUpperCase()}</span>
+                                      )}
+                                      <span style={{ fontSize: '0.56rem', color: 'var(--text-muted)', flexShrink: 0, margin: '0 1px' }}>vs</span>
+                                      {awayLogo ? (
+                                        <img src={awayLogo} alt={awayName} title={awayName} style={{ width: '18px', height: '18px', objectFit: 'contain', flexShrink: 0 }} />
+                                      ) : (
+                                        <span style={{ fontSize: '0.64rem', fontWeight: 'bold', color: '#cbd5e1' }} title={awayName}>{awayName.slice(0, 3).toUpperCase()}</span>
+                                      )}
+                                    </div>
+                                    {m.is_reserve && (
+                                      <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
+                                        D
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: hasVotes && probL === maxP ? 'bold' : 'normal', color: hasVotes ? (probL === maxP ? '#10b981' : 'inherit') : 'var(--text-muted)', background: hasVotes && probL === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {hasVotes ? `${probL}%` : '-'}
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: hasVotes && probE === maxP ? 'bold' : 'normal', color: hasVotes ? (probE === maxP ? '#10b981' : 'inherit') : 'var(--text-muted)', background: hasVotes && probE === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {hasVotes ? `${probE}%` : '-'}
+                                </td>
+                                <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: hasVotes && probV === maxP ? 'bold' : 'normal', color: hasVotes ? (probV === maxP ? '#10b981' : 'inherit') : 'var(--text-muted)', background: hasVotes && probV === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                  {hasVotes ? `${probV}%` : '-'}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {matchGroup.map((m, idxInGroup) => {
-                                const i = offset + idxInGroup;
-                                const stat = humanTendencyStats[m.id] || (() => {
-                                  const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-                                  return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
-                                })();
-
-                                const { probL, probE, probV } = stat;
-                                const maxP = Math.max(probL, probE, probV);
-                                const homeLogo = getTeamLogo(m, true);
-                                const awayLogo = getTeamLogo(m, false);
-                                const homeName = getTeamName(m, true);
-                                const awayName = getTeamName(m, false);
-
-                                return (
-                                  <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
-                                    <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '18px' }}>
-                                          P{i + 1}
-                                        </span>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
-                                          {homeLogo ? (
-                                            <img src={homeLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
-                                          ) : null}
-                                          <span style={{ fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={homeName}>
-                                            {homeName.split(' ')[0]}
-                                          </span>
-                                          <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', flexShrink: 0 }}>v</span>
-                                          {awayLogo ? (
-                                            <img src={awayLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
-                                          ) : null}
-                                          <span style={{ fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={awayName}>
-                                            {awayName.split(' ')[0]}
-                                          </span>
-                                        </div>
-                                        {m.is_reserve && (
-                                          <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
-                                            D
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                      {probL}%
-                                    </td>
-                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                      {probE}%
-                                    </td>
-                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                      {probV}%
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })}
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -10567,15 +10732,124 @@ Mis pronósticos son:
 
                   <hr style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '18px 0 14px 0' }} />
 
-                  {/* Sección Secundaria: Modo Manual Personalizado (Pronósticos al Azar) */}
+                  {/* Sección Secundaria: Modo Manual Personalizado (Selector de Estrategia & Momios) */}
                   <details style={{ cursor: 'pointer' }}>
                     <summary style={{ fontSize: '0.86rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Dices size={16} color="var(--primary)" />
-                      <span>📝 Modo Manual Personalizado (Pronósticos al Azar)</span>
+                      <Sparkles size={16} color="var(--primary)" />
+                      <span>📝 Modo Manual Personalizado (Selector de Estrategia & Momios)</span>
                     </summary>
                     <div style={{ marginTop: '12px', background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      
+                      {/* Selector de Estrategia */}
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                          🎯 Estrategia de Pronóstico para los Bots:
+                        </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setBotManualStrategy('odds_weighted')}
+                            style={{
+                              padding: '8px 10px',
+                              fontSize: '0.78rem',
+                              borderRadius: '6px',
+                              border: `1px solid ${botManualStrategy === 'odds_weighted' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}`,
+                              background: botManualStrategy === 'odds_weighted' ? 'rgba(78, 204, 163, 0.15)' : 'rgba(255,255,255,0.03)',
+                              color: botManualStrategy === 'odds_weighted' ? 'var(--primary)' : 'var(--text-secondary)',
+                              fontWeight: botManualStrategy === 'odds_weighted' ? 'bold' : 'normal',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <TrendingUp size={14} /> <strong>The Odds API</strong> (Recomendado)
+                            </span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Ponderado por momios reales de casas de apuestas (Monte Carlo)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setBotManualStrategy('favorites')}
+                            style={{
+                              padding: '8px 10px',
+                              fontSize: '0.78rem',
+                              borderRadius: '6px',
+                              border: `1px solid ${botManualStrategy === 'favorites' ? '#f59e0b' : 'rgba(255,255,255,0.1)'}`,
+                              background: botManualStrategy === 'favorites' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.03)',
+                              color: botManualStrategy === 'favorites' ? '#f59e0b' : 'var(--text-secondary)',
+                              fontWeight: botManualStrategy === 'favorites' ? 'bold' : 'normal',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <Trophy size={14} /> <strong>Favoritos de Mercado</strong>
+                            </span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>80% al favorito de las cuotas + 20% sorpresa calculada</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setBotManualStrategy('organic_tendencies')}
+                            style={{
+                              padding: '8px 10px',
+                              fontSize: '0.78rem',
+                              borderRadius: '6px',
+                              border: `1px solid ${botManualStrategy === 'organic_tendencies' ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`,
+                              background: botManualStrategy === 'organic_tendencies' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+                              color: botManualStrategy === 'organic_tendencies' ? '#38bdf8' : 'var(--text-secondary)',
+                              fontWeight: botManualStrategy === 'organic_tendencies' ? 'bold' : 'normal',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <Users size={14} /> <strong>Tendencia Orgánica</strong>
+                            </span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Replica el comportamiento de los jugadores humanos</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setBotManualStrategy('pure_random')}
+                            style={{
+                              padding: '8px 10px',
+                              fontSize: '0.78rem',
+                              borderRadius: '6px',
+                              border: `1px solid ${botManualStrategy === 'pure_random' ? '#a855f7' : 'rgba(255,255,255,0.1)'}`,
+                              background: botManualStrategy === 'pure_random' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255,255,255,0.03)',
+                              color: botManualStrategy === 'pure_random' ? '#a855f7' : 'var(--text-secondary)',
+                              fontWeight: botManualStrategy === 'pure_random' ? 'bold' : 'normal',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <Dices size={14} /> <strong>Puro Azar</strong>
+                            </span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>33% Local, 33% Empate, 33% Visita equiprobable</span>
+                          </button>
+                        </div>
+                      </div>
+
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 10px 0' }}>
-                        Ingresa una lista con formato <code>Nombre del Bot, Cantidad</code> (un bot por línea). Cada quiniela generada tendrá pronósticos aleatorios e independientes:
+                        Ingresa una lista con formato <code>Nombre del Bot, Cantidad</code> (un bot por línea). Las quinielas se generarán aplicando la estrategia seleccionada:
                       </p>
                       <textarea 
                         className="input-field" 
@@ -10591,23 +10865,44 @@ Mis pronósticos son:
                         onClick={handleGenerateBots}
                         disabled={isGeneratingBots || !botInputText.trim()}
                         style={{ 
-                          padding: '9px 14px', 
+                          padding: '10px 14px', 
                           fontSize: '0.86rem', 
                           width: '100%', 
                           marginTop: '10px', 
                           display: 'flex', 
                           justifyContent: 'center', 
-                          alignItems: 'center',
+                          alignItems: 'center', 
                           gap: '8px', 
-                          background: 'rgba(56, 189, 248, 0.12)', 
-                          borderColor: '#38bdf8', 
-                          color: '#38bdf8', 
+                          background: botManualStrategy === 'odds_weighted' 
+                            ? 'rgba(78, 204, 163, 0.15)' 
+                            : botManualStrategy === 'favorites' 
+                              ? 'rgba(245, 158, 11, 0.15)'
+                              : botManualStrategy === 'organic_tendencies'
+                                ? 'rgba(56, 189, 248, 0.15)'
+                                : 'rgba(168, 85, 247, 0.15)', 
+                          borderColor: botManualStrategy === 'odds_weighted' 
+                            ? 'var(--primary)' 
+                            : botManualStrategy === 'favorites' 
+                              ? '#f59e0b'
+                              : botManualStrategy === 'organic_tendencies'
+                                ? '#38bdf8'
+                                : '#a855f7', 
+                          color: botManualStrategy === 'odds_weighted' 
+                            ? 'var(--primary)' 
+                            : botManualStrategy === 'favorites' 
+                              ? '#f59e0b'
+                              : botManualStrategy === 'organic_tendencies'
+                                ? '#38bdf8'
+                                : '#a855f7', 
                           fontWeight: 'bold',
                           cursor: isGeneratingBots || !botInputText.trim() ? 'not-allowed' : 'pointer',
                           opacity: isGeneratingBots || !botInputText.trim() ? 0.6 : 1
                         }}
                       >
-                        <Play size={15} /> 🎲 Generar Bots con Pronósticos al Azar
+                        {botManualStrategy === 'odds_weighted' && <><TrendingUp size={15} /> Generar Bots Ponderados con The Odds API</>}
+                        {botManualStrategy === 'favorites' && <><Trophy size={15} /> Generar Bots con Favoritos de Mercado</>}
+                        {botManualStrategy === 'organic_tendencies' && <><Users size={15} /> Generar Bots con Tendencia Orgánica</>}
+                        {botManualStrategy === 'pure_random' && <><Dices size={15} /> Generar Bots con Puro Azar (33%)</>}
                       </button>
                     </div>
                   </details>

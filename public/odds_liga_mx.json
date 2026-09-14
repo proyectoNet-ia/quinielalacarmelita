@@ -1,248 +1,1410 @@
 {
   "status": "success",
-  "updated_at": "2026-08-25T00:10:05.863Z",
-  "total_matches": 11,
+  "updated_at": "2026-09-14T23:34:37.890Z",
+  "total_matches": 78,
   "matches": [
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "7:00 PM",
-      "home_team": "Atlas",
-      "away_team": "Querétaro",
-      "odds_raw": [
-        "1.90",
-        "3.40",
-        "4.20"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-15T01:00:00Z",
+      "home_team": "León",
+      "away_team": "Atlético San Luis",
       "odds_decimal": {
-        "L": 1.9,
-        "E": 3.4,
-        "V": 4.2
+        "L": 1.77,
+        "E": 3.73,
+        "V": 4.09
       },
       "probabilities": {
-        "raw_margin_percent": 3.5,
+        "raw_margin_percent": 7.8,
         "prob_l": 52,
-        "prob_e": 27,
-        "prob_v": 21
+        "prob_e": 25,
+        "prob_v": 23
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "7:05 PM",
-      "home_team": "Pachuca",
-      "away_team": "Guadalajara",
-      "odds_raw": [
-        "2.35",
-        "3.20",
-        "3.10"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-16T01:00:00Z",
+      "home_team": "Puebla",
+      "away_team": "Toluca",
       "odds_decimal": {
-        "L": 2.35,
-        "E": 3.2,
-        "V": 3.1
+        "L": 4.64,
+        "E": 4.03,
+        "V": 1.62
       },
       "probabilities": {
-        "raw_margin_percent": 3.2,
-        "prob_l": 41,
-        "prob_e": 30,
+        "raw_margin_percent": 8.2,
+        "prob_l": 20,
+        "prob_e": 23,
+        "prob_v": 57
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-19T01:00:00Z",
+      "home_team": "Puebla",
+      "away_team": "Atlante FC",
+      "odds_decimal": {
+        "L": 2,
+        "E": 3.24,
+        "V": 2.95
+      },
+      "probabilities": {
+        "raw_margin_percent": 14.8,
+        "prob_l": 44,
+        "prob_e": 27,
         "prob_v": 29
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "9:05 PM",
-      "home_team": "Club América",
-      "away_team": "Puebla",
-      "odds_raw": [
-        "1.35",
-        "5.00",
-        "9.00"
-      ],
-      "odds_decimal": {
-        "L": 1.35,
-        "E": 5,
-        "V": 9
-      },
-      "probabilities": {
-        "raw_margin_percent": 3.8,
-        "prob_l": 72,
-        "prob_e": 18,
-        "prob_v": 10
-      }
-    },
-    {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "7:00 PM",
-      "home_team": "Santos Laguna",
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-19T03:00:00Z",
+      "home_team": "FC Juárez",
       "away_team": "Tigres",
-      "odds_raw": [
-        "3.90",
-        "3.40",
-        "1.98"
-      ],
       "odds_decimal": {
-        "L": 3.9,
-        "E": 3.4,
-        "V": 1.98
+        "L": 3.74,
+        "E": 3.44,
+        "V": 1.78
       },
       "probabilities": {
-        "raw_margin_percent": 3.4,
+        "raw_margin_percent": 12,
         "prob_l": 24,
-        "prob_e": 28,
-        "prob_v": 48
+        "prob_e": 26,
+        "prob_v": 50
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "12:00 PM",
-      "home_team": "Toluca",
-      "away_team": "Juárez FC",
-      "odds_raw": [
-        "1.42",
-        "4.60",
-        "7.50"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-19T23:00:00Z",
+      "home_team": "Atlas",
+      "away_team": "Pumas",
       "odds_decimal": {
-        "L": 1.42,
-        "E": 4.6,
-        "V": 7.5
+        "L": 2.31,
+        "E": 3.05,
+        "V": 2.75
       },
       "probabilities": {
-        "raw_margin_percent": 3.6,
+        "raw_margin_percent": 12.4,
+        "prob_l": 38,
+        "prob_e": 29,
+        "prob_v": 33
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-19T23:00:00Z",
+      "home_team": "Atlético San Luis",
+      "away_team": "Necaxa",
+      "odds_decimal": {
+        "L": 2.01,
+        "E": 3.23,
+        "V": 2.94
+      },
+      "probabilities": {
+        "raw_margin_percent": 14.6,
+        "prob_l": 43,
+        "prob_e": 27,
+        "prob_v": 30
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-20T01:00:00Z",
+      "home_team": "Monterrey",
+      "away_team": "Cruz Azul",
+      "odds_decimal": {
+        "L": 2.19,
+        "E": 3.49,
+        "V": 2.71
+      },
+      "probabilities": {
+        "raw_margin_percent": 11.1,
+        "prob_l": 41,
+        "prob_e": 26,
+        "prob_v": 33
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-20T03:15:00Z",
+      "home_team": "América",
+      "away_team": "Guadalajara",
+      "odds_decimal": {
+        "L": 2.4,
+        "E": 3.29,
+        "V": 2.54
+      },
+      "probabilities": {
+        "raw_margin_percent": 11.4,
+        "prob_l": 37,
+        "prob_e": 27,
+        "prob_v": 36
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-21T00:00:00Z",
+      "home_team": "Pachuca",
+      "away_team": "Tijuana",
+      "odds_decimal": {
+        "L": 1.78,
+        "E": 3.33,
+        "V": 3.66
+      },
+      "probabilities": {
+        "raw_margin_percent": 13.4,
+        "prob_l": 49,
+        "prob_e": 26,
+        "prob_v": 25
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-21T00:00:00Z",
+      "home_team": "Toluca",
+      "away_team": "Santos Laguna",
+      "odds_decimal": {
+        "L": 1.21,
+        "E": 5.76,
+        "V": 9.9
+      },
+      "probabilities": {
+        "raw_margin_percent": 10.2,
+        "prob_l": 75,
+        "prob_e": 16,
+        "prob_v": 9
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_mexico_ligamx",
+      "commence_time": "2026-09-21T02:05:00Z",
+      "home_team": "Querétaro",
+      "away_team": "León",
+      "odds_decimal": {
+        "L": 2.24,
+        "E": 3.36,
+        "V": 2.77
+      },
+      "probabilities": {
+        "raw_margin_percent": 10.5,
+        "prob_l": 40,
+        "prob_e": 27,
+        "prob_v": 33
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-15T17:00:00Z",
+      "home_team": "Rayo Vallecano",
+      "away_team": "Espanyol",
+      "odds_decimal": {
+        "L": 2.24,
+        "E": 3.4,
+        "V": 3.22
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.1,
+        "prob_l": 42,
+        "prob_e": 28,
+        "prob_v": 30
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-15T18:00:00Z",
+      "home_team": "Alavés",
+      "away_team": "Valencia",
+      "odds_decimal": {
+        "L": 1.84,
+        "E": 3.32,
+        "V": 4.84
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.1,
+        "prob_l": 52,
+        "prob_e": 29,
+        "prob_v": 19
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-15T19:30:00Z",
+      "home_team": "Elche CF",
+      "away_team": "Real Madrid",
+      "odds_decimal": {
+        "L": 11.59,
+        "E": 6.95,
+        "V": 1.22
+      },
+      "probabilities": {
+        "raw_margin_percent": 4.8,
+        "prob_l": 8,
+        "prob_e": 14,
+        "prob_v": 78
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-16T17:00:00Z",
+      "home_team": "Atlético Madrid",
+      "away_team": "CA Osasuna",
+      "odds_decimal": {
+        "L": 1.41,
+        "E": 4.76,
+        "V": 7.7
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.1,
         "prob_l": 68,
         "prob_e": 20,
         "prob_v": 12
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "6:00 PM",
-      "home_team": "Monterrey",
-      "away_team": "Atlético San Luis",
-      "odds_raw": [
-        "1.38",
-        "4.80",
-        "8.00"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-16T17:00:00Z",
+      "home_team": "Deportivo La Coruña",
+      "away_team": "Sevilla",
       "odds_decimal": {
-        "L": 1.38,
-        "E": 4.8,
-        "V": 8
+        "L": 2.49,
+        "E": 3.09,
+        "V": 3.05
       },
       "probabilities": {
-        "raw_margin_percent": 3.7,
-        "prob_l": 70,
-        "prob_e": 19,
-        "prob_v": 11
+        "raw_margin_percent": 5.3,
+        "prob_l": 38,
+        "prob_e": 31,
+        "prob_v": 31
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "1:45 PM",
-      "home_team": "Napoli",
-      "away_team": "Como 1917",
-      "odds_raw": [
-        "1.32",
-        "5.25",
-        "9.50"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-16T19:30:00Z",
+      "home_team": "Levante",
+      "away_team": "Athletic Bilbao",
       "odds_decimal": {
-        "L": 1.32,
-        "E": 5.25,
-        "V": 9.5
+        "L": 3.36,
+        "E": 3.49,
+        "V": 2.13
       },
       "probabilities": {
-        "raw_margin_percent": 3.9,
-        "prob_l": 74,
-        "prob_e": 17,
-        "prob_v": 9
-      }
-    },
-    {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "2:00 PM",
-      "home_team": "Celta de Vigo",
-      "away_team": "Athletic Club",
-      "odds_raw": [
-        "2.80",
-        "3.20",
-        "2.60"
-      ],
-      "odds_decimal": {
-        "L": 2.8,
-        "E": 3.2,
-        "V": 2.6
-      },
-      "probabilities": {
-        "raw_margin_percent": 3.1,
-        "prob_l": 34,
-        "prob_e": 34,
-        "prob_v": 32
-      }
-    },
-    {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "11:30 AM",
-      "home_team": "Aston Villa FC",
-      "away_team": "Arsenal FC",
-      "odds_raw": [
-        "3.40",
-        "3.50",
-        "2.10"
-      ],
-      "odds_decimal": {
-        "L": 3.4,
-        "E": 3.5,
-        "V": 2.1
-      },
-      "probabilities": {
-        "raw_margin_percent": 3.3,
+        "raw_margin_percent": 5.3,
         "prob_l": 28,
         "prob_e": 27,
         "prob_v": 45
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "2:00 PM",
-      "home_team": "FC Barcelona",
-      "away_team": "Rayo Vallecano",
-      "odds_raw": [
-        "1.25",
-        "6.00",
-        "11.00"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-16T19:30:00Z",
+      "home_team": "Barcelona",
+      "away_team": "Real Racing Club de Santander",
       "odds_decimal": {
-        "L": 1.25,
-        "E": 6,
-        "V": 11
+        "L": 1.06,
+        "E": 16.02,
+        "V": 26.8
       },
       "probabilities": {
-        "raw_margin_percent": 4.1,
-        "prob_l": 78,
-        "prob_e": 14,
-        "prob_v": 8
+        "raw_margin_percent": 4.6,
+        "prob_l": 90,
+        "prob_e": 6,
+        "prob_v": 4
       }
     },
     {
-      "source": "Oddschecker / Caliente.mx",
-      "time": "2:00 PM",
-      "home_team": "Real Madrid CF",
-      "away_team": "Málaga",
-      "odds_raw": [
-        "1.15",
-        "7.50",
-        "15.00"
-      ],
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-17T17:00:00Z",
+      "home_team": "Real Betis",
+      "away_team": "Getafe",
       "odds_decimal": {
-        "L": 1.15,
-        "E": 7.5,
-        "V": 15
+        "L": 1.74,
+        "E": 3.51,
+        "V": 5.14
       },
       "probabilities": {
-        "raw_margin_percent": 4.2,
-        "prob_l": 85,
-        "prob_e": 10,
-        "prob_v": 5
+        "raw_margin_percent": 5.3,
+        "prob_l": 54,
+        "prob_e": 27,
+        "prob_v": 19
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-17T19:30:00Z",
+      "home_team": "Málaga",
+      "away_team": "Villarreal",
+      "odds_decimal": {
+        "L": 3.6,
+        "E": 3.76,
+        "V": 1.96
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 26,
+        "prob_e": 25,
+        "prob_v": 49
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-18T19:00:00Z",
+      "home_team": "Espanyol",
+      "away_team": "Elche CF",
+      "odds_decimal": {
+        "L": 1.84,
+        "E": 3.45,
+        "V": 4.42
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 51,
+        "prob_e": 27,
+        "prob_v": 22
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-19T12:00:00Z",
+      "home_team": "CA Osasuna",
+      "away_team": "Rayo Vallecano",
+      "odds_decimal": {
+        "L": 2.24,
+        "E": 3.28,
+        "V": 3.21
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.3,
+        "prob_l": 42,
+        "prob_e": 29,
+        "prob_v": 29
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-19T14:15:00Z",
+      "home_team": "Athletic Bilbao",
+      "away_team": "Alavés",
+      "odds_decimal": {
+        "L": 1.65,
+        "E": 3.8,
+        "V": 5.18
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.1,
+        "prob_l": 57,
+        "prob_e": 25,
+        "prob_v": 18
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-19T16:30:00Z",
+      "home_team": "Celta Vigo",
+      "away_team": "Real Racing Club de Santander",
+      "odds_decimal": {
+        "L": 1.78,
+        "E": 3.89,
+        "V": 4.11
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.3,
+        "prob_l": 53,
+        "prob_e": 24,
+        "prob_v": 23
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-19T19:00:00Z",
+      "home_team": "Sevilla",
+      "away_team": "Barcelona",
+      "odds_decimal": {
+        "L": 10.92,
+        "E": 6.32,
+        "V": 1.23
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.9,
+        "prob_l": 9,
+        "prob_e": 15,
+        "prob_v": 76
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-20T12:00:00Z",
+      "home_team": "Getafe",
+      "away_team": "Málaga",
+      "odds_decimal": {
+        "L": 2.11,
+        "E": 3.03,
+        "V": 3.87
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.2,
+        "prob_l": 45,
+        "prob_e": 31,
+        "prob_v": 24
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-20T14:15:00Z",
+      "home_team": "Atlético Madrid",
+      "away_team": "Real Madrid",
+      "odds_decimal": {
+        "L": 3.9,
+        "E": 3.81,
+        "V": 1.85
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.9,
+        "prob_l": 24,
+        "prob_e": 25,
+        "prob_v": 51
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-20T16:30:00Z",
+      "home_team": "Deportivo La Coruña",
+      "away_team": "Real Betis",
+      "odds_decimal": {
+        "L": 2.84,
+        "E": 3.29,
+        "V": 2.47
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.1,
+        "prob_l": 33,
+        "prob_e": 29,
+        "prob_v": 38
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-20T16:30:00Z",
+      "home_team": "Villarreal",
+      "away_team": "Levante",
+      "odds_decimal": {
+        "L": 1.57,
+        "E": 4.28,
+        "V": 5.24
+      },
+      "probabilities": {
+        "raw_margin_percent": 6,
+        "prob_l": 60,
+        "prob_e": 22,
+        "prob_v": 18
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_spain_la_liga",
+      "commence_time": "2026-09-20T19:00:00Z",
+      "home_team": "Valencia",
+      "away_team": "Real Sociedad",
+      "odds_decimal": {
+        "L": 2.74,
+        "E": 3.35,
+        "V": 2.48
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 34,
+        "prob_e": 28,
+        "prob_v": 38
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-18T18:45:00Z",
+      "home_team": "Monza",
+      "away_team": "Sassuolo",
+      "odds_decimal": {
+        "L": 2.92,
+        "E": 3.39,
+        "V": 2.39
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.6,
+        "prob_l": 32,
+        "prob_e": 28,
+        "prob_v": 40
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-19T13:00:00Z",
+      "home_team": "Bologna",
+      "away_team": "Torino",
+      "odds_decimal": {
+        "L": 1.89,
+        "E": 3.5,
+        "V": 4.09
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 50,
+        "prob_e": 27,
+        "prob_v": 23
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-19T13:00:00Z",
+      "home_team": "Udinese",
+      "away_team": "Cagliari",
+      "odds_decimal": {
+        "L": 2.2,
+        "E": 3.2,
+        "V": 3.46
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.6,
+        "prob_l": 43,
+        "prob_e": 30,
+        "prob_v": 27
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-19T16:00:00Z",
+      "home_team": "AS Roma",
+      "away_team": "Inter Milan",
+      "odds_decimal": {
+        "L": 2.66,
+        "E": 3.39,
+        "V": 2.59
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.6,
+        "prob_l": 36,
+        "prob_e": 28,
+        "prob_v": 36
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-19T18:45:00Z",
+      "home_team": "Venezia",
+      "away_team": "Lazio",
+      "odds_decimal": {
+        "L": 3.5,
+        "E": 3.47,
+        "V": 2.06
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 27,
+        "prob_e": 27,
+        "prob_v": 46
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-20T10:30:00Z",
+      "home_team": "Fiorentina",
+      "away_team": "Napoli",
+      "odds_decimal": {
+        "L": 3.23,
+        "E": 3.37,
+        "V": 2.22
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.7,
+        "prob_l": 29,
+        "prob_e": 28,
+        "prob_v": 43
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-20T13:00:00Z",
+      "home_team": "Frosinone",
+      "away_team": "Como",
+      "odds_decimal": {
+        "L": 5.86,
+        "E": 4.37,
+        "V": 1.52
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.6,
+        "prob_l": 16,
+        "prob_e": 22,
+        "prob_v": 62
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-20T13:00:00Z",
+      "home_team": "Parma",
+      "away_team": "Genoa",
+      "odds_decimal": {
+        "L": 3.09,
+        "E": 3.01,
+        "V": 2.49
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.7,
+        "prob_l": 31,
+        "prob_e": 31,
+        "prob_v": 38
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-20T16:00:00Z",
+      "home_team": "Juventus",
+      "away_team": "Atalanta BC",
+      "odds_decimal": {
+        "L": 1.66,
+        "E": 3.91,
+        "V": 4.98
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 57,
+        "prob_e": 24,
+        "prob_v": 19
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_italy_serie_a",
+      "commence_time": "2026-09-20T18:45:00Z",
+      "home_team": "AC Milan",
+      "away_team": "Lecce",
+      "odds_decimal": {
+        "L": 1.28,
+        "E": 5.45,
+        "V": 10.89
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 74,
+        "prob_e": 17,
+        "prob_v": 9
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-18T19:00:00Z",
+      "home_team": "Brentford",
+      "away_team": "Chelsea",
+      "odds_decimal": {
+        "L": 2.88,
+        "E": 3.8,
+        "V": 2.26
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 33,
+        "prob_e": 25,
+        "prob_v": 42
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-19T11:30:00Z",
+      "home_team": "Tottenham Hotspur",
+      "away_team": "Aston Villa",
+      "odds_decimal": {
+        "L": 1.99,
+        "E": 3.63,
+        "V": 3.63
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.3,
+        "prob_l": 48,
+        "prob_e": 26,
+        "prob_v": 26
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-19T14:00:00Z",
+      "home_team": "Brighton and Hove Albion",
+      "away_team": "Arsenal",
+      "odds_decimal": {
+        "L": 4.81,
+        "E": 3.94,
+        "V": 1.69
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 20,
+        "prob_e": 24,
+        "prob_v": 56
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-19T14:00:00Z",
+      "home_team": "Everton",
+      "away_team": "Ipswich Town",
+      "odds_decimal": {
+        "L": 1.76,
+        "E": 3.81,
+        "V": 4.45
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 54,
+        "prob_e": 25,
+        "prob_v": 21
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-19T14:00:00Z",
+      "home_team": "Newcastle United",
+      "away_team": "Hull City",
+      "odds_decimal": {
+        "L": 1.58,
+        "E": 4.3,
+        "V": 5.26
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 60,
+        "prob_e": 22,
+        "prob_v": 18
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-19T16:30:00Z",
+      "home_team": "Nottingham Forest",
+      "away_team": "Coventry City",
+      "odds_decimal": {
+        "L": 1.66,
+        "E": 3.96,
+        "V": 5.01
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.4,
+        "prob_l": 57,
+        "prob_e": 24,
+        "prob_v": 19
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-20T13:00:00Z",
+      "home_team": "Bournemouth",
+      "away_team": "Liverpool",
+      "odds_decimal": {
+        "L": 3.14,
+        "E": 3.8,
+        "V": 2.12
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.3,
+        "prob_l": 30,
+        "prob_e": 25,
+        "prob_v": 45
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-20T13:00:00Z",
+      "home_team": "Leeds United",
+      "away_team": "Crystal Palace",
+      "odds_decimal": {
+        "L": 1.8,
+        "E": 3.76,
+        "V": 4.32
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.2,
+        "prob_l": 53,
+        "prob_e": 25,
+        "prob_v": 22
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-20T13:00:00Z",
+      "home_team": "Manchester City",
+      "away_team": "Sunderland",
+      "odds_decimal": {
+        "L": 1.3,
+        "E": 5.67,
+        "V": 9.63
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.2,
+        "prob_l": 73,
+        "prob_e": 17,
+        "prob_v": 10
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-09-20T15:30:00Z",
+      "home_team": "Fulham",
+      "away_team": "Manchester United",
+      "odds_decimal": {
+        "L": 3.46,
+        "E": 3.78,
+        "V": 2
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.3,
+        "prob_l": 27,
+        "prob_e": 25,
+        "prob_v": 48
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T11:30:00Z",
+      "home_team": "Arsenal",
+      "away_team": "Leeds United",
+      "odds_decimal": {
+        "L": 1.3,
+        "E": 5.31,
+        "V": 9.43
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.6,
+        "prob_l": 72,
+        "prob_e": 18,
+        "prob_v": 10
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T14:00:00Z",
+      "home_team": "Aston Villa",
+      "away_team": "Brentford",
+      "odds_decimal": {
+        "L": 2.46,
+        "E": 3.47,
+        "V": 2.66
+      },
+      "probabilities": {
+        "raw_margin_percent": 7,
+        "prob_l": 38,
+        "prob_e": 27,
+        "prob_v": 35
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T14:00:00Z",
+      "home_team": "Chelsea",
+      "away_team": "Bournemouth",
+      "odds_decimal": {
+        "L": 1.77,
+        "E": 4.12,
+        "V": 3.83
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.9,
+        "prob_l": 53,
+        "prob_e": 23,
+        "prob_v": 24
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T14:00:00Z",
+      "home_team": "Sunderland",
+      "away_team": "Brighton and Hove Albion",
+      "odds_decimal": {
+        "L": 2.94,
+        "E": 3.35,
+        "V": 2.33
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 32,
+        "prob_e": 28,
+        "prob_v": 40
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T14:00:00Z",
+      "home_team": "Ipswich Town",
+      "away_team": "Fulham",
+      "odds_decimal": {
+        "L": 2.64,
+        "E": 3.47,
+        "V": 2.5
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 35,
+        "prob_e": 27,
+        "prob_v": 38
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-10T16:30:00Z",
+      "home_team": "Manchester United",
+      "away_team": "Tottenham Hotspur",
+      "odds_decimal": {
+        "L": 1.62,
+        "E": 4.06,
+        "V": 4.56
+      },
+      "probabilities": {
+        "raw_margin_percent": 8.3,
+        "prob_l": 57,
+        "prob_e": 23,
+        "prob_v": 20
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-11T13:00:00Z",
+      "home_team": "Crystal Palace",
+      "away_team": "Nottingham Forest",
+      "odds_decimal": {
+        "L": 2.63,
+        "E": 3.23,
+        "V": 2.63
+      },
+      "probabilities": {
+        "raw_margin_percent": 7,
+        "prob_l": 36,
+        "prob_e": 29,
+        "prob_v": 35
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-11T13:00:00Z",
+      "home_team": "Hull City",
+      "away_team": "Everton",
+      "odds_decimal": {
+        "L": 3.68,
+        "E": 3.23,
+        "V": 2.06
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 26,
+        "prob_e": 29,
+        "prob_v": 45
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-11T15:30:00Z",
+      "home_team": "Liverpool",
+      "away_team": "Manchester City",
+      "odds_decimal": {
+        "L": 3.04,
+        "E": 3.67,
+        "V": 2.15
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 31,
+        "prob_e": 26,
+        "prob_v": 43
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_epl",
+      "commence_time": "2026-10-12T19:00:00Z",
+      "home_team": "Coventry City",
+      "away_team": "Newcastle United",
+      "odds_decimal": {
+        "L": 3.39,
+        "E": 3.62,
+        "V": 2.02
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.5,
+        "prob_l": 28,
+        "prob_e": 26,
+        "prob_v": 46
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T16:45:00Z",
+      "home_team": "RC Lens",
+      "away_team": "Sporting Lisbon",
+      "odds_decimal": {
+        "L": 2.35,
+        "E": 3.7,
+        "V": 2.71
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.6,
+        "prob_l": 40,
+        "prob_e": 25,
+        "prob_v": 35
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T16:45:00Z",
+      "home_team": "Sabah FK",
+      "away_team": "Slavia Praha",
+      "odds_decimal": {
+        "L": 3.49,
+        "E": 3.69,
+        "V": 1.97
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.6,
+        "prob_l": 27,
+        "prob_e": 25,
+        "prob_v": 48
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Arsenal",
+      "away_team": "Lille",
+      "odds_decimal": {
+        "L": 1.21,
+        "E": 6.28,
+        "V": 12.64
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.4,
+        "prob_l": 78,
+        "prob_e": 15,
+        "prob_v": 7
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Atlético Madrid",
+      "away_team": "Manchester United",
+      "odds_decimal": {
+        "L": 2.29,
+        "E": 3.77,
+        "V": 2.77
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.3,
+        "prob_l": 41,
+        "prob_e": 25,
+        "prob_v": 34
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Galatasaray",
+      "away_team": "Barcelona",
+      "odds_decimal": {
+        "L": 7.21,
+        "E": 5.55,
+        "V": 1.34
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.5,
+        "prob_l": 13,
+        "prob_e": 17,
+        "prob_v": 70
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Viking FK",
+      "away_team": "Bayern Munich",
+      "odds_decimal": {
+        "L": 18.68,
+        "E": 11.49,
+        "V": 1.09
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.7,
+        "prob_l": 5,
+        "prob_e": 8,
+        "prob_v": 87
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Inter Milan",
+      "away_team": "Club Brugge",
+      "odds_decimal": {
+        "L": 1.3,
+        "E": 5.36,
+        "V": 9.37
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.2,
+        "prob_l": 72,
+        "prob_e": 18,
+        "prob_v": 10
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "Villarreal",
+      "away_team": "Napoli",
+      "odds_decimal": {
+        "L": 2.3,
+        "E": 3.45,
+        "V": 2.94
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.5,
+        "prob_l": 41,
+        "prob_e": 27,
+        "prob_v": 32
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-13T19:00:00Z",
+      "home_team": "RB Leipzig",
+      "away_team": "PSV Eindhoven",
+      "odds_decimal": {
+        "L": 1.99,
+        "E": 3.95,
+        "V": 3.24
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.4,
+        "prob_l": 47,
+        "prob_e": 24,
+        "prob_v": 29
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T16:45:00Z",
+      "home_team": "Feyenoord",
+      "away_team": "Como",
+      "odds_decimal": {
+        "L": 3.42,
+        "E": 3.83,
+        "V": 1.98
+      },
+      "probabilities": {
+        "raw_margin_percent": 5.8,
+        "prob_l": 28,
+        "prob_e": 25,
+        "prob_v": 47
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T16:45:00Z",
+      "home_team": "LASK",
+      "away_team": "Liverpool",
+      "odds_decimal": {
+        "L": 10.5,
+        "E": 6.28,
+        "V": 1.24
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.3,
+        "prob_l": 9,
+        "prob_e": 15,
+        "prob_v": 76
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "Shakhtar Donetsk",
+      "away_team": "AEK Athens",
+      "odds_decimal": {
+        "L": 2.52,
+        "E": 3.45,
+        "V": 2.64
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.5,
+        "prob_l": 37,
+        "prob_e": 27,
+        "prob_v": 36
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "AS Roma",
+      "away_team": "Real Madrid",
+      "odds_decimal": {
+        "L": 3.7,
+        "E": 3.94,
+        "V": 1.84
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 25,
+        "prob_e": 24,
+        "prob_v": 51
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "Aston Villa",
+      "away_team": "Fenerbahce",
+      "odds_decimal": {
+        "L": 1.82,
+        "E": 3.66,
+        "V": 4.08
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.9,
+        "prob_l": 52,
+        "prob_e": 26,
+        "prob_v": 22
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "Bodø/Glimt",
+      "away_team": "Borussia Dortmund",
+      "odds_decimal": {
+        "L": 3.2,
+        "E": 3.89,
+        "V": 2.02
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.4,
+        "prob_l": 29,
+        "prob_e": 24,
+        "prob_v": 47
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "Manchester City",
+      "away_team": "Paris Saint Germain",
+      "odds_decimal": {
+        "L": 2.13,
+        "E": 3.92,
+        "V": 2.92
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.7,
+        "prob_l": 44,
+        "prob_e": 24,
+        "prob_v": 32
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "Real Betis",
+      "away_team": "Porto",
+      "odds_decimal": {
+        "L": 2.18,
+        "E": 3.59,
+        "V": 3.02
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.8,
+        "prob_l": 43,
+        "prob_e": 26,
+        "prob_v": 31
+      }
+    },
+    {
+      "source": "The Odds API",
+      "sport_key": "soccer_uefa_champs_league",
+      "commence_time": "2026-10-14T19:00:00Z",
+      "home_team": "ŠK Slovan Bratislava",
+      "away_team": "VfB Stuttgart",
+      "odds_decimal": {
+        "L": 7.52,
+        "E": 5.36,
+        "V": 1.34
+      },
+      "probabilities": {
+        "raw_margin_percent": 6.8,
+        "prob_l": 12,
+        "prob_e": 17,
+        "prob_v": 71
       }
     }
   ]
