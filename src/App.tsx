@@ -486,6 +486,8 @@ export default function App() {
   const [isGeneratingBots, setIsGeneratingBots] = useState(false);
   const [botSearchQuery, setBotSearchQuery] = useState('');
   const [targetPrizePoolInput, setTargetPrizePoolInput] = useState<number>(5000);
+  const [cloneMultiplierInput, setCloneMultiplierInput] = useState<number>(3);
+  const [cloneStrategyInput, setCloneStrategyInput] = useState<'organic60_40' | 'exact100'>('organic60_40');
 
   // --- Estados de Equipos ---
   const [teams, setTeams] = useState<Team[]>([]);
@@ -3399,7 +3401,12 @@ Mis pronósticos son:
       };
 
       const H = humanCombinations.length;
-      const blindageBotsCount = H * 3; // 3 bots por combinación humana
+      const multiplier = Math.max(1, Math.min(20, Number(cloneMultiplierInput) || 3));
+      const blindageBotsCount = H * multiplier; // Bots totales para clonar/variar las combinaciones humanas
+
+      const regularMatches = matches.filter(m => !m.is_reserve);
+      const reserveMatch = matches.find(m => m.is_reserve);
+      const desempateOptions: ('L' | 'E' | 'V')[] = ['L', 'E', 'V'];
 
       const existingNamesLower = new Set(participants.map((p: any) => p.name?.toLowerCase()));
       const botNamesSet = new Set<string>();
@@ -3440,7 +3447,7 @@ Mis pronósticos son:
         };
       };
 
-      // 3. FASE 1: Preparar datos para los 3*H bots de Blindaje 3x
+      // 3. FASE 1: Preparar datos para los multiplier*H bots de Blindaje
       const newParticipantsToCreate: any[] = [];
       for (let i = 0; i < blindageBotsCount; i++) {
         newParticipantsToCreate.push(createBotData());
@@ -3464,14 +3471,47 @@ Mis pronósticos son:
       for (let hIdx = 0; hIdx < H; hIdx++) {
         const humanCombo = humanCombinations[hIdx];
 
-        // Para esta combinación humana, asignamos 3 bots (Copia 1/3, 2/3, 3/3)
-        for (let copyNum = 1; copyNum <= 3; copyNum++) {
+        // Cantidad de clones idénticos 1-10 según la estrategia seleccionada (60/40 u Exacto 100%)
+        const exactCount = cloneStrategyInput === 'organic60_40'
+          ? (multiplier === 1 ? 1 : Math.max(1, Math.ceil(multiplier * 0.6)))
+          : multiplier;
+
+        for (let copyNum = 1; copyNum <= multiplier; copyNum++) {
           const botPartData = newParticipantsToCreate[botIdx];
           botIdx++;
 
           const batchRefCode = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+          const isExactClone = copyNum <= exactCount;
 
-          // A) Quiniela Clon (1° Lugar garantizado compartido si el humano gana)
+          // Construcción de pronósticos
+          const botPicks: Record<string, 'L' | 'E' | 'V'> = { ...humanCombo.picks };
+
+          // 1. Manejo del Partido 11 / Reserva (Desempate): Rotación cíclica L, E, V
+          let desempatePickStr = '';
+          if (reserveMatch) {
+            const humanReservePick = humanCombo.picks[reserveMatch.id] || 'L';
+            let hResIdx = desempateOptions.indexOf(humanReservePick);
+            if (hResIdx === -1) hResIdx = 0;
+            const rotatedResPick = desempateOptions[(hResIdx + (copyNum - 1)) % 3];
+            botPicks[reserveMatch.id] = rotatedResPick;
+            desempatePickStr = `Desempate ${rotatedResPick}`;
+          }
+
+          // 2. Manejo de Variantes en Partidos 1-10 para las copias restantes (40%)
+          let variantDetailStr = isExactClone ? 'Exacto 1-10' : '';
+          if (!isExactClone && regularMatches.length > 0) {
+            // Seleccionar partido regular de forma rotativa para variar
+            const matchToVary = regularMatches[(copyNum - 1) % regularMatches.length];
+            const currentPick = botPicks[matchToVary.id];
+            const altOptions = (['L', 'E', 'V'] as const).filter(o => o !== currentPick);
+            const altPick = altOptions[Math.floor(Math.random() * altOptions.length)];
+            botPicks[matchToVary.id] = altPick;
+            variantDetailStr = `Var. P${regularMatches.indexOf(matchToVary) + 1} (${currentPick}→${altPick})`;
+          }
+
+          const copyFlagLabel = `${copyNum}/${multiplier} (${variantDetailStr}${desempatePickStr ? ` | ${desempatePickStr}` : ''})`;
+
+          // A) Quiniela Clon / Variante Inteligente
           botPoolPlans.push({
             botName: botPartData.name,
             batchRefCode,
@@ -3480,11 +3520,12 @@ Mis pronósticos son:
             cloneOfName: humanCombo.ownerName,
             cloneOfAlias: humanCombo.ownerAlias,
             sourceRef: humanCombo.refCode,
-            picks: humanCombo.picks,
+            picks: botPicks,
             validationFlags: [
               `[CLONE_OF:${humanCombo.ownerName} (@${humanCombo.ownerAlias})]`,
               `[SOURCE_REF:${humanCombo.refCode || 'N/A'}]`,
-              `[CLONE_COPY:${copyNum}/3]`
+              `[CLONE_COPY:${copyFlagLabel}]`,
+              `[CLONE_TYPE:${isExactClone ? 'EXACT_PODIUM' : 'SMART_VARIANT'}]`
             ]
           });
 
@@ -3598,7 +3639,7 @@ Mis pronósticos son:
       const totalGrandPools = currentApprovedCount + poolsToInsert.length;
       const totalRecaudado = totalGrandPools * pricePerEntry;
 
-      showAlert('success', `🛡️ ¡Blindaje 3x y Bolsa Superada con Éxito! Se generaron ${newParticipantsToCreate.length} bots (${blindageBotsCount} blindaje 3x + ${additionalVolumeBotsCount} volumen orgánico) sumando ${poolsToInsert.length} nuevas quinielas. Total en jornada: ${totalGrandPools} quinielas ($${totalRecaudado.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados, superando la bolsa de $${targetPrizePool.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN).`);
+      showAlert('success', `🛡️ ¡Blindaje ${multiplier}x (${cloneStrategyInput === 'organic60_40' ? 'Orgánico 60/40' : '100% Exacto'}) y Bolsa Superada con Éxito! Se generaron ${newParticipantsToCreate.length} bots (${blindageBotsCount} blindaje + ${additionalVolumeBotsCount} volumen orgánico) sumando ${poolsToInsert.length} nuevas quinielas. Total en jornada: ${totalGrandPools} quinielas ($${totalRecaudado.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados, superando la bolsa de $${targetPrizePool.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN).`);
 
       await loadInitialData();
       await loadParticipants();
@@ -10201,10 +10242,10 @@ Mis pronósticos son:
 
                 <div className="card">
                   <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShieldCheck size={20} color="var(--primary)" /> Blindaje 3x & Generadores Inteligentes 1-Clic
+                    <ShieldCheck size={20} color="var(--primary)" /> Blindaje Configurable & Generadores Inteligentes 1-Clic
                   </h3>
 
-                  {/* Tarjeta Destacada: Blindaje 3x con Camuflaje Natural y Superación de Bolsa */}
+                  {/* Tarjeta Destacada: Blindaje con Variabilidad Orgánica y Superación de Bolsa */}
                   <div style={{
                     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(234, 179, 8, 0.12) 100%)',
                     border: '1.5px solid rgba(16, 185, 129, 0.45)',
@@ -10212,116 +10253,228 @@ Mis pronósticos son:
                     padding: '18px',
                     marginBottom: '20px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '1.25rem' }}>🛡️</span>
-                        <strong style={{ fontSize: '1rem', color: '#10b981' }}>
-                          Blindaje 3x con Superación de Bolsa Estimada
+                        <strong style={{ fontSize: '1.05rem', color: '#10b981' }}>
+                          Blindaje de Podio {cloneMultiplierInput}x con Variabilidad Orgánica
                         </strong>
                       </div>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        color: '#34d399',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(16, 185, 129, 0.4)'
-                      }}>
-                        🧬 {humanPoolsCount} Combinaciones Humanas Detectadas
-                      </span>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#34d399',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                        }}>
+                          🧬 {humanPoolsCount} Combinaciones Humanas
+                        </span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          background: 'rgba(234, 179, 8, 0.2)',
+                          color: '#fbbf24',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(234, 179, 8, 0.4)'
+                        }}>
+                          🤖 {humanPoolsCount * cloneMultiplierInput} Bots Blindaje
+                        </span>
+                      </div>
                     </div>
 
-                    <p style={{ fontSize: '0.82rem', color: '#d1fae5', margin: '0 0 14px 0', lineHeight: 1.45 }}>
-                      1. <strong>Blindaje 3x:</strong> Asigna 3 bots únicos por cada humano (1 clon + 3 a 8 quinielas de camuflaje c/u).<br />
-                      2. <strong>Superación de Bolsa ($5,000+):</strong> Inyecta automáticamente bots adicionales con paquetes de compra realistas (3 a 8 quinielas) hasta garantizar que la recaudación total supere con holgura la bolsa estimada del premio.
-                    </p>
-
-                    {/* Selector / Ajuste de Bolsa Estimada Objetivo */}
+                    {/* Controles de Configuración: Multiplicador, Estrategia y Bolsa */}
                     <div style={{
-                      background: 'rgba(0, 0, 0, 0.3)',
+                      background: 'rgba(0, 0, 0, 0.35)',
                       borderRadius: '8px',
-                      padding: '12px 14px',
+                      padding: '14px',
                       marginBottom: '14px',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                      gap: '12px',
-                      alignItems: 'center'
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px'
                     }}>
+                      {/* 1. Multiplicador de Bots por Humano */}
                       <div>
-                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                          💰 Bolsa Estimada Objetivo ($ MXN):
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                          🛡️ Multiplicador de Bots por Participante Humano:
                         </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <input
                             type="number"
-                            min="500"
-                            step="500"
-                            value={targetPrizePoolInput}
-                            onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
+                            min="1"
+                            max="20"
+                            value={cloneMultiplierInput}
+                            onChange={(e) => setCloneMultiplierInput(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
                             className="input-field"
-                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '130px', color: '#eab308' }}
+                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '90px', color: '#10b981', textAlign: 'center' }}
                           />
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setTargetPrizePoolInput(5000)}
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '0.72rem',
-                                borderRadius: '4px',
-                                background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              $5,000
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTargetPrizePoolInput(10000)}
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '0.72rem',
-                                borderRadius: '4px',
-                                background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              $10,000
-                            </button>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {[1, 2, 3, 5, 10].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => setCloneMultiplierInput(num)}
+                                style={{
+                                  padding: '5px 10px',
+                                  fontSize: '0.75rem',
+                                  borderRadius: '4px',
+                                  background: cloneMultiplierInput === num ? '#10b981' : 'rgba(255,255,255,0.08)',
+                                  color: cloneMultiplierInput === num ? '#000' : '#fff',
+                                  border: cloneMultiplierInput === num ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                {num}x
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ fontSize: '0.78rem', color: '#e2e8f0', borderLeft: '2px solid rgba(16, 185, 129, 0.4)', paddingLeft: '10px' }}>
-                        <div>🎯 Meta Mínima: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} quinielas</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
-                        <div style={{ marginTop: '2px', color: '#34d399' }}>
-                          📊 Actuales en jornada: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
+                      {/* 2. Selector de Estrategia de Variación */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                          🌿 Estrategia de Pronósticos y Camuflaje:
+                        </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setCloneStrategyInput('organic60_40')}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: '6px',
+                              background: cloneStrategyInput === 'organic60_40' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
+                              border: cloneStrategyInput === 'organic60_40' ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                              color: cloneStrategyInput === 'organic60_40' ? '#34d399' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '3px'
+                            }}
+                          >
+                            <span style={{ fontWeight: 'bold', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              🌿 Orgánica 60/40 + Desempates L/E/V
+                            </span>
+                            <span style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: 1.3 }}>
+                              60% idénticos del P1 al P10 (aseguran 1° lugar), 40% con 1 variante sutil + Partido 11 rotado cíclicamente (L, E, V).
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setCloneStrategyInput('exact100')}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: '6px',
+                              background: cloneStrategyInput === 'exact100' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
+                              border: cloneStrategyInput === 'exact100' ? '1.5px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                              color: cloneStrategyInput === 'exact100' ? '#60a5fa' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '3px'
+                            }}
+                          >
+                            <span style={{ fontWeight: 'bold', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              🎯 100% Clones Exactos
+                            </span>
+                            <span style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: 1.3 }}>
+                              Todos los bots replican exactamente todos los pronósticos del humano sin ninguna variación.
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 3. Bolsa Estimada Objetivo */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                            💰 Bolsa Estimada Objetivo ($ MXN):
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input
+                              type="number"
+                              min="500"
+                              step="500"
+                              value={targetPrizePoolInput}
+                              onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
+                              className="input-field"
+                              style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '120px', color: '#eab308' }}
+                            />
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                onClick={() => setTargetPrizePoolInput(5000)}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.72rem',
+                                  borderRadius: '4px',
+                                  background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                $5,000
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTargetPrizePoolInput(10000)}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.72rem',
+                                  borderRadius: '4px',
+                                  background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                $10,000
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: '#e2e8f0', borderLeft: '2px solid rgba(16, 185, 129, 0.4)', paddingLeft: '10px' }}>
+                          <div>🎯 Meta Mínima: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} quinielas</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
+                          <div style={{ marginTop: '2px', color: '#34d399' }}>
+                            📊 Actuales en jornada: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
+                          </div>
                         </div>
                       </div>
                     </div>
 
+                    {/* Proyección Detallada en Vivo */}
                     <div style={{ 
-                      background: 'rgba(0, 0, 0, 0.4)', 
+                      background: 'rgba(0, 0, 0, 0.45)', 
                       borderRadius: '6px', 
-                      padding: '10px 12px', 
+                      padding: '12px 14px', 
                       marginBottom: '14px',
                       fontSize: '0.78rem',
                       color: '#e2e8f0',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
+                      flexDirection: 'column',
+                      gap: '6px'
                     }}>
-                      <Sparkles size={16} color="#eab308" style={{ flexShrink: 0 }} />
-                      <span>
-                        Proyección: <strong>{humanPoolsCount * 3} bots blindaje</strong> + volumen orgánico necesario para alcanzar <strong>{Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8)} quinielas</strong> (~${(Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8) * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados).
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sparkles size={16} color="#eab308" style={{ flexShrink: 0 }} />
+                        <span>
+                          <strong>Proyección en Vivo:</strong> Para {humanPoolsCount} participantes humanos se crearán <strong>{humanPoolsCount * cloneMultiplierInput} bots de blindaje</strong> {cloneStrategyInput === 'organic60_40' ? `(${humanPoolsCount * (cloneMultiplierInput === 1 ? 1 : Math.max(1, Math.ceil(cloneMultiplierInput * 0.6)))} clones idénticos P1-10 + ${humanPoolsCount * (cloneMultiplierInput - (cloneMultiplierInput === 1 ? 1 : Math.max(1, Math.ceil(cloneMultiplierInput * 0.6))))} variantes inteligentes + desempates L/E/V distribuidos)` : '(100% copias idénticas)'}.
+                        </span>
+                      </div>
+                      <div style={{ paddingLeft: '24px', color: 'var(--text-secondary)' }}>
+                        ➕ Cada bot incluirá de 3 a 8 quinielas adicionales de camuflaje natural + inyección de volumen para alcanzar al menos <strong>{Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8)} quinielas</strong> (~${(Math.max(approvedPoolsCount, Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25)) + 8) * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN recaudados).
+                      </div>
                     </div>
 
                     <button
@@ -10331,7 +10484,7 @@ Mis pronósticos son:
                       onClick={handleGenerateTripleBlindageBots}
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: '13px 16px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -10340,7 +10493,7 @@ Mis pronósticos son:
                         borderColor: '#10b981',
                         color: '#ffffff',
                         fontWeight: 'bold',
-                        fontSize: '0.92rem',
+                        fontSize: '0.94rem',
                         boxShadow: humanPoolsCount > 0 ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
                         cursor: humanPoolsCount === 0 || isGeneratingBots ? 'not-allowed' : 'pointer',
                         opacity: humanPoolsCount === 0 ? 0.6 : 1
@@ -10348,9 +10501,9 @@ Mis pronósticos son:
                     >
                       <ShieldCheck size={18} />
                       {isGeneratingBots 
-                        ? 'Generando Blindaje 3x y Volumen para Superar Bolsa...' 
+                        ? `Generando Blindaje ${cloneMultiplierInput}x y Superando Bolsa...` 
                         : humanPoolsCount > 0 
-                          ? `🛡️ Ejecutar Blindaje 3x + Superar Bolsa ($${targetPrizePoolInput.toLocaleString('es-MX')} MXN)`
+                          ? `🛡️ Ejecutar Blindaje ${cloneMultiplierInput}x (${cloneStrategyInput === 'organic60_40' ? 'Orgánico 60/40' : 'Exacto'}) + Superar Bolsa ($${targetPrizePoolInput.toLocaleString('es-MX')} MXN)`
                           : '🛡️ Sin Combinaciones Humanas para Blindar'}
                     </button>
                   </div>
@@ -12804,8 +12957,10 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
             {/* Banner de Verificación de Clon / Camuflaje */}
             {viewBotModal.cloneOf ? (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)',
-                border: '1px solid #10b981',
+                background: viewBotModal.cloneCopy?.includes('Var.') 
+                  ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(202, 138, 4, 0.22) 100%)'
+                  : 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)',
+                border: viewBotModal.cloneCopy?.includes('Var.') ? '1px solid #eab308' : '1px solid #10b981',
                 borderRadius: '8px',
                 padding: '12px 16px',
                 marginBottom: '16px',
@@ -12816,19 +12971,19 @@ ALTER TABLE public.promo_codes ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAUL
                 gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.5rem' }}>🧬</span>
+                  <span style={{ fontSize: '1.5rem' }}>{viewBotModal.cloneCopy?.includes('Var.') ? '🌿' : '🧬'}</span>
                   <div>
-                    <div style={{ fontWeight: 'bold', color: '#10b981', fontSize: '0.92rem' }}>
-                      Clon Idéntico Verificado {viewBotModal.cloneCopy ? `(Copia ${viewBotModal.cloneCopy})` : ''}
+                    <div style={{ fontWeight: 'bold', color: viewBotModal.cloneCopy?.includes('Var.') ? '#fbbf24' : '#10b981', fontSize: '0.92rem' }}>
+                      {viewBotModal.cloneCopy?.includes('Var.') ? 'Variante Estratégica' : 'Clon Principal'} {viewBotModal.cloneCopy ? `[${viewBotModal.cloneCopy}]` : ''}
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: '#d1fae5' }}>
-                      Copia exacta de los pronósticos de: <strong>{viewBotModal.cloneOf}</strong>
+                    <div style={{ fontSize: '0.82rem', color: viewBotModal.cloneCopy?.includes('Var.') ? '#fef3c7' : '#d1fae5' }}>
+                      Derivado de los pronósticos de: <strong>{viewBotModal.cloneOf}</strong>
                       {viewBotModal.sourceRef && viewBotModal.sourceRef !== 'N/A' ? ` (Folio original: ${viewBotModal.sourceRef})` : ''}
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', background: '#10b981', color: '#000', padding: '4px 10px', borderRadius: '12px' }}>
-                  ✓ 100% Coincidencia
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', background: viewBotModal.cloneCopy?.includes('Var.') ? '#eab308' : '#10b981', color: '#000', padding: '4px 10px', borderRadius: '12px' }}>
+                  {viewBotModal.cloneCopy?.includes('Var.') ? '✓ Variante Inteligente' : '✓ Coincidencia P1-10'}
                 </div>
               </div>
             ) : viewBotModal.isCamouflage ? (
