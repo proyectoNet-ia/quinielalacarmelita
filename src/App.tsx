@@ -713,6 +713,20 @@ export default function App() {
       .catch(() => console.log('Sin odds_liga_mx.json inicial'));
   }, []);
 
+  interface MatchTendency {
+    probL: number;
+    probE: number;
+    probV: number;
+    countL: number;
+    countE: number;
+    countV: number;
+    totalVotes: number;
+    source: 'human' | 'odds';
+  }
+
+  const [humanTendencyStats, setHumanTendencyStats] = useState<Record<string, MatchTendency>>({});
+  const [isRefreshingTendencies, setIsRefreshingTendencies] = useState(false);
+
   const getMatchProbabilities = (match: any, oddsObj: any) => {
     let probL = 50;
     let probE = 28;
@@ -748,6 +762,68 @@ export default function App() {
     }
 
     return { probL, probE, probV };
+  };
+
+  const loadHumanTendencies = async () => {
+    if (!activeMatchday || matches.length === 0) return;
+
+    try {
+      setIsRefreshingTendencies(true);
+
+      const humanParticipantIds = new Set(
+        participants
+          .filter(p => p.phone !== 'BOT-0000' && !p.phone.startsWith('BOT-'))
+          .map(p => p.id)
+      );
+
+      const humanPools = allPoolsForMatchday.filter(p => humanParticipantIds.has(p.participant_id) && p.payment_status === 'approved');
+      const humanPoolIds = humanPools.map(p => p.id);
+
+      const tendencies: Record<string, MatchTendency> = {};
+
+      if (humanPoolIds.length > 0) {
+        const { data: humanPredsData, error: predsErr } = await supabase
+          .from('predictions')
+          .select('pool_id, match_id, selection')
+          .in('pool_id', humanPoolIds);
+
+        if (!predsErr && humanPredsData) {
+          matches.forEach(m => {
+            let countL = 0;
+            let countE = 0;
+            let countV = 0;
+
+            humanPredsData.filter(pr => pr.match_id === m.id).forEach(pr => {
+              if (pr.selection === 'L') countL++;
+              else if (pr.selection === 'E') countE++;
+              else if (pr.selection === 'V') countV++;
+            });
+
+            const totalVotes = countL + countE + countV;
+            if (totalVotes > 0) {
+              const probL = Math.round((countL / totalVotes) * 100);
+              const probE = Math.round((countE / totalVotes) * 100);
+              const probV = Math.max(0, 100 - probL - probE);
+              tendencies[m.id] = { probL, probE, probV, countL, countE, countV, totalVotes, source: 'human' };
+            } else {
+              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+              tendencies[m.id] = { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' };
+            }
+          });
+        }
+      } else {
+        matches.forEach(m => {
+          const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+          tendencies[m.id] = { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' };
+        });
+      }
+
+      setHumanTendencyStats(tendencies);
+    } catch (err) {
+      console.error('Error calculando tendencias humanas:', err);
+    } finally {
+      setIsRefreshingTendencies(false);
+    }
   };
 
   const [isSyncingOdds, setIsSyncingOdds] = useState(false);
@@ -1214,8 +1290,9 @@ export default function App() {
         }
       };
       fetchLastWinners();
+      loadHumanTendencies();
     }
-  }, [activeTab, isAdmin]);
+  }, [activeTab, isAdmin, activeMatchday?.id, allPoolsForMatchday.length]);
 
   // Mostrar alertas temporales
   const showAlert = (type: 'success' | 'error', text: string) => {
@@ -3278,14 +3355,41 @@ Mis pronósticos son:
         console.log('Usando probabilidades base para camuflaje');
       }
 
+      // Calcular la distribución y proporción real de votos de los clientes humanos
+      const humanVoteDistribution: Record<string, { pL: number; pE: number; pV: number }> = {};
+      matches.forEach(m => {
+        let countL = 0;
+        let countE = 0;
+        let countV = 0;
+        humanCombinations.forEach(hc => {
+          const pick = hc.picks[m.id];
+          if (pick === 'L') countL++;
+          else if (pick === 'E') countE++;
+          else if (pick === 'V') countV++;
+        });
+
+        const totalVotes = countL + countE + countV;
+        if (totalVotes > 0) {
+          humanVoteDistribution[m.id] = {
+            pL: countL / totalVotes,
+            pE: countE / totalVotes,
+            pV: countV / totalVotes
+          };
+        } else {
+          humanVoteDistribution[m.id] = { pL: 0.46, pE: 0.30, pV: 0.24 };
+        }
+      });
+
       const generateOddsPicks = (): Record<string, 'L' | 'E' | 'V'> => {
         const camouPicks: Record<string, 'L' | 'E' | 'V'> = {};
         matches.forEach(match => {
-          let pL = 0.50;
-          let pE = 0.28;
-          let pV = 0.22;
+          const dist = humanVoteDistribution[match.id] || { pL: 0.46, pE: 0.30, pV: 0.24 };
+          let pL = dist.pL;
+          let pE = dist.pE;
+          let pV = dist.pV;
 
-          if (scrapedOddsData?.matches) {
+          // Si no hay votos humanos en este juego, consultar momios
+          if (dist.pL === 0.46 && dist.pE === 0.30 && dist.pV === 0.24 && scrapedOddsData?.matches) {
             const homeName = match.home_team || '';
             const awayName = match.away_team || '';
             const scrapedMatch = scrapedOddsData.matches.find((sm: any) => {
@@ -3301,12 +3405,12 @@ Mis pronósticos son:
 
           const rand = Math.random();
           let choice: 'L' | 'E' | 'V';
-          if (pL >= pV && pL >= pE) {
-            choice = rand < 0.68 ? 'L' : rand < 0.86 ? 'E' : 'V';
-          } else if (pV >= pL && pV >= pE) {
-            choice = rand < 0.66 ? 'V' : rand < 0.85 ? 'E' : 'L';
+          if (rand < pL) {
+            choice = 'L';
+          } else if (rand < pL + pE) {
+            choice = 'E';
           } else {
-            choice = rand < 0.40 ? 'L' : rand < 0.75 ? 'E' : 'V';
+            choice = 'V';
           }
           camouPicks[match.id] = choice;
         });
@@ -10088,17 +10192,28 @@ Mis pronósticos son:
                       <em>La cobertura teórica asume que las quinielas se distribuyen de forma uniforme sobre las {totalCombinations.toLocaleString()} combinaciones. Matemáticamente aumenta tu probabilidad de obtener la quiniela perfecta.</em>
                     </p>
 
-                    {/* Matriz de Probabilidades Estadísticas / Momios Admin */}
+                    {/* Matriz de Tendencias Reales (Selección de Clientes Humanos) */}
                     <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
-                          <BarChart2 size={16} /> Matriz de Probabilidades Implícitas (Momios Admin)
-                        </h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
+                            <BarChart2 size={16} /> Matriz de Tendencias (Selección de Clientes)
+                          </h4>
+                          {humanPoolsCount > 0 ? (
+                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                              👥 {humanPoolsCount} Clientes Reales
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
+                              🎲 Base Momios (0 Clientes)
+                            </span>
+                          )}
+                        </div>
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          disabled={isSyncingOdds}
-                          onClick={handleSyncOddsForActiveMatchday}
+                          disabled={isRefreshingTendencies}
+                          onClick={loadHumanTendencies}
                           style={{
                             padding: '4px 10px',
                             fontSize: '0.72rem',
@@ -10111,8 +10226,8 @@ Mis pronósticos son:
                             borderColor: 'rgba(16, 185, 129, 0.4)'
                           }}
                         >
-                          <RefreshCw size={12} className={isSyncingOdds ? 'animate-spin' : ''} />
-                          {isSyncingOdds ? 'Sincronizando...' : 'Sincronizar Momios 1-Clic'}
+                          <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
+                          {isRefreshingTendencies ? 'Actualizando...' : 'Actualizar Tendencias'}
                         </button>
                       </div>
                       <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
@@ -10127,21 +10242,26 @@ Mis pronósticos son:
                           </thead>
                           <tbody>
                             {matches.map((m, i) => {
-                              const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                              const stat = humanTendencyStats[m.id] || (() => {
+                                const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                                return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
+                              })();
+
+                              const { probL, probE, probV, countL, countE, countV, source, totalVotes } = stat;
                               const maxP = Math.max(probL, probE, probV);
                               return (
                                 <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                   <td style={{ padding: '6px 8px', fontWeight: '500' }}>
                                     P{i + 1}. {getTeamName(m, true)} vs {getTeamName(m, false)}
                                   </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? 'var(--primary)' : 'inherit' }}>
-                                    {probL}%
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit' }}>
+                                    {probL}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countL})</span> : ''}
                                   </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? 'var(--primary)' : 'inherit' }}>
-                                    {probE}%
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit' }}>
+                                    {probE}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countE})</span> : ''}
                                   </td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? 'var(--primary)' : 'inherit' }}>
-                                    {probV}%
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit' }}>
+                                    {probV}% {source === 'human' && totalVotes > 0 ? <span style={{ fontSize: '0.7rem', opacity: 0.75 }}>({countV})</span> : ''}
                                   </td>
                                 </tr>
                               );
