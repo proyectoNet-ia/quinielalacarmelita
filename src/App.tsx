@@ -10509,7 +10509,7 @@ Mis pronósticos son:
                       </div>
                     </div>
 
-                    {/* Controles de Configuración: Multiplicador, Estrategia y Bolsa en Grid Horizontal */}
+                    {/* Controles de Configuración: Multiplicador, Estrategia y Bolsa en 2 Columnas Balanceadas */}
                     <div style={{
                       background: 'rgba(0, 0, 0, 0.35)',
                       borderRadius: '8px',
@@ -10520,57 +10520,119 @@ Mis pronósticos son:
                       gap: '16px',
                       alignItems: 'start'
                     }}>
-                      {/* 1. Multiplicador de Bots por Humano */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
-                          🛡️ Multiplicador por Humano:
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            max="20"
-                            value={cloneMultiplierInput}
-                            onChange={(e) => setCloneMultiplierInput(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-                            className="input-field"
-                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '80px', color: '#10b981', textAlign: 'center' }}
-                          />
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {[1, 2, 3, 5, 10].map((num) => (
+                      {/* Columna 1: Multiplicador y Bolsa Estimada */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {/* 1. Multiplicador de Bots por Humano */}
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                            🛡️ Multiplicador por Humano:
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={cloneMultiplierInput}
+                              onChange={(e) => setCloneMultiplierInput(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                              className="input-field"
+                              style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '80px', color: '#10b981', textAlign: 'center' }}
+                            />
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {[1, 2, 3, 5, 10].map((num) => (
+                                <button
+                                  key={num}
+                                  type="button"
+                                  onClick={() => setCloneMultiplierInput(num)}
+                                  style={{
+                                    padding: '5px 8px',
+                                    fontSize: '0.74rem',
+                                    borderRadius: '4px',
+                                    background: cloneMultiplierInput === num ? '#10b981' : 'rgba(255,255,255,0.08)',
+                                    color: cloneMultiplierInput === num ? '#000' : '#fff',
+                                    border: cloneMultiplierInput === num ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  {num}x
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Bolsa Estimada Objetivo */}
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                            💰 Bolsa Estimada ($ MXN):
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                            <input
+                              type="number"
+                              min="500"
+                              step="500"
+                              value={targetPrizePoolInput}
+                              onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
+                              className="input-field"
+                              style={{ padding: '6px 8px', fontSize: '0.85rem', fontWeight: 'bold', width: '100px', color: '#eab308' }}
+                            />
+                            <div style={{ display: 'flex', gap: '4px' }}>
                               <button
-                                key={num}
                                 type="button"
-                                onClick={() => setCloneMultiplierInput(num)}
+                                onClick={() => setTargetPrizePoolInput(5000)}
                                 style={{
-                                  padding: '5px 8px',
-                                  fontSize: '0.74rem',
+                                  padding: '4px 6px',
+                                  fontSize: '0.7rem',
                                   borderRadius: '4px',
-                                  background: cloneMultiplierInput === num ? '#10b981' : 'rgba(255,255,255,0.08)',
-                                  color: cloneMultiplierInput === num ? '#000' : '#fff',
-                                  border: cloneMultiplierInput === num ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                  background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                  color: '#fff',
+                                  border: 'none',
                                   cursor: 'pointer',
-                                  fontWeight: 'bold',
-                                  transition: 'all 0.15s ease'
+                                  fontWeight: 'bold'
                                 }}
                               >
-                                {num}x
+                                $5K
                               </button>
-                            ))}
+                              <button
+                                type="button"
+                                onClick={() => setTargetPrizePoolInput(10000)}
+                                style={{
+                                  padding: '4px 6px',
+                                  fontSize: '0.7rem',
+                                  borderRadius: '4px',
+                                  background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                $10K
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.72rem', color: '#e2e8f0', background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: '4px', borderLeft: '2px solid rgba(16, 185, 129, 0.4)' }}>
+                            <div>🎯 Meta: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} q.</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
+                            <div style={{ marginTop: '2px', color: '#34d399' }}>
+                              📊 Actuales: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* 2. Selector de Estrategia de Variación */}
+                      {/* Columna 2: Selector de Estrategia de Variación */}
                       <div>
                         <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
                           🌿 Estrategia y Camuflaje:
                         </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <button
                             type="button"
                             onClick={() => setCloneStrategyInput('organic60_40')}
                             style={{
-                              padding: '8px 10px',
+                              padding: '10px 12px',
                               borderRadius: '6px',
                               background: cloneStrategyInput === 'organic60_40' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
                               border: cloneStrategyInput === 'organic60_40' ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
@@ -10579,13 +10641,14 @@ Mis pronósticos son:
                               textAlign: 'left',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '2px'
+                              gap: '3px',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            <span style={{ fontWeight: 'bold', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               🌿 Orgánica 60/40 + Desempates L/E/V
                             </span>
-                            <span style={{ fontSize: '0.68rem', opacity: 0.85, lineHeight: 1.25 }}>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.85, lineHeight: 1.3 }}>
                               60% idénticos P1-10, 40% con 1 variante + P11 rotado.
                             </span>
                           </button>
@@ -10594,7 +10657,7 @@ Mis pronósticos son:
                             type="button"
                             onClick={() => setCloneStrategyInput('exact100')}
                             style={{
-                              padding: '8px 10px',
+                              padding: '10px 12px',
                               borderRadius: '6px',
                               background: cloneStrategyInput === 'exact100' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
                               border: cloneStrategyInput === 'exact100' ? '1.5px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
@@ -10603,75 +10666,17 @@ Mis pronósticos son:
                               textAlign: 'left',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '2px'
+                              gap: '3px',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            <span style={{ fontWeight: 'bold', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               🎯 100% Clones Exactos
                             </span>
-                            <span style={{ fontSize: '0.68rem', opacity: 0.85, lineHeight: 1.25 }}>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.85, lineHeight: 1.3 }}>
                               Replicación exacta de pronósticos de clientes.
                             </span>
                           </button>
-                        </div>
-                      </div>
-
-                      {/* 3. Bolsa Estimada Objetivo */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
-                          💰 Bolsa Estimada ($ MXN):
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                          <input
-                            type="number"
-                            min="500"
-                            step="500"
-                            value={targetPrizePoolInput}
-                            onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
-                            className="input-field"
-                            style={{ padding: '6px 8px', fontSize: '0.85rem', fontWeight: 'bold', width: '100px', color: '#eab308' }}
-                          />
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setTargetPrizePoolInput(5000)}
-                              style={{
-                                padding: '4px 6px',
-                                fontSize: '0.7rem',
-                                borderRadius: '4px',
-                                background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              $5K
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTargetPrizePoolInput(10000)}
-                              style={{
-                                padding: '4px 6px',
-                                fontSize: '0.7rem',
-                                borderRadius: '4px',
-                                background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              $10K
-                            </button>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '0.72rem', color: '#e2e8f0', background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: '4px', borderLeft: '2px solid rgba(16, 185, 129, 0.4)' }}>
-                          <div>🎯 Meta: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} q.</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
-                          <div style={{ marginTop: '2px', color: '#34d399' }}>
-                            📊 Actuales: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
-                          </div>
                         </div>
                       </div>
                     </div>
