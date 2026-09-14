@@ -10175,20 +10175,20 @@ Mis pronósticos son:
                 <RotateCcw size={24} color="var(--primary)" /> Generador de Bots
               </h2>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <h3 style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ margin: 0, fontSize: '0.96rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold' }}>
                         <BarChart2 size={18} /> Tendencias de Clientes
                       </h3>
                       {humanPoolsCount > 0 ? (
-                        <span style={{ fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 5px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                          👥 {humanPoolsCount}
+                        <span style={{ fontSize: '0.72rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                          👥 {humanPoolsCount} participantes
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.68rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 5px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
-                          🎲 Momios
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(234, 179, 8, 0.2)', color: '#fbbf24', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
+                          🎲 Basado en Momios Oficiales
                         </span>
                       )}
                     </div>
@@ -10198,95 +10198,103 @@ Mis pronósticos son:
                       disabled={isRefreshingTendencies}
                       onClick={loadHumanTendencies}
                       style={{
-                        padding: '3px 8px',
-                        fontSize: '0.7rem',
+                        padding: '4px 10px',
+                        fontSize: '0.74rem',
                         fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '5px',
                         background: 'rgba(16, 185, 129, 0.15)',
                         color: '#10b981',
                         borderColor: 'rgba(16, 185, 129, 0.4)'
                       }}
                     >
-                      <RefreshCw size={11} className={isRefreshingTendencies ? 'animate-spin' : ''} />
-                      {isRefreshingTendencies ? '...' : 'Actualizar'}
+                      <RefreshCw size={12} className={isRefreshingTendencies ? 'animate-spin' : ''} />
+                      {isRefreshingTendencies ? '...' : 'Actualizar Tendencias'}
                     </button>
                   </div>
 
-                  {/* Matriz de Tendencias Ultra-Compacta con Logos (0 Scroll) */}
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '6px 8px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.08)'
-                  }}>
-                    <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                          <th style={{ width: '46%', padding: '4px 4px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
-                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
-                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
-                          <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {matches.map((m, i) => {
-                          const stat = humanTendencyStats[m.id] || (() => {
-                            const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
-                            return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
-                          })();
+                  {/* Matriz de Tendencias en 2 Sub-Columnas (P1-P6 y P7-P11) con Logos (0 Scroll) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+                    {[matches.slice(0, Math.ceil(matches.length / 2)), matches.slice(Math.ceil(matches.length / 2))].map((matchGroup, groupIdx) => {
+                      const offset = groupIdx === 0 ? 0 : Math.ceil(matches.length / 2);
+                      return (
+                        <div key={groupIdx} style={{
+                          background: 'rgba(0,0,0,0.3)',
+                          padding: '6px 8px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255,255,255,0.08)'
+                        }}>
+                          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ background: 'rgba(0,0,0,0.4)', textAlign: 'left', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <th style={{ width: '46%', padding: '4px 6px', fontSize: '0.72rem', fontWeight: 'bold' }}>Partido</th>
+                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Local</th>
+                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Empate</th>
+                                <th style={{ width: '18%', padding: '4px 2px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 'bold' }}>Visita</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {matchGroup.map((m, idxInGroup) => {
+                                const i = offset + idxInGroup;
+                                const stat = humanTendencyStats[m.id] || (() => {
+                                  const { probL, probE, probV } = getMatchProbabilities(m, oddsData);
+                                  return { probL, probE, probV, countL: 0, countE: 0, countV: 0, totalVotes: 0, source: 'odds' as const };
+                                })();
 
-                          const { probL, probE, probV } = stat;
-                          const maxP = Math.max(probL, probE, probV);
-                          const homeLogo = getTeamLogo(m, true);
-                          const awayLogo = getTeamLogo(m, false);
-                          const homeName = getTeamName(m, true);
-                          const awayName = getTeamName(m, false);
+                                const { probL, probE, probV } = stat;
+                                const maxP = Math.max(probL, probE, probV);
+                                const homeLogo = getTeamLogo(m, true);
+                                const awayLogo = getTeamLogo(m, false);
+                                const homeName = getTeamName(m, true);
+                                const awayName = getTeamName(m, false);
 
-                          return (
-                            <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
-                              <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                  <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '16px' }}>
-                                    P{i + 1}
-                                  </span>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
-                                    {homeLogo ? (
-                                      <img src={homeLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
-                                    ) : null}
-                                    <span style={{ fontSize: '0.7rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={homeName}>
-                                      {homeName.split(' ')[0]}
-                                    </span>
-                                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', flexShrink: 0 }}>v</span>
-                                    {awayLogo ? (
-                                      <img src={awayLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
-                                    ) : null}
-                                    <span style={{ fontSize: '0.7rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={awayName}>
-                                      {awayName.split(' ')[0]}
-                                    </span>
-                                  </div>
-                                  {m.is_reserve && (
-                                    <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
-                                      D
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                {probL}%
-                              </td>
-                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                {probE}%
-                              </td>
-                              <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
-                                {probV}%
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                return (
+                                  <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', height: '28px' }}>
+                                    <td style={{ padding: '3px 4px', overflow: 'hidden' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '0.66rem', fontWeight: 'bold', color: 'var(--text-secondary)', minWidth: '18px' }}>
+                                          P{i + 1}
+                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
+                                          {homeLogo ? (
+                                            <img src={homeLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
+                                          ) : null}
+                                          <span style={{ fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={homeName}>
+                                            {homeName.split(' ')[0]}
+                                          </span>
+                                          <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', flexShrink: 0 }}>v</span>
+                                          {awayLogo ? (
+                                            <img src={awayLogo} alt="" style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }} />
+                                          ) : null}
+                                          <span style={{ fontSize: '0.72rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }} title={awayName}>
+                                            {awayName.split(' ')[0]}
+                                          </span>
+                                        </div>
+                                        {m.is_reserve && (
+                                          <span style={{ fontSize: '0.52rem', background: '#eab308', color: '#000', padding: '1px 3px', borderRadius: '2px', fontWeight: 'bold', flexShrink: 0 }} title="Partido Extra de Desempate">
+                                            D
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probL === maxP ? 'bold' : 'normal', color: probL === maxP ? '#10b981' : 'inherit', background: probL === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                      {probL}%
+                                    </td>
+                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probE === maxP ? 'bold' : 'normal', color: probE === maxP ? '#10b981' : 'inherit', background: probE === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                      {probE}%
+                                    </td>
+                                    <td style={{ padding: '3px 2px', textAlign: 'center', fontWeight: probV === maxP ? 'bold' : 'normal', color: probV === maxP ? '#10b981' : 'inherit', background: probV === maxP ? 'rgba(16, 185, 129, 0.12)' : 'transparent', fontSize: '0.74rem' }}>
+                                      {probV}%
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -10336,20 +10344,21 @@ Mis pronósticos son:
                       </div>
                     </div>
 
-                    {/* Controles de Configuración: Multiplicador, Estrategia y Bolsa */}
+                    {/* Controles de Configuración: Multiplicador, Estrategia y Bolsa en Grid Horizontal */}
                     <div style={{
                       background: 'rgba(0, 0, 0, 0.35)',
                       borderRadius: '8px',
                       padding: '14px',
                       marginBottom: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '14px'
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '16px',
+                      alignItems: 'start'
                     }}>
                       {/* 1. Multiplicador de Bots por Humano */}
                       <div>
                         <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
-                          🛡️ Multiplicador de Bots por Participante Humano:
+                          🛡️ Multiplicador por Humano:
                         </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <input
@@ -10359,7 +10368,7 @@ Mis pronósticos son:
                             value={cloneMultiplierInput}
                             onChange={(e) => setCloneMultiplierInput(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
                             className="input-field"
-                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '90px', color: '#10b981', textAlign: 'center' }}
+                            style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '80px', color: '#10b981', textAlign: 'center' }}
                           />
                           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {[1, 2, 3, 5, 10].map((num) => (
@@ -10368,8 +10377,8 @@ Mis pronósticos son:
                                 type="button"
                                 onClick={() => setCloneMultiplierInput(num)}
                                 style={{
-                                  padding: '5px 10px',
-                                  fontSize: '0.75rem',
+                                  padding: '5px 8px',
+                                  fontSize: '0.74rem',
                                   borderRadius: '4px',
                                   background: cloneMultiplierInput === num ? '#10b981' : 'rgba(255,255,255,0.08)',
                                   color: cloneMultiplierInput === num ? '#000' : '#fff',
@@ -10389,14 +10398,14 @@ Mis pronósticos son:
                       {/* 2. Selector de Estrategia de Variación */}
                       <div>
                         <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
-                          🌿 Estrategia de Pronósticos y Camuflaje:
+                          🌿 Estrategia y Camuflaje:
                         </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <button
                             type="button"
                             onClick={() => setCloneStrategyInput('organic60_40')}
                             style={{
-                              padding: '10px 12px',
+                              padding: '8px 10px',
                               borderRadius: '6px',
                               background: cloneStrategyInput === 'organic60_40' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
                               border: cloneStrategyInput === 'organic60_40' ? '1.5px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
@@ -10405,14 +10414,14 @@ Mis pronósticos son:
                               textAlign: 'left',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '3px'
+                              gap: '2px'
                             }}
                           >
-                            <span style={{ fontWeight: 'bold', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               🌿 Orgánica 60/40 + Desempates L/E/V
                             </span>
-                            <span style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: 1.3 }}>
-                              60% idénticos del P1 al P10 (aseguran 1° lugar), 40% con 1 variante sutil + Partido 11 rotado cíclicamente (L, E, V).
+                            <span style={{ fontSize: '0.68rem', opacity: 0.85, lineHeight: 1.25 }}>
+                              60% idénticos P1-10, 40% con 1 variante + P11 rotado.
                             </span>
                           </button>
 
@@ -10420,7 +10429,7 @@ Mis pronósticos son:
                             type="button"
                             onClick={() => setCloneStrategyInput('exact100')}
                             style={{
-                              padding: '10px 12px',
+                              padding: '8px 10px',
                               borderRadius: '6px',
                               background: cloneStrategyInput === 'exact100' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
                               border: cloneStrategyInput === 'exact100' ? '1.5px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
@@ -10429,76 +10438,74 @@ Mis pronósticos son:
                               textAlign: 'left',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: '3px'
+                              gap: '2px'
                             }}
                           >
-                            <span style={{ fontWeight: 'bold', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               🎯 100% Clones Exactos
                             </span>
-                            <span style={{ fontSize: '0.72rem', opacity: 0.85, lineHeight: 1.3 }}>
-                              Todos los bots replican exactamente todos los pronósticos del humano sin ninguna variación.
+                            <span style={{ fontSize: '0.68rem', opacity: 0.85, lineHeight: 1.25 }}>
+                              Replicación exacta de pronósticos de clientes.
                             </span>
                           </button>
                         </div>
                       </div>
 
                       {/* 3. Bolsa Estimada Objetivo */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                            💰 Bolsa Estimada Objetivo ($ MXN):
-                          </label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <input
-                              type="number"
-                              min="500"
-                              step="500"
-                              value={targetPrizePoolInput}
-                              onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
-                              className="input-field"
-                              style={{ padding: '6px 10px', fontSize: '0.9rem', fontWeight: 'bold', width: '120px', color: '#eab308' }}
-                            />
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button
-                                type="button"
-                                onClick={() => setTargetPrizePoolInput(5000)}
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.72rem',
-                                  borderRadius: '4px',
-                                  background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                $5,000
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTargetPrizePoolInput(10000)}
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '0.72rem',
-                                  borderRadius: '4px',
-                                  background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                $10,000
-                              </button>
-                            </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>
+                          💰 Bolsa Estimada ($ MXN):
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                          <input
+                            type="number"
+                            min="500"
+                            step="500"
+                            value={targetPrizePoolInput}
+                            onChange={(e) => setTargetPrizePoolInput(Math.max(0, Number(e.target.value) || 0))}
+                            className="input-field"
+                            style={{ padding: '6px 8px', fontSize: '0.85rem', fontWeight: 'bold', width: '100px', color: '#eab308' }}
+                          />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setTargetPrizePoolInput(5000)}
+                              style={{
+                                padding: '4px 6px',
+                                fontSize: '0.7rem',
+                                borderRadius: '4px',
+                                background: targetPrizePoolInput === 5000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              $5K
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTargetPrizePoolInput(10000)}
+                              style={{
+                                padding: '4px 6px',
+                                fontSize: '0.7rem',
+                                borderRadius: '4px',
+                                background: targetPrizePoolInput === 10000 ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              $10K
+                            </button>
                           </div>
                         </div>
 
-                        <div style={{ fontSize: '0.78rem', color: '#e2e8f0', borderLeft: '2px solid rgba(16, 185, 129, 0.4)', paddingLeft: '10px' }}>
-                          <div>🎯 Meta Mínima: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} quinielas</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
+                        <div style={{ fontSize: '0.72rem', color: '#e2e8f0', background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: '4px', borderLeft: '2px solid rgba(16, 185, 129, 0.4)' }}>
+                          <div>🎯 Meta: <strong>{Math.ceil(targetPrizePoolInput / (activeMatchday?.price_per_entry || 25))} q.</strong> (${activeMatchday?.price_per_entry || 25} c/u)</div>
                           <div style={{ marginTop: '2px', color: '#34d399' }}>
-                            📊 Actuales en jornada: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
+                            📊 Actuales: <strong>{approvedPoolsCount}</strong> (${(approvedPoolsCount * (activeMatchday?.price_per_entry || 25)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN)
                           </div>
                         </div>
                       </div>
